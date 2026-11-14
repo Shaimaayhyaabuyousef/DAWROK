@@ -1,0 +1,360 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'facility_add_queue_sheet.dart';
+import 'facility_queue_store.dart';
+import 'facility_nav.dart';
+
+const _primary = Color(0xFF4FAAF3);
+const _brightBlue = Color(0xFF069FEA);
+const _dark = Color(0xFF222E43);
+const _muted = Color(0xFF92A4BE);
+const _border = Color(0xFFD9EEFC);
+
+/// Facility-side queue management. Navigation index 1 in the facility tab bar.
+class FacilityQueuesScreen extends StatelessWidget {
+  final ValueChanged<int>? onNavigationTap;
+  const FacilityQueuesScreen({super.key, this.onNavigationTap});
+
+  Future<void> _openAdd(BuildContext context) async {
+    final draft = await showFacilityAddQueueSheet(context);
+    if (draft == null || !context.mounted) return;
+    FacilityQueueStore.instance.create(draft);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Queue created successfully')),
+    );
+  }
+
+  Future<void> _edit(BuildContext context, FacilityQueue queue) async {
+    final draft = await showFacilityAddQueueSheet(context, editing: queue);
+    if (draft == null || !context.mounted) return;
+    FacilityQueueStore.instance.update(queue.windowNumber, draft);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Queue updated')),
+    );
+  }
+
+  Future<void> _delete(BuildContext context, FacilityQueue queue) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete queue?'),
+        content: Text('Remove Window #${queue.windowNumber.toString().padLeft(2, '0')}? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFE72B50))),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    FacilityQueueStore.instance.delete(queue.windowNumber);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Queue deleted')),
+    );
+  }
+
+  void _tab(BuildContext context, int index) {
+    if (index == 1) return;
+    if (onNavigationTap != null) {
+      onNavigationTap!(index);
+      return;
+    }
+    if (index == 0) {
+      Navigator.pushReplacementNamed(context, 'facility_home_screen');
+      return;
+    }
+    goToFacilityTab(context, index, 1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = FacilityQueueStore.instance;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          bottom: false,
+          child: AnimatedBuilder(
+            animation: store,
+            builder: (context, _) => SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 47, bottom: 22),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 354),
+                  child: LayoutBuilder(
+                    builder: (context, c) {
+                      final innerWidth = c.maxWidth;
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: innerWidth >= 340 ? 25 : 14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _statistics(store),
+                            const SizedBox(height: 16),
+                            for (final queue in store.queues) ...[
+                              _queueCard(context, queue),
+                              const SizedBox(height: 10),
+                            ],
+                            const SizedBox(height: 45),
+                            _addButton(context),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        bottomNavigationBar: _bottomNav(context),
+      ),
+    );
+  }
+
+  Widget _statistics(FacilityQueueStore store) {
+    return Container(
+      height: 61,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1FAFF),
+        border: Border.all(color: _border),
+        borderRadius: BorderRadius.circular(13),
+        boxShadow: const [BoxShadow(color: Color(0x0D39719A), blurRadius: 4, offset: Offset(0, 2))],
+      ),
+      child: Row(
+        children: [
+          _stat('TOTAL QUEUES', store.totalQueues.toString().padLeft(2, '0'), _dark),
+          Container(height: 39, width: 1, color: _border),
+          _stat('IN WAITING', '${store.totalWaiting}', const Color(0xFFE48A00)),
+          Container(height: 39, width: 1, color: _border),
+          _stat('AVG WAIT', '~${store.averageWaitMinutes}m', const Color(0xFF00A07B)),
+        ],
+      ),
+    );
+  }
+
+  Widget _stat(String label, String value, Color valueColor) {
+    return Expanded(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _muted)),
+          ),
+          const SizedBox(height: 5),
+          Text(value, style: TextStyle(color: valueColor, fontSize: 15.5, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+
+  Widget _queueCard(BuildContext context, FacilityQueue queue) {
+    final active = queue.isActive;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 21),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: _border),
+        boxShadow: const [BoxShadow(color: Color(0x09296DA4), blurRadius: 10, offset: Offset(0, 5))],
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 85,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: active ? const Color(0xFFD5FAE7) : const Color(0xFFFFF4E5),
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(radius: 3, backgroundColor: active ? const Color(0xFF0EBC85) : const Color(0xFFFFAE32)),
+                            const SizedBox(width: 7),
+                            Text(active ? 'Active' : 'Stopped',
+                              style: TextStyle(color: active ? const Color(0xFF008A68) : const Color(0xFFFF9917), fontWeight: FontWeight.w600, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      Text('Window #${queue.windowNumber.toString().padLeft(2, '0')}',
+                        style: const TextStyle(color: _muted, fontSize: 12)),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: 72,
+                  width: 109,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5F5FF),
+                    border: Border.all(color: const Color(0xFFB6E3FF)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.card_giftcard_rounded, color: Color(0xFF008EDE), size: 15),
+                      const SizedBox(height: 5),
+                      const Text('COUNTER', style: TextStyle(color: Color(0xFF006FAE), fontSize: 10, fontWeight: FontWeight.w700)),
+                      Text(queue.counter, style: const TextStyle(color: Color(0xFF006FAE), fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Color(0xFFEBF0F5), height: 9),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                const Icon(Icons.groups_outlined, size: 14, color: _brightBlue),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text('${queue.beneficiaries} Beneficiaries in queue',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFF35445C), fontSize: 11.5)),
+                ),
+                const SizedBox(width: 5),
+                Text('~${queue.waitingMinutes} min wait',
+                  style: const TextStyle(color: Color(0xFF008DE2), fontSize: 11, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          const Divider(color: Color(0xFFEBF0F5), height: 1),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(child: _actionButton('Delete', Icons.delete_outline_rounded, const Color(0xFFE71E49), const Color(0xFFFFF1F2), () => _delete(context, queue))),
+              const SizedBox(width: 6),
+              Expanded(child: _actionButton('Edit', Icons.edit_square, Colors.white, const Color(0xFF354258), () => _edit(context, queue))),
+              const SizedBox(width: 6),
+              Expanded(child: _actionButton(active ? 'Deactivate' : 'activation', null, const Color(0xFFFF9000), const Color(0xFFFFDEAF), () {
+                FacilityQueueStore.instance.setActive(queue.windowNumber, !active);
+              })),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton(String label, IconData? icon, Color color, Color background, VoidCallback pressed) {
+    return SizedBox(
+      height: 30,
+      child: ElevatedButton(
+        onPressed: pressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: background,
+          foregroundColor: color,
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 15),
+                const SizedBox(width: 5),
+              ],
+              Text(label, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _addButton(BuildContext context) {
+    return SizedBox(
+      height: 53,
+      child: ElevatedButton.icon(
+        onPressed: () => _openAdd(context),
+        icon: Container(
+          height: 26,
+          width: 26,
+          decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0x556DBEFF)),
+          child: const Icon(Icons.add, size: 22),
+        ),
+        label: const Text('Add Queue', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _primary,
+          foregroundColor: Colors.white,
+          elevation: 10,
+          shadowColor: const Color(0x4545BAF3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomNav(BuildContext context) {
+    const icons = <IconData>[
+      Icons.bar_chart_rounded,
+      Icons.receipt_long_outlined,
+      Icons.groups_outlined,
+      Icons.search_rounded,
+      Icons.account_circle_outlined,
+    ];
+    const labels = ['Home', 'Queues', 'Customers', 'Search', 'Profile'];
+    return SafeArea(
+      top: false,
+      child: Container(
+        height: 65,
+        color: Colors.white,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: List.generate(icons.length, (index) {
+            final selected = index == 1;
+            return Semantics(
+              button: true,
+              label: labels[index],
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => _tab(context, index),
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Center(
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: selected ? const Color(0xFF65B8F8) : null,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Icon(
+                        icons[index],
+                        color: selected ? Colors.white : const Color(0xFF68B8F8),
+                        size: 27,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+}

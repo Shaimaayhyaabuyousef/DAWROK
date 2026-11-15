@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/employee_access_service.dart';
 
@@ -116,54 +117,183 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     ),
   );
 
-  @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: false,
-    child: Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(child: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(26, 20, 26, 35),
-          child: Form(key: _form, child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 19),
-              CircleAvatar(
-                radius: 46, backgroundColor: const Color(0xFFE8F6FF),
-                child: const Icon(Icons.person_outline, color: _blue, size: 55)),
-              const SizedBox(height: 20),
-              const Text('Complete Your Profile',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: _dark, fontWeight: FontWeight.w700, fontSize: 27)),
-              const SizedBox(height: 10),
-              const Text('Your facility approved your account. Please complete all employee information before starting work.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF8195AC), height: 1.5, fontSize: 13)),
-              const SizedBox(height: 34),
-              _field(_fullName, 'Full Name', Icons.badge_outlined),
-              _field(_phone, 'Phone Number', Icons.phone_outlined,
-                keyboard: TextInputType.phone, minLength: 8),
-              _field(_address, 'Address', Icons.location_on_outlined),
-              _field(_emergencyPhone, 'Emergency Phone', Icons.contact_phone_outlined,
-                keyboard: TextInputType.phone, minLength: 8),
-              const SizedBox(height: 17),
-              SizedBox(height: 54, child: ElevatedButton(
-                onPressed: _saving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _blue, foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                child: _saving
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Save & Start Working',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)))),
-              const SizedBox(height: 14),
-              const Text('This step is required on your first approved sign-in.',
-                textAlign: TextAlign.center, style: TextStyle(
-                  fontSize: 12, color: Color(0xFF93A3B8))),
-            ],
-          )),
-        )),
+  Widget _profileCard({
+    required String label,
+    required Widget child,
+    String? badge,
+    Color badgeColor = _blue,
+  }) => Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: const Color(0xFFD2EDFD)),
+      borderRadius: BorderRadius.circular(17),
+      boxShadow: const [BoxShadow(
+        color: Color(0x09062E4F),
+        blurRadius: 5, offset: Offset(0, 3)),
+      ],
     ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(child: Text(label, style: const TextStyle(
+          color: Color(0xFF3A4B62),
+          fontSize: 15, fontWeight: FontWeight.w700))),
+        if (badge != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F9FE),
+              borderRadius: BorderRadius.circular(8)),
+            child: Text(badge, style: TextStyle(
+              color: badgeColor, fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+      ]),
+      const SizedBox(height: 12),
+      child,
+    ]),
   );
+
+  Widget _valueInput(
+    TextEditingController controller,
+    String placeholder, {
+    IconData? icon,
+    TextInputType? keyboard,
+    bool required = true,
+  }) => TextFormField(
+    controller: controller,
+    keyboardType: keyboard,
+    decoration: InputDecoration(
+      prefixIcon: icon == null ? null : Icon(icon, color: _blue, size: 21),
+      hintText: placeholder,
+      hintStyle: const TextStyle(color: Color(0xFF9EACC0)),
+      border: const UnderlineInputBorder(
+        borderSide: BorderSide(color: Color(0xFF64C8FC))),
+      enabledBorder: const UnderlineInputBorder(
+        borderSide: BorderSide(color: Color(0xFFDAE6F3))),
+      focusedBorder: const UnderlineInputBorder(
+        borderSide: BorderSide(color: _blue, width: 2)),
+    ),
+    validator: (value) {
+      final text = (value ?? '').trim();
+      if (required && text.length < 3) return 'Enter a valid $placeholder';
+      if (keyboard == TextInputType.phone &&
+          !RegExp(r'^\+?[0-9\s-]{8,20}$').hasMatch(text)) {
+        return 'Enter a valid phone number';
+      }
+      return null;
+    },
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(26, 19, 26, 33),
+            child: Form(key: _form, child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(alignment: Alignment.topRight, child: IconButton(
+                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Save your profile to continue.'))),
+                  icon: const Icon(Icons.settings_outlined,
+                    color: Color(0xFF65768F), size: 26))),
+                const SizedBox(height: 32),
+                Align(alignment: Alignment.center, child: Stack(children: [
+                  CircleAvatar(
+                    radius: 71,
+                    backgroundColor: const Color(0xFFB3E8FD),
+                    child: const CircleAvatar(
+                      radius: 68,
+                      backgroundColor: Color(0xFFF0FAFF),
+                      child: Icon(Icons.person_outline,
+                        size: 81, color: _blue))),
+                  Positioned(bottom: 0, right: 0, child: Container(
+                    width: 37, height: 37,
+                    decoration: BoxDecoration(
+                      color: _blue, shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2)),
+                    child: const Icon(Icons.edit_outlined,
+                      color: Colors.white, size: 20))),
+                ])),
+                const SizedBox(height: 32),
+                _profileCard(
+                  label: 'Name Of Staff',
+                  badge: 'Required',
+                  child: _valueInput(_fullName, 'Full Name'),
+                ),
+                StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
+                  stream: uid == null ? const Stream.empty() :
+                    FirebaseFirestore.instance.collection('staff_memberships')
+                        .doc(uid).snapshots(),
+                  builder: (context, membership) => _profileCard(
+                    label: 'ID',
+                    badge: '✓ Registered',
+                    badgeColor: const Color(0xFF00A678),
+                    child: Row(children: [
+                      const Icon(Icons.badge_outlined, color: _blue),
+                      const SizedBox(width: 9),
+                      Expanded(child: Text(
+                        membership.data?.data()?['staffId'] as String? ?? '—',
+                        style: const TextStyle(color: _dark, fontSize: 18))),
+                      TextButton.icon(
+                        onPressed: () async {
+                          final id = membership.data?.data()?['staffId'] as String?;
+                          if (id == null) return;
+                          await Clipboard.setData(ClipboardData(text: id));
+                          if (context.mounted) ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(content: Text('Copied')));
+                        },
+                        icon: const Icon(Icons.copy_outlined, size: 16),
+                        label: const Text('Copy'),
+                      ),
+                    ]),
+                  ),
+                ),
+                _profileCard(
+                  label: 'Phone',
+                  child: _valueInput(_phone, 'Phone Number',
+                    icon: Icons.phone_outlined, keyboard: TextInputType.phone),
+                ),
+                _profileCard(
+                  label: 'Address',
+                  child: _valueInput(_address, 'Address',
+                    icon: Icons.location_on_outlined),
+                ),
+                _profileCard(
+                  label: 'Emergency Phone',
+                  child: _valueInput(_emergencyPhone, 'Emergency Phone',
+                    icon: Icons.contact_phone_outlined,
+                    keyboard: TextInputType.phone),
+                ),
+                const SizedBox(height: 3),
+                SizedBox(height: 54, child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(13)),
+                  ),
+                  child: _saving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Save Changes', style: TextStyle(
+                      fontSize: 19, fontWeight: FontWeight.w700)),
+                )),
+                const SizedBox(height: 23),
+              ],
+            )),
+          ),
+        ),
+      ),
+    );
+  }
 }

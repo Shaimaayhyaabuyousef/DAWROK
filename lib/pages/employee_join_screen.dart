@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'employee_login_screen.dart';
+import 'employee_register_screen.dart';
 
 const _blue = Color(0xFF03A9F4);
 const _ink = Color(0xFF243149);
@@ -40,7 +41,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => EmployeeLoginScreen(
+        builder: (_) => EmployeeRegisterScreen(
           facilityId: _facility.text.trim(),
           invitationCode: _code.text.trim(),
           contactPhone: _phone.text.trim(),

@@ -16,6 +16,7 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   String? passcode;
   DateTime? expiresAt;
   bool _working = false;
+  FacilityStaff? _createdMember;
   @override void initState() {
     super.initState();
     name = TextEditingController(text: widget.editing?.name ?? '');
@@ -28,23 +29,25 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
     if (_working || !_formKey.currentState!.validate()) return;
     setState(() => _working = true);
     try {
-      if (widget.editing == null) {
+      final currentMember = widget.editing ?? _createdMember;
+      if (currentMember == null) {
         final result = await FacilityStaffStore.instance.add(
           name: name.text.trim(), nationalId: id.text.trim(),
           window: station.text.trim(), role: role);
         if (!mounted) return;
         setState(() {
+          _createdMember = result.member;
           passcode = result.code;
           expiresAt = result.expiresAt;
         });
       } else {
-        await FacilityStaffStore.instance.update(widget.editing!,
+        await FacilityStaffStore.instance.update(currentMember,
           name: name.text.trim(), nationalId: id.text.trim(),
           window: station.text.trim(), role: role);
         // A previously approved employee remains approved; editing their
         // details must not create an unrelated invitation.
-        if (widget.editing!.joinStatus != 'approved') {
-          final result = await FacilityStaffStore.instance.replaceInvite(widget.editing!);
+        if (currentMember.joinStatus != 'approved') {
+          final result = await FacilityStaffStore.instance.replaceInvite(currentMember);
           if (!mounted) return;
           setState(() {
             passcode = result.code;

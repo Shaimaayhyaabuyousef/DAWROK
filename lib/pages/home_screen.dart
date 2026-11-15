@@ -1,5 +1,8 @@
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'queue_booking.dart';
 import 'facilities_screen.dart';
 import 'active_queues_screen.dart';
 
@@ -12,6 +15,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    QueueBookingStore.instance.addListener(_refresh);
+  }
+  void _refresh() { if (mounted) setState(() {}); }
+  @override
+  void dispose() {
+    QueueBookingStore.instance.removeListener(_refresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               "Welcome back,",
                               style: TextStyle(color: Colors.grey[600]),
                             ),
-                            const Text(
-                              "Good morning, Citizen",
+                            Text(
+                              "Good morning, ${FirebaseAuth.instance.currentUser?.displayName ?? 'Citizen'}",
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -78,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Icon(Icons.star,
                                 color: Colors.orange, size: 16),
                             SizedBox(width: 4),
-                            Text("1,250 Pts"),
+                            Text("0 Pts"),
                           ],
                         ),
                       ),
@@ -168,37 +182,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 15),
 
-                // ------- Facility icons row -------
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    facilityIcon(
-                      Icons.business,
-                      "Al-Nasr",
-                      "Food & Bread",
-                      selected: true,
-                    ),
-                    facilityIcon(
-                      Icons.favorite_border,
-                      "Relief Hub",
-                      "Medical",
-                    ),
-                    facilityIcon(
-                      Icons.home_outlined,
-                      "Cent. Bakery",
-                      "Flour Rations",
-                    ),
-                    facilityIcon(
-                      Icons.inventory_2_outlined,
-                      "Hope Depot",
-                      "Emerg. Kits",
-                    ),
-                  ],
+                // Live directory, empty until administrator provisions facilities.
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance.collection('facilities')
+                      .where('isActive', isEqualTo: true).snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) return const Text('Could not load facilities.');
+                    if (!snapshot.hasData) return const LinearProgressIndicator();
+                    final items = snapshot.data!.docs.take(4).toList();
+                    if (items.isEmpty) return const Text('No facilities available yet.');
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(children: [
+                        for (final doc in items) ...[
+                          SizedBox(width: 88, child: facilityIcon(
+                            Icons.business_outlined,
+                            doc.data()['name'] as String? ?? '',
+                            doc.data()['categoryId'] as String? ?? '',
+                          )),
+                          const SizedBox(width: 8),
+                        ],
+                      ]),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 25),
 
                 // ------- Active reservation card -------
+                if (QueueBookingStore.instance.bookings.isNotEmpty)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -240,15 +252,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Text("10:15 AM"),
+                            child: Text(QueueBookingStore.instance.bookings.first.scheduledTime ?? 'Today'),
                           ),
                         ],
                       ),
 
                       const SizedBox(height: 15),
 
-                      const Text(
-                        "Bread & Ration Supply",
+                      Text(
+                        QueueBookingStore.instance.bookings.first.facilityName,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -256,8 +268,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
-                      const Text(
-                        "Ticket #DK-8492 • Family Bakery",
+                      Text(
+                        "Ticket #${QueueBookingStore.instance.bookings.first.ticketNumber}",
                         style: TextStyle(color: Colors.white),
                       ),
 
@@ -280,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               SizedBox(width: 6),
                               Text(
-                                "2 citizens ahead • Ready",
+                                "View ticket details",
                                 style: TextStyle(color: Colors.white),
                               ),
                             ],
@@ -323,24 +335,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 15),
 
-                // ------- Facility card 1 -------
-                facilityCard(
-                  openNow: true,
-                  title: "Family Bakery - Daily Bread Dispensing",
-                  description:
-                      "Subsidized wheat pita quotas for registered households. Please present digital QR at entry...",
-                  wait: "~15 mins",
-                ),
-
-                const SizedBox(height: 15),
-
-                // ------- Facility card 2 -------
-                facilityCard(
-                  openNow: false,
-                  title: "North Community - Baby Care Kits",
-                  description:
-                      "Infant milk formulas, sanitizers, and newborn diapers for registered mothers and guardians.",
-                  wait: "~10 mins",
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance.collection('facilities')
+                    .where('isActive', isEqualTo: true).snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) return const Text('Could not load facilities.');
+                    if (!snapshot.hasData) return const LinearProgressIndicator();
+                    final docs = snapshot.data!.docs;
+                    if (docs.isEmpty) return const Text('No facilities available yet.');
+                    return Column(children: [
+                      for (final doc in docs.take(4)) ...[
+                        facilityCard(
+                          openNow: doc.data()['isOnline'] == true,
+                          title: doc.data()['name'] as String? ?? '',
+                          description: doc.data()['address'] as String? ?? '',
+                          wait: 'See queues',
+                        ),
+                        const SizedBox(height: 15),
+                      ],
+                    ]);
+                  },
                 ),
               ],
             ),

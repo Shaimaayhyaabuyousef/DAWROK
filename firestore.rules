@@ -1,0 +1,349 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+    function citizen() {
+      return signedIn() && userDoc(request.auth.uid).role == 'citizen';
+    }
+    function facilityOwner(fid) {
+      return signedIn()
+        && userDoc(request.auth.uid).role == 'facility'
+        && userDoc(request.auth.uid).status == 'active'
+        && userDoc(request.auth.uid).facilityId == fid
+        && get(/databases/$(database)/documents/facilities/$(fid)).data.ownerUid == request.auth.uid
+        && get(/databases/$(database)/documents/facilities/$(fid)).data.isActive == true;
+    }
+    function facilityPublished(fid) {
+      return get(/databases/$(database)/documents/facilities/$(fid)).data.isActive == true
+        && get(/databases/$(database)/documents/facilities/$(fid)).data.isOnline == true;
+    }
+    function pad2(n) { return n < 10 ? '0' + string(n) : string(n); }
+    function dayKey(t) {
+      return string(t.year()) + pad2(t.month()) + pad2(t.day());
+    }
+    function slotKey(t) { return pad2(t.hours()) + pad2(t.minutes()); }
+    function guardPath(uid, day) {
+      return /databases/$(database)/documents/users/$(uid)/booking_days/$(day);
+    }
+    function queuePath(fid, qid) {
+      return /databases/$(database)/documents/facilities/$(fid)/queues/$(qid);
+    }
+    function capPath(fid, qid, day) {
+      return /databases/$(database)/documents/facilities/$(fid)/queues/$(qid)/days/$(day);
+    }
+    function bookingPath(id) {
+      return /databases/$(database)/documents/bookings/$(id);
+    }
+
+    match /users/{uid} {
+      allow get: if isSelf(uid);
+      allow list: if false;
+      allow create: if isSelf(uid)
+        && (!('role' in request.auth.token) || request.auth.token.role == 'citizen')
+        && request.resource.data.keys().hasOnly([
+          'uid','role','displayName','email','phone','address',
+          'photoUrl','providers','createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'uid','role','displayName','email','photoUrl','providers','createdAt'
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.role == 'citizen'
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 120
+        && request.resource.data.email is string
+        && request.resource.data.get('phone','') is string
+        && request.resource.data.get('phone','').size() <= 24
+        && request.resource.data.get('address','') is string
+        && request.resource.data.get('address','').size() <= 200
+        && request.resource.data.photoUrl is string
+        && request.resource.data.providers is list
+        && request.resource.data.createdAt == request.time;
+      allow update: if isSelf(uid)
+        && resource.data.role == 'citizen'
+        && request.resource.data.role == 'citizen'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName','phone','address'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 120
+        && request.resource.data.get('phone','') is string
+        && request.resource.data.get('phone','').size() <= 24
+        && request.resource.data.get('address','') is string
+        && request.resource.data.get('address','').size() <= 200;
+      allow delete: if false;
+
+      match /booking_days/{day} {
+        allow get: if isSelf(uid);
+        allow list, delete: if false;
+        allow create: if isSelf(uid) && citizen()
+          && day.matches('^[0-9]{8}$')
+          && request.resource.data.keys().hasOnly(['uid','queues','slots','updatedAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.queues is map
+          && request.resource.data.slots is map
+          && request.resource.data.queues.keys().size() == 1
+          && request.resource.data.slots.keys().size() == 1
+          && request.resource.data.updatedAt == request.time;
+        allow update: if isSelf(uid) && citizen()
+          && request.resource.data.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['queues','slots','updatedAt'])
+          && request.resource.data.queues is map
+          && request.resource.data.slots is map
+          && request.resource.data.queues.diff(resource.data.queues).addedKeys().size() == 1
+          && request.resource.data.queues.diff(resource.data.queues).removedKeys().size() == 0
+          && request.resource.data.queues.diff(resource.data.queues).changedKeys().size() == 0
+          && request.resource.data.slots.diff(resource.data.slots).addedKeys().size() == 1
+          && request.resource.data.slots.diff(resource.data.slots).removedKeys().size() == 0
+          && request.resource.data.slots.diff(resource.data.slots).changedKeys().size() == 0
+          && request.resource.data.updatedAt == request.time;
+      }
+    }
+
+    match /citizen_identity/{uid} {
+      allow get: if isSelf(uid);
+      allow list, update, delete: if false;
+      allow create: if isSelf(uid)
+        && getAfter(/databases/$(database)/documents/users/$(uid)).data.role == 'citizen'
+        && request.resource.data.keys().hasOnly(['userId','nationalId','status','createdAt'])
+        && request.resource.data.userId == uid
+        && request.resource.data.nationalId is string
+        && request.resource.data.nationalId.matches('^[0-9]{9}$')
+        && request.resource.data.status == 'self_reported'
+        && request.resource.data.createdAt == request.time;
+    }
+    match /demo_identity_checks/{uid} {
+      allow get: if isSelf(uid);
+      allow list, update, delete: if false;
+      allow create: if isSelf(uid)
+        && getAfter(/databases/$(database)/documents/users/$(uid)).data.role == 'citizen'
+        && request.resource.data.keys().hasOnly(['userId','mode','status','submittedAt'])
+        && request.resource.data.userId == uid
+        && request.resource.data.mode == 'demo_only'
+        && request.resource.data.status == 'demo_ready'
+        && request.resource.data.submittedAt == request.time;
+    }
+    match /identity_verifications/{uid} {
+      allow get: if isSelf(uid);
+      allow list, create, update, delete: if false;
+    }
+
+    // Admin SDK creates categories and facility accounts. There is NO
+    // client-side admin elevation or facility self-registration.
+    match /facility_categories/{categoryId} {
+      allow get, list: if resource.data.isActive == true;
+      allow create, update, delete: if false;
+    }
+
+    match /facilities/{fid} {
+      allow get, list: if resource.data.isActive == true
+        || (signedIn() && facilityOwner(fid));
+      allow create, delete: if false;
+      allow update: if facilityOwner(fid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name','phone','address','isOnline','nextWindowNumber'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.get('phone','') is string
+        && request.resource.data.get('phone','').size() <= 24
+        && request.resource.data.get('address','') is string
+        && request.resource.data.get('address','').size() <= 200
+        && request.resource.data.get('isOnline',false) is bool
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['nextWindowNumber'])
+          || request.resource.data.nextWindowNumber ==
+            resource.data.get('nextWindowNumber',0) + 1
+        );
+
+      match /queues/{qid} {
+        allow get, list: if facilityOwner(fid)
+          || (resource.data.isActive == true && resource.data.archived == false
+            && facilityPublished(fid));
+        allow create: if facilityOwner(fid)
+          && request.resource.data.keys().hasOnly([
+            'windowNumber','service','counter','capacity','waitingCount',
+            'waitingMinutes','shift','startsAtMinutes','endsAtMinutes',
+            'isActive','archived','createdAt'
+          ])
+          && qid == 'window_' + string(request.resource.data.windowNumber)
+          && request.resource.data.windowNumber is int
+          && request.resource.data.service is string
+          && request.resource.data.service.size() > 0
+          && request.resource.data.capacity is int
+          && request.resource.data.capacity > 0
+          && request.resource.data.capacity <= 10000
+          && request.resource.data.waitingCount == 0
+          && request.resource.data.waitingMinutes is int
+          && request.resource.data.shift in ['morning','evening']
+          && request.resource.data.startsAtMinutes is int
+          && request.resource.data.endsAtMinutes is int
+          && request.resource.data.startsAtMinutes >= 0
+          && request.resource.data.endsAtMinutes <= 1440
+          && request.resource.data.endsAtMinutes > request.resource.data.startsAtMinutes
+          && request.resource.data.isActive == false
+          && request.resource.data.archived == false
+          && request.resource.data.createdAt == request.time;
+        allow update: if facilityOwner(fid)
+          && resource.data.archived == false
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['service','capacity','waitingMinutes','shift',
+              'startsAtMinutes','endsAtMinutes','isActive','archived'])
+          && request.resource.data.service is string
+          && request.resource.data.service.size() > 0
+          && request.resource.data.capacity is int
+          && request.resource.data.capacity > 0
+          && request.resource.data.waitingMinutes is int
+          && request.resource.data.startsAtMinutes is int
+          && request.resource.data.endsAtMinutes is int
+          && request.resource.data.startsAtMinutes >= 0
+          && request.resource.data.endsAtMinutes <= 1440
+          && request.resource.data.endsAtMinutes > request.resource.data.startsAtMinutes
+          && request.resource.data.isActive is bool
+          && request.resource.data.archived is bool
+          && (!request.resource.data.archived || !request.resource.data.isActive);
+        allow delete: if false;
+
+        match /days/{day} {
+          allow get: if facilityOwner(fid) || citizen();
+          allow list, delete: if false;
+          allow create: if citizen()
+            && day.matches('^[0-9]{8}$')
+            && request.resource.data.keys().hasOnly(
+              ['reserved','lastBookingId','updatedAt'])
+            && request.resource.data.reserved == 1
+            && request.resource.data.updatedAt == request.time
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.createdAt == request.time
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.dayKey == day
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.facilityId == fid
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.queueId == qid;
+          allow update: if citizen()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['reserved','lastBookingId','updatedAt'])
+            && request.resource.data.reserved == resource.data.reserved + 1
+            && request.resource.data.lastBookingId != resource.data.lastBookingId
+            && request.resource.data.updatedAt == request.time
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.createdAt == request.time
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.dayKey == day
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.facilityId == fid
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.queueId == qid;
+        }
+      }
+
+      match /staff/{sid} {
+        allow get, list: if facilityOwner(fid);
+        allow create: if facilityOwner(fid)
+          && request.resource.data.keys().hasOnly(
+            ['name','employeeId','window','role','state','description','createdAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 120
+          && request.resource.data.employeeId is string
+          && request.resource.data.employeeId.size() <= 32
+          && request.resource.data.window is string
+          && request.resource.data.window.size() <= 80
+          && request.resource.data.role in ['windowOfficer','supervisor','logistics']
+          && request.resource.data.state == 'pending'
+          && request.resource.data.description is string
+          && request.resource.data.createdAt == request.time;
+        allow update: if facilityOwner(fid)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name','employeeId','window','role','state','description'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.role in ['windowOfficer','supervisor','logistics']
+          && request.resource.data.state in ['active','suspended','pending'];
+        allow delete: if facilityOwner(fid);
+      }
+
+      match /queue_logs/{logId} {
+        allow get, list: if facilityOwner(fid);
+        allow create: if facilityOwner(fid)
+          && request.resource.data.keys().hasOnly(
+            ['label','identifier','outcome','createdAt'])
+          && request.resource.data.label is string
+          && request.resource.data.label.size() <= 100
+          && request.resource.data.identifier is string
+          && request.resource.data.identifier.size() <= 25
+          && request.resource.data.outcome in ['verified','repeated','invalid']
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    match /bookings/{bid} {
+      allow get, list: if signedIn()
+        && (resource.data.citizenId == request.auth.uid
+          || facilityOwner(resource.data.facilityId));
+      allow create: if citizen()
+        && request.resource.data.keys().hasOnly([
+          'citizenId','citizenName','facilityId','facilityName',
+          'queueId','windowNumber','service','dayKey','slot',
+          'slotStart','status','checkedIn','postponements','createdAt'
+        ])
+        && request.resource.data.citizenId == request.auth.uid
+        && request.resource.data.status == 'waiting'
+        && request.resource.data.checkedIn == false
+        && request.resource.data.postponements == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.slotStart is timestamp
+        && request.resource.data.slotStart >= request.time
+        && request.resource.data.slotStart < request.time + duration.value(35,'m')
+        && request.resource.data.slotStart.minutes() % 30 == 0
+        && request.resource.data.slotStart.seconds() == 0
+        && request.resource.data.dayKey == dayKey(request.resource.data.slotStart)
+        && request.resource.data.slot == slotKey(request.resource.data.slotStart)
+        && facilityPublished(request.resource.data.facilityId)
+        && get(queuePath(request.resource.data.facilityId,
+            request.resource.data.queueId)).data.isActive == true
+        && get(queuePath(request.resource.data.facilityId,
+            request.resource.data.queueId)).data.archived == false
+        && get(queuePath(request.resource.data.facilityId,
+            request.resource.data.queueId)).data.windowNumber ==
+            request.resource.data.windowNumber
+        && request.resource.data.facilityName ==
+            get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.name
+        && getAfter(guardPath(request.auth.uid,
+            request.resource.data.dayKey)).data.queues[
+            request.resource.data.facilityId + '_' + request.resource.data.queueId] == bid
+        && getAfter(guardPath(request.auth.uid,
+            request.resource.data.dayKey)).data.slots[
+            request.resource.data.slot] == bid
+        && getAfter(capPath(request.resource.data.facilityId,
+            request.resource.data.queueId,
+            request.resource.data.dayKey)).data.lastBookingId == bid
+        && getAfter(capPath(request.resource.data.facilityId,
+            request.resource.data.queueId,
+            request.resource.data.dayKey)).data.reserved <=
+            get(queuePath(request.resource.data.facilityId,
+              request.resource.data.queueId)).data.capacity;
+      allow update: if facilityOwner(resource.data.facilityId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status','checkedIn','postponements','calledAt','closedAt'])
+        && request.resource.data.checkedIn is bool
+        && request.resource.data.postponements is int
+        && request.resource.data.postponements >= resource.data.postponements
+        && request.resource.data.status in ['waiting','called','served','absent']
+        && (
+          (resource.data.status == 'waiting' &&
+            request.resource.data.status in ['waiting','called'])
+          || (resource.data.status == 'called' &&
+            request.resource.data.status in ['called','waiting','served','absent'])
+        )
+        && (request.resource.data.status != 'served'
+          || resource.data.checkedIn == true);
+      allow delete: if false;
+    }
+
+    // Everything else is inaccessible from untrusted clients.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

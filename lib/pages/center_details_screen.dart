@@ -1,24 +1,20 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../services/queue_schedule.dart';
 import 'add_queue_screen.dart';
-const Color _primary = Color(0xFF0EA5FF);
-const Color _dark = Color(0xFF1E2235);
-const Color _pageBackground = Color(0xFFF7FAFD);
+
+const _primary = Color(0xFF0EA5FF);
 
 class CenterDetailsScreen extends StatelessWidget {
-  final String name;
-  final String? facilityId;
-  final String address;
-  final String rating;
-  final String openingFrom;
-  final String openingTo;
-  final String? status;
-  final bool isOpen;
-  final bool verified;
-  final int registeredCount;
-  final int minWaitingMinutes;
-  final int maxWaitingMinutes;
-  final int occupancyPercent;
-
+  // Retain the existing caller API; live documents are authoritative.
+  final String name, address, rating, openingFrom, openingTo;
+  final String? facilityId, status;
+  final bool isOpen, verified;
+  final int registeredCount,
+      minWaitingMinutes,
+      maxWaitingMinutes,
+      occupancyPercent;
   const CenterDetailsScreen({
     super.key,
     required this.name,
@@ -30,437 +26,246 @@ class CenterDetailsScreen extends StatelessWidget {
     this.status,
     this.isOpen = true,
     this.verified = false,
-    this.registeredCount = 48,
-    this.minWaitingMinutes = 15,
-    this.maxWaitingMinutes = 20,
-    this.occupancyPercent = 65,
+    this.registeredCount = 0,
+    this.minWaitingMinutes = 0,
+    this.maxWaitingMinutes = 0,
+    this.occupancyPercent = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    final int safeOccupancy = occupancyPercent.clamp(0, 100).toInt();
-    final occupancyLabel = safeOccupancy < 40
-        ? 'Low Load'
-        : safeOccupancy < 75
-            ? 'Moderate Load'
-            : 'High Load';
-
+    final id = facilityId;
     return Scaffold(
-      backgroundColor: _pageBackground,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: const Color(0xFFF7FAFD),
+      appBar: AppBar(
+        title: const Text('Facility Details'),
+        foregroundColor: _primary,
+        backgroundColor: const Color(0xFFF7FAFD),
+      ),
+      body: id == null || id.isEmpty
+          ? const Center(child: Text('Choose a facility from the directory.'))
+          : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('facilities')
+                  .doc(id)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError)
+                  return _message(
+                    'Unable to load facility details. Check your connection and try again.',
+                  );
+                if (!snapshot.hasData)
+                  return const Center(child: CircularProgressIndicator());
+                final data = snapshot.data!.data();
+                if (data == null || data['isActive'] != true)
+                  return _message('This facility is no longer available.');
+                final online = data['isOnline'] == true;
+                final facilityName = data['name'] as String? ?? name;
+                return ListView(
+                  padding: const EdgeInsets.all(18),
                   children: [
-                    _buildFacilityCard(),
-                    const SizedBox(height: 22),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Queue statistics',
-                          style: TextStyle(
-                            color: _dark,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              facilityName,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(data['address'] as String? ?? address),
+                            if ((data['phone'] as String? ?? '')
+                                .isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(data['phone'] as String),
+                            ],
+                            const SizedBox(height: 14),
+                            Text(
+                              online
+                                  ? 'Accepting bookings'
+                                  : 'Bookings are currently closed',
+                              style: TextStyle(
+                                color: online ? Colors.green : Colors.red,
+                              ),
+                            ),
+                          ],
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE6FBF3),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.circle, color: Color(0xFF19B981), size: 8),
-                              SizedBox(width: 6),
-                              Text(
-                                'LIVE',
-                                style: TextStyle(
-                                  color: Color(0xFF159B6C),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Available queues',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (!online)
+                      const Text(
+                        'The facility must enable bookings before its queues are available.',
+                      )
+                    else
+                      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseFirestore.instance
+                            .collection('facilities')
+                            .doc(id)
+                            .collection('queues')
+                            .where('isActive', isEqualTo: true)
+                            .where('archived', isEqualTo: false)
+                            .snapshots(),
+                        builder: (context, queues) {
+                          if (queues.hasError)
+                            return const Text(
+                              'Unable to load queues. Check your connection or contact support.',
+                            );
+                          if (!queues.hasData)
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          final docs = queues.data!.docs.toList()
+                            ..sort(
+                              (a, b) =>
+                                  ((a.data()['windowNumber'] as num?)
+                                              ?.toInt() ??
+                                          0)
+                                      .compareTo(
+                                        (b.data()['windowNumber'] as num?)
+                                                ?.toInt() ??
+                                            0,
+                                      ),
+                            );
+                          if (docs.isEmpty)
+                            return const Text(
+                              'No active queues. The facility needs to create and activate a queue first.',
+                            );
+                          return Column(
+                            children: docs
+                                .map(
+                                  (doc) => _queueCard(
+                                    context,
+                                    id,
+                                    facilityName,
+                                    doc,
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        },
+                      ),
+                  ],
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _message(String text) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(text, textAlign: TextAlign.center),
+    ),
+  );
+
+  Widget _queueCard(
+    BuildContext context,
+    String fid,
+    String facilityName,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+    final start = (data['startsAtMinutes'] as num?)?.toInt() ?? 0;
+    final end = (data['endsAtMinutes'] as num?)?.toInt() ?? 0;
+    final capacity = (data['capacity'] as num?)?.toInt() ?? 0;
+    final slots = QueueSchedule.availableSlots(start, end, DateTime.now());
+    // The same UTC day bucket used by BookingService.reserve.
+    final day = QueueSchedule.dayKey(
+      slots.isEmpty ? DateTime.now() : slots.first,
+    );
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              data['service'] as String? ?? 'Queue',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text('Window ${data['windowNumber'] ?? '—'}'),
+            Text(
+              'Hours: ${QueueSchedule.clock(start)} – ${QueueSchedule.clock(end)}',
+            ),
+            Text('Daily capacity: $capacity'),
+            const SizedBox(height: 12),
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: doc.reference.collection('days').doc(day).snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError)
+                  return const Text(
+                    'Unable to load reservation availability. Please try again later.',
+                  );
+                if (!snapshot.hasData) return const LinearProgressIndicator();
+                final reserved =
+                    (snapshot.data!.data()?['reserved'] as num?)?.toInt() ?? 0;
+                final remaining = (capacity - reserved).clamp(
+                  0,
+                  capacity > 0 ? capacity : 0,
+                );
+                final available = remaining > 0 && slots.isNotEmpty;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Reservations today: $reserved · Remaining: $remaining',
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: capacity > 0
+                          ? (reserved / capacity).clamp(0.0, 1.0).toDouble()
+                          : 0,
+                    ),
+                    const SizedBox(height: 14),
+                    ElevatedButton.icon(
+                      onPressed: available
+                          ? () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AddQueueScreen(
+                                  facilityName: facilityName,
+                                  facilityId: fid,
+                                  queueId: doc.id,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
+                            )
+                          : null,
+                      icon: const Icon(Icons.event_available_outlined),
+                      label: Text(
+                        remaining <= 0
+                            ? 'Queue is full'
+                            : slots.isEmpty
+                            ? 'No booking times left today'
+                            : 'Book this queue',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(48),
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    _buildStatisticCard(
-                      icon: Icons.groups_rounded,
-                      iconBackground: const Color(0xFFE8F6FF),
-                      iconColor: _primary,
-                      title: 'Total registered:',
-                      value: '$registeredCount',
-                      valueLabel: 'PEOPLE',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildStatisticCard(
-                      icon: Icons.access_time_rounded,
-                      iconBackground: const Color(0xFFFFF6E5),
-                      iconColor: const Color(0xFFE8A12A),
-                      title: 'Approximate waiting time:',
-                      value: '$minWaitingMinutes-$maxWaitingMinutes',
-                      valueLabel: 'MIN',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildOccupancyCard(safeOccupancy, occupancyLabel),
                   ],
-                ),
-              ),
+                );
+              },
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
-          child: SizedBox(
-            height: 54,
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => AddQueueScreen(
-        facilityName: name,
-        facilityId: facilityId,
-        isOpen: isOpen,
-        verified: verified,
-      ),
-    ),
-  );
-},
-              icon: const Icon(Icons.event_available_outlined, size: 19),
-              label: const Text(
-                'Book Appointment',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 5, 16, 8),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: _dark),
-          ),
-          const Expanded(
-            child: Text(
-              'Distribution Center Details',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: _primary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 44),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFacilityCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8EEF4)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'NAME OF FACILITY',
-                      style: TextStyle(
-                        color: _primary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        color: _dark,
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Color(0xFFFFB43B), size: 15),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating,
-                          style: const TextStyle(color: Colors.black54, fontSize: 12),
-                        ),
-                        if (verified) ...[
-                          const SizedBox(width: 7),
-                          const Icon(Icons.verified, color: _primary, size: 15),
-                          const Text(
-                            'Verified',
-                            style: TextStyle(color: _primary, fontSize: 11),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isOpen ? const Color(0xFFE6FBF3) : const Color(0xFFFFEEEE),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.circle,
-                      size: 7,
-                      color: isOpen ? const Color(0xFF19B981) : Colors.red,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      isOpen ? 'Open' : 'Closed',
-                      style: TextStyle(
-                        color: isOpen ? const Color(0xFF159B6C) : Colors.red,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: Color(0xFFEDF1F5)),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.location_on_outlined, color: _primary, size: 19),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Address', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                    Text(
-                      address,
-                      style: const TextStyle(
-                        color: _dark,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.event_available_outlined, color: _primary, size: 18),
-              const SizedBox(width: 5),
-              const Expanded(
-                child: Text(
-                  'Booking available',
-                  textAlign: TextAlign.end,
-                  style: TextStyle(color: Colors.black54, fontSize: 11),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 13),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F8FB),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.access_time, color: Color(0xFF18B98A), size: 17),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    '$openingFrom - $openingTo${status == null ? '' : '  •  $status'}',
-                    style: const TextStyle(
-                      color: _dark,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatisticCard({
-    required IconData icon,
-    required Color iconBackground,
-    required Color iconColor,
-    required String title,
-    required String value,
-    required String valueLabel,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: const Color(0xFFEAF0F5)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 43,
-            height: 43,
-            decoration: BoxDecoration(
-              color: iconBackground,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: iconColor, size: 23),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: _dark,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Container(
-            constraints: const BoxConstraints(minWidth: 70),
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7FBFE),
-              border: Border.all(color: const Color(0xFFDCEFFA)),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: _dark,
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  valueLabel,
-                  style: const TextStyle(
-                    color: _primary,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOccupancyCard(int value, String label) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEAF0F5)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Center Occupancy',
-                style: TextStyle(color: _dark, fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              Text(
-                '$value% $label',
-                style: const TextStyle(
-                  color: _primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: value / 100,
-              minHeight: 7,
-              backgroundColor: const Color(0xFFEAF2F8),
-              color: _primary,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -38,53 +39,105 @@ class QueueBooking {
 
 class QueueBookingStore extends ChangeNotifier {
   QueueBookingStore._() {
-    FirebaseAuth.instance.authStateChanges().listen((u) {
-      _sub?.cancel();
+    FirebaseAuth.instance.authStateChanges().listen((u) async {
+      final generation = ++_generation;
+      await _sub?.cancel();
+      if (generation != _generation) return;
+      _sub = null;
+      error = null;
       _bookings.clear();
       notifyListeners();
       if (u != null) {
-        _sub = FirebaseFirestore.instance.collection('bookings')
-            .where('citizenId', isEqualTo: u.uid).snapshots().listen((snap) {
-          _bookings
-            ..clear()
-            ..addAll(snap.docs.where((d) =>
-              d.data()['status'] != 'served' && d.data()['status'] != 'absent')
-              .map((d) {
-              final m = d.data();
-              final time = (m['slotStart'] as Timestamp?)?.toDate() ?? DateTime.now();
-              final state = m['status'] as String? ?? 'waiting';
-              final ahead = 0;
-              final status = state == 'called' ? QueueBookingStatus.yourTurnSoon
-                : time.isAfter(DateTime.now().add(const Duration(minutes: 30)))
-                    ? QueueBookingStatus.scheduled : QueueBookingStatus.inQueue;
-              return QueueBooking(
-                ticketNumber: d.id,
-                queueNumber: (m['windowNumber'] as num?)?.toInt() ?? 0,
-                facilityName: m['facilityName'] as String? ?? '',
-                idNumber: '', // Sensitive identity documents stay private.
-                beneficiaryName: m['citizenName'] as String? ?? '',
-                createdAt: (m['createdAt'] as Timestamp?)?.toDate() ?? time,
-                estimatedWaiting: state == 'served' ? 'Completed' :
-                    state == 'absent' ? 'Absent' : 'Slot ${time.hour.toString().padLeft(2,'0')}:${time.minute.toString().padLeft(2,'0')}',
-                qrPayload: 'DAWROK|ticket=${d.id}|facility=${m['facilityId']}|queue=${m['queueId']}',
-                peopleAhead: ahead,
-                status: status,
-                scheduledTime: state == 'waiting' ? '${time.hour.toString().padLeft(2,'0')}:${time.minute.toString().padLeft(2,'0')}' : null,
-              );
-            }));
-          _bookings.sort((a,b) => b.createdAt.compareTo(a.createdAt));
-          notifyListeners();
-        }, onError: (Object e) { error = e.toString(); notifyListeners(); });
+        String savedId = '';
+        try {
+          final identity = await FirebaseFirestore.instance
+              .collection('citizen_identity')
+              .doc(u.uid)
+              .get();
+          savedId = identity.data()?['nationalId'] as String? ?? '';
+        } catch (_) {
+          // Existing tickets stay accessible even if private identity is absent.
+        }
+        if (generation != _generation) return;
+        _sub = FirebaseFirestore.instance
+            .collection('bookings')
+            .where('citizenId', isEqualTo: u.uid)
+            .snapshots()
+            .listen(
+              (snap) {
+                if (generation != _generation) return;
+                _bookings
+                  ..clear()
+                  ..addAll(
+                    snap.docs
+                        .where(
+                          (d) =>
+                              d.data()['status'] != 'served' &&
+                              d.data()['status'] != 'absent',
+                        )
+                        .map((d) {
+                          final m = d.data();
+                          final time =
+                              (m['slotStart'] as Timestamp?)?.toDate() ??
+                              DateTime.now();
+                          final state = m['status'] as String? ?? 'waiting';
+                          final ahead = 0;
+                          final status = state == 'called'
+                              ? QueueBookingStatus.yourTurnSoon
+                              : time.isAfter(
+                                  DateTime.now().add(
+                                    const Duration(minutes: 30),
+                                  ),
+                                )
+                              ? QueueBookingStatus.scheduled
+                              : QueueBookingStatus.inQueue;
+                          return QueueBooking(
+                            ticketNumber: d.id,
+                            queueNumber:
+                                (m['windowNumber'] as num?)?.toInt() ?? 0,
+                            facilityName: m['facilityName'] as String? ?? '',
+                            idNumber: savedId, // Read only from this citizen's private identity document.
+                            beneficiaryName: m['citizenName'] as String? ?? '',
+                            createdAt:
+                                (m['createdAt'] as Timestamp?)?.toDate() ??
+                                time,
+                            estimatedWaiting: state == 'served'
+                                ? 'Completed'
+                                : state == 'absent'
+                                ? 'Absent'
+                                : 'Slot ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+                            qrPayload:
+                                'DAWROK|ticket=${d.id}|facility=${m['facilityId']}|queue=${m['queueId']}',
+                            peopleAhead: ahead,
+                            status: status,
+                            scheduledTime: state == 'waiting'
+                                ? '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
+                                : null,
+                          );
+                        }),
+                  );
+                _bookings.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                notifyListeners();
+              },
+              onError: (Object e) {
+                if (generation != _generation) return;
+                error = e.toString();
+                notifyListeners();
+              },
+            );
       }
     });
   }
   static final instance = QueueBookingStore._();
-  StreamSubscription<QuerySnapshot<Map<String,dynamic>>>? _sub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
   final List<QueueBooking> _bookings = [];
   String? error;
+  int _generation = 0;
   List<QueueBooking> get bookings => List.unmodifiable(_bookings);
 
-  @Deprecated('Use BookingService.reserve to create transactional Firestore tickets.')
+  @Deprecated(
+    'Use BookingService.reserve to create transactional Firestore tickets.',
+  )
   void addBooking(QueueBooking booking) {
     throw StateError('Create bookings using BookingService.reserve.');
   }

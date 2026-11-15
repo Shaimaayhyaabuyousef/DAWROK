@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+
 import 'queue_ticket_screen.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../services/booking_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/queue_schedule.dart';
 import '../services/citizen_identity_service.dart';
 
 const Color _queuePrimary = Color(0xFF4AAAF0);
@@ -11,6 +14,7 @@ const Color _queueDark = Color(0xFF172033);
 class AddQueueScreen extends StatefulWidget {
   final String facilityName;
   final String? facilityId;
+  final String? queueId;
   final bool isOpen;
   final bool verified;
 
@@ -18,6 +22,7 @@ class AddQueueScreen extends StatefulWidget {
     super.key,
     required this.facilityName,
     this.facilityId,
+    this.queueId,
     this.isOpen = true,
     this.verified = false,
   });
@@ -30,22 +35,29 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
   final _formKey = GlobalKey<FormState>();
   final _idController = TextEditingController();
   bool _submitting = false;
+  bool _loadingIdentity = true;
+  String? _identityError;
 
   @override
   void initState() {
     super.initState();
-    _loadDemoId();
+    _loadSavedId();
   }
 
-  Future<void> _loadDemoId() async {
+  Future<void> _loadSavedId() async {
+    setState(() {
+      _loadingIdentity = true;
+      _identityError = null;
+    });
     try {
-      final demo = await CitizenIdentityService.instance.demoBookingIdentity();
-      if (mounted && demo != null) {
-        setState(() {
-          _idController.text = demo.identifier;
-        });
-      }
-    } catch (_) {}
+      final id = await CitizenIdentityService.instance.savedNationalId();
+      if (mounted) _idController.text = id;
+    } catch (e) {
+      if (mounted)
+        _identityError = e.toString().replaceFirst('Bad state: ', '');
+    } finally {
+      if (mounted) setState(() => _loadingIdentity = false);
+    }
   }
 
   @override
@@ -59,29 +71,31 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
     final id = widget.facilityId;
     if (id == null || id.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please choose a facility from the live directory.')));
+        const SnackBar(
+          content: Text('Please choose a facility from the live directory.'),
+        ),
+      );
       return;
     }
-    DemoBookingIdentity? demo;
-    try { demo = await CitizenIdentityService.instance.demoBookingIdentity(); }
-    catch (_) {}
-    if (!mounted) return;
-    if (demo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete the identity demo step first.')));
-      Navigator.pushNamed(context, 'citizen_id_verification');
-      return;
-    }
-    _idController.text = demo.identifier;
+    if (_loadingIdentity || _identityError != null) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
+      final savedId = await CitizenIdentityService.instance.savedNationalId();
+      if (!mounted) return;
+      _idController.text = savedId;
       final queues = await FirebaseFirestore.instance
-          .collection('facilities').doc(id).collection('queues')
+          .collection('facilities')
+          .doc(id)
+          .collection('queues')
           .where('isActive', isEqualTo: true)
-          .where('archived', isEqualTo: false).get();
-      final available = queues.docs.where((q) => q.data()['archived'] != true).toList();
-      if (available.isEmpty) throw StateError('This facility has not opened any queues yet.');
+          .where('archived', isEqualTo: false)
+          .get();
+      final available = queues.docs
+          .where((q) => widget.queueId == null || q.id == widget.queueId)
+          .toList();
+      if (available.isEmpty)
+        throw StateError('This facility has not opened any queues yet.');
       if (!mounted) return;
       String? queueId;
       if (available.length == 1) {
@@ -92,11 +106,15 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
           builder: (sheetContext) => SafeArea(
             child: ListView(
               shrinkWrap: true,
-              children: available.map((q) => ListTile(
-                title: Text(q.data()['service'] as String? ?? 'Queue'),
-                subtitle: Text('Window ${q.data()['windowNumber']}'),
-                onTap: () => Navigator.pop(sheetContext, q.id),
-              )).toList(),
+              children: available
+                  .map(
+                    (q) => ListTile(
+                      title: Text(q.data()['service'] as String? ?? 'Queue'),
+                      subtitle: Text('Window ${q.data()['windowNumber']}'),
+                      onTap: () => Navigator.pop(sheetContext, q.id),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
         );
@@ -106,14 +124,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
       final row = selectedQueue.data();
       final start = (row['startsAtMinutes'] as num?)?.toInt() ?? 0;
       final end = (row['endsAtMinutes'] as num?)?.toInt() ?? 0;
-      final now = DateTime.now();
-      final slots = <DateTime>[];
-      for (var minute = ((start + 29) ~/ 30) * 30;
-          minute + 30 <= end && minute < 1440; minute += 30) {
-        final proposed = DateTime(now.year, now.month, now.day,
-            minute ~/ 60, minute % 60);
-        if (proposed.isAfter(now)) slots.add(proposed);
-      }
+      final slots = QueueSchedule.availableSlots(start, end, DateTime.now());
       if (slots.isEmpty) throw StateError('No available booking times today.');
       if (!mounted) return;
       final chosenTime = await showModalBottomSheet<DateTime>(
@@ -125,7 +136,9 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
               const ListTile(title: Text('Choose an available time')),
               for (final time in slots)
                 ListTile(
-                  title: Text('${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'),
+                  title: Text(
+                    '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+                  ),
                   onTap: () => Navigator.pop(sheetContext, time),
                 ),
             ],
@@ -134,22 +147,32 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
       );
       if (chosenTime == null) return;
       final receipt = await BookingService.instance.reserve(
-        facilityId: id, queueId: queueId, preferredStart: chosenTime);
+        facilityId: id,
+        queueId: queueId,
+        preferredStart: chosenTime,
+      );
       if (!mounted) return;
       Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (_) => QueueTicketScreen(
-          ticketNumber: receipt.id,
-          queueNumber: receipt.windowNumber,
-          facilityName: receipt.facilityName,
-          idNumber: demo!.identifier,
-          createdAt: DateTime.now(),
-          estimatedWaiting: 'Scheduled ${receipt.slotStart.hour.toString().padLeft(2, '0')}:${receipt.slotStart.minute.toString().padLeft(2, '0')}',
-          qrPayload: 'DAWROK|ticket=${receipt.id}|facility=${receipt.facilityId}|queue=${receipt.queueId}',
-        )),
+        context,
+        MaterialPageRoute(
+          builder: (_) => QueueTicketScreen(
+            ticketNumber: receipt.id,
+            queueNumber: receipt.windowNumber,
+            facilityName: receipt.facilityName,
+            idNumber: receipt.nationalId,
+            createdAt: DateTime.now(),
+            estimatedWaiting:
+                'Scheduled ${receipt.slotStart.hour.toString().padLeft(2, '0')}:${receipt.slotStart.minute.toString().padLeft(2, '0')}',
+            qrPayload:
+                'DAWROK|ticket=${receipt.id}|facility=${receipt.facilityId}|queue=${receipt.queueId}',
+          ),
+        ),
       );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))),
+        );
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -183,11 +206,19 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
                   width: double.infinity,
                   height: 58,
                   child: ElevatedButton(
-                    onPressed: _submitting ? null : _confirm,
+                    onPressed:
+                        _submitting ||
+                            _loadingIdentity ||
+                            _identityError != null ||
+                            !widget.isOpen
+                        ? null
+                        : _confirm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _queuePrimary,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: _queuePrimary.withValues(alpha: 0.65),
+                      disabledBackgroundColor: _queuePrimary.withValues(
+                        alpha: 0.65,
+                      ),
                       elevation: 3,
                       shadowColor: _queuePrimary.withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(
@@ -362,7 +393,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Test Booking ID',
+              'National ID',
               style: TextStyle(
                 color: const Color(0xFF45546A),
                 fontSize: 16,
@@ -370,6 +401,11 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
               ),
             ),
             const SizedBox(height: 14),
+            if (_loadingIdentity) const LinearProgressIndicator(),
+            if (_identityError != null) ...[
+              Text(_identityError!, style: const TextStyle(color: Colors.red)),
+              TextButton(onPressed: _loadSavedId, child: const Text('Retry')),
+            ],
             TextFormField(
               controller: _idController,
               readOnly: true,
@@ -381,7 +417,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
                 letterSpacing: 1.2,
               ),
               decoration: InputDecoration(
-                hintText: 'DEMO ID will appear here',
+                hintText: 'Loading saved ID…',
                 hintStyle: const TextStyle(
                   color: Color(0xFF9AAAC0),
                   fontSize: 18,
@@ -404,11 +440,17 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
-                  borderSide: const BorderSide(color: Color(0xFFE0E7F0), width: 1.5),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE0E7F0),
+                    width: 1.5,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
-                  borderSide: const BorderSide(color: _queuePrimary, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: _queuePrimary,
+                    width: 1.5,
+                  ),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
@@ -421,8 +463,8 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
               ),
               validator: (value) {
                 final id = value?.trim() ?? '';
-                if (id.isEmpty || !id.startsWith('DEMO-')) {
-                  return 'Complete the demo capture first';
+                if (!RegExp(r'^\d{9}$').hasMatch(id)) {
+                  return 'A saved nine-digit ID is required';
                 }
                 return null;
               },
@@ -444,7 +486,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
                   SizedBox(width: 13),
                   Expanded(
                     child: Text(
-                      'DEMO ONLY: this uses a synthetic test ID, not a verified National ID. Tickets are local and not valid for real check-in.',
+                      'This is the ID saved during registration. It is self-reported, not independently verified. Your booking will be saved to your account.',
                       style: TextStyle(
                         color: Color(0xFF263448),
                         fontSize: 16,

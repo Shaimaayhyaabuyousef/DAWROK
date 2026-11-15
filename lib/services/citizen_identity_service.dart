@@ -58,9 +58,12 @@ class CitizenIdentityService {
     try {
       final real = await _realRef(user.uid).get();
       switch (real.data()?['status']) {
-        case 'verified': return CitizenIdStatus.verified;
-        case 'pending': return CitizenIdStatus.pending;
-        case 'rejected': return CitizenIdStatus.rejected;
+        case 'verified':
+          return CitizenIdStatus.verified;
+        case 'pending':
+          return CitizenIdStatus.pending;
+        case 'rejected':
+          return CitizenIdStatus.rejected;
       }
     } on FirebaseException catch (e) {
       if (e.code != 'permission-denied') rethrow;
@@ -98,7 +101,27 @@ class CitizenIdentityService {
     if (data?['mode'] != 'demo_only' || data?['status'] != 'demo_ready') {
       return null;
     }
-    return DemoBookingIdentity('DEMO-${user.uid.substring(0, 8).toUpperCase()}');
+    return DemoBookingIdentity(
+      'DEMO-${user.uid.substring(0, 8).toUpperCase()}',
+    );
+  }
+
+  /// The ID entered at signup belongs to the current account. It remains
+  /// self-reported; loading it does not grant verified identity status.
+  Future<String> savedNationalId() async {
+    final user = _user;
+    await _requireCitizen(user);
+    final doc = await _db.collection('citizen_identity').doc(user.uid).get();
+    final id = doc.data()?['nationalId'];
+    if (id is! String || !RegExp(r'^\d{9}$').hasMatch(id)) {
+      throw StateError(
+        'No saved national ID was found for this account. Complete your registration first.',
+      );
+    }
+    if (_auth.currentUser?.uid != user.uid) {
+      throw StateError('Your account changed. Please reopen the booking page.');
+    }
+    return id;
   }
 
   /// Kept for future production use, but demoReady never qualifies.

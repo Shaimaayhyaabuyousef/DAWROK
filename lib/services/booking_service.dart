@@ -3,11 +3,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class BookingReceipt {
   final String id, facilityId, facilityName, queueId, dayKey, slot;
+  final String nationalId;
   final int windowNumber;
   final DateTime slotStart;
-  const BookingReceipt({required this.id, required this.facilityId,
-    required this.facilityName, required this.queueId, required this.windowNumber,
-    required this.dayKey, required this.slot, required this.slotStart});
+  const BookingReceipt({
+    required this.id,
+    required this.facilityId,
+    required this.facilityName,
+    required this.queueId,
+    required this.windowNumber,
+    required this.dayKey,
+    required this.slot,
+    required this.slotStart,
+    required this.nationalId,
+  });
 }
 
 /// All reservations occupy one aligned 30-minute slot in this Spark prototype.
@@ -19,16 +28,28 @@ class BookingService {
   String _two(int n) => n.toString().padLeft(2, '0');
 
   Future<BookingReceipt> reserve({
-    required String facilityId, required String queueId,
+    required String facilityId,
+    required String queueId,
     DateTime? preferredStart,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw StateError('Sign in as a citizen to book.');
     final now = DateTime.now();
-    final slot = preferredStart ?? DateTime(now.year, now.month, now.day, now.hour,
-        (now.minute ~/ 30 + 1) * 30);
-    if (slot.isBefore(now) || slot.minute % 30 != 0 || slot.second != 0 ||
-        slot.year != now.year || slot.month != now.month || slot.day != now.day) {
+    final slot =
+        preferredStart ??
+        DateTime(
+          now.year,
+          now.month,
+          now.day,
+          now.hour,
+          (now.minute ~/ 30 + 1) * 30,
+        );
+    if (slot.isBefore(now) ||
+        slot.minute % 30 != 0 ||
+        slot.second != 0 ||
+        slot.year != now.year ||
+        slot.month != now.month ||
+        slot.day != now.day) {
       throw StateError('Choose a future 30-minute slot for today.');
     }
     // Security rules use UTC; clients cannot forge arbitrary day keys.
@@ -39,8 +60,11 @@ class BookingService {
     final facilityRef = db.collection('facilities').doc(facilityId);
     final queueRef = facilityRef.collection('queues').doc(queueId);
     final bookingRef = db.collection('bookings').doc();
-    final guardRef = db.collection('users').doc(user.uid)
-        .collection('booking_days').doc(dayKey);
+    final guardRef = db
+        .collection('users')
+        .doc(user.uid)
+        .collection('booking_days')
+        .doc(dayKey);
     final capacityRef = queueRef.collection('days').doc(dayKey);
     final citizenRef = db.collection('users').doc(user.uid);
 
@@ -48,6 +72,9 @@ class BookingService {
     await db.runTransaction((tx) async {
       // All reads precede writes; concurrent reservations retry atomically.
       final me = await tx.get(citizenRef);
+      final identity = await tx.get(
+        db.collection('citizen_identity').doc(user.uid),
+      );
       final facility = await tx.get(facilityRef);
       final queue = await tx.get(queueRef);
       final guard = await tx.get(guardRef);
@@ -55,7 +82,14 @@ class BookingService {
       if (me.data()?['role'] != 'citizen') {
         throw StateError('Only citizens may reserve tickets.');
       }
-      if (facility.data()?['isActive'] != true || facility.data()?['isOnline'] != true) {
+      final nationalId = identity.data()?['nationalId'];
+      if (nationalId is! String || !RegExp(r'^\d{9}$').hasMatch(nationalId)) {
+        throw StateError(
+          'Complete registration with your national ID before booking.',
+        );
+      }
+      if (facility.data()?['isActive'] != true ||
+          facility.data()?['isOnline'] != true) {
         throw StateError('This facility is not currently available.');
       }
       final q = queue.data();
@@ -66,10 +100,16 @@ class BookingService {
       final end = (q['endsAtMinutes'] as num?)?.toInt() ?? 0;
       final minute = slot.hour * 60 + slot.minute;
       if (minute < start || minute + 30 > end) {
-        throw StateError('No 30-minute booking slot remains within queue hours today.');
+        throw StateError(
+          'No 30-minute booking slot remains within queue hours today.',
+        );
       }
-      final queues = Map<String, dynamic>.from((guard.data()?['queues'] as Map?) ?? {});
-      final slots = Map<String, dynamic>.from((guard.data()?['slots'] as Map?) ?? {});
+      final queues = Map<String, dynamic>.from(
+        (guard.data()?['queues'] as Map?) ?? {},
+      );
+      final slots = Map<String, dynamic>.from(
+        (guard.data()?['slots'] as Map?) ?? {},
+      );
       if (queues.containsKey(queueKey)) {
         throw StateError('You already booked this queue today.');
       }
@@ -83,11 +123,17 @@ class BookingService {
       }
       queues[queueKey] = bookingRef.id;
       slots[slotKey] = bookingRef.id;
-      tx.set(guardRef, {'uid': user.uid, 'queues': queues,
-        'slots': slots, 'updatedAt': FieldValue.serverTimestamp()});
-      tx.set(capacityRef, {'reserved': reserved + 1,
+      tx.set(guardRef, {
+        'uid': user.uid,
+        'queues': queues,
+        'slots': slots,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      tx.set(capacityRef, {
+        'reserved': reserved + 1,
         'lastBookingId': bookingRef.id,
-        'updatedAt': FieldValue.serverTimestamp()});
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
       tx.set(bookingRef, {
         'citizenId': user.uid,
         'citizenName': me.data()?['displayName'] ?? user.displayName ?? '',
@@ -96,17 +142,24 @@ class BookingService {
         'queueId': queueId,
         'windowNumber': q['windowNumber'],
         'service': q['service'],
-        'dayKey': dayKey, 'slot': slotKey,
+        'dayKey': dayKey,
+        'slot': slotKey,
         'slotStart': Timestamp.fromDate(slot),
-        'status': 'waiting', 'checkedIn': false, 'postponements': 0,
+        'status': 'waiting',
+        'checkedIn': false,
+        'postponements': 0,
         'createdAt': FieldValue.serverTimestamp(),
       });
       receipt = BookingReceipt(
-        id: bookingRef.id, facilityId: facilityId,
+        id: bookingRef.id,
+        facilityId: facilityId,
         facilityName: facility.data()?['name'] as String? ?? '',
         queueId: queueId,
         windowNumber: (q['windowNumber'] as num).toInt(),
-        dayKey: dayKey, slot: slotKey, slotStart: slot,
+        dayKey: dayKey,
+        slot: slotKey,
+        slotStart: slot,
+        nationalId: nationalId,
       );
     });
     return receipt;

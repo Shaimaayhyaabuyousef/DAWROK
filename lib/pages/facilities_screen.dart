@@ -1,10 +1,14 @@
+import '../services/queue_schedule.dart';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'center_details_screen.dart';
 
 class FacilitiesScreen extends StatefulWidget {
   const FacilitiesScreen({super.key});
-  @override State<FacilitiesScreen> createState() => _FacilitiesScreenState();
+  @override
+  State<FacilitiesScreen> createState() => _FacilitiesScreenState();
 }
 
 class _FacilitiesScreenState extends State<FacilitiesScreen> {
@@ -29,7 +33,8 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                 ),
                 const SizedBox(height: 10),
                 TextField(
-                  onChanged: (v) => setState(() => _search = v.trim().toLowerCase()),
+                  onChanged: (v) =>
+                      setState(() => _search = v.trim().toLowerCase()),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search, color: Colors.blue),
                     hintText: 'Search facilities',
@@ -43,32 +48,48 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                 ),
                 const SizedBox(height: 20),
                 StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance.collection('facility_categories')
-                    .where('isActive', isEqualTo: true).snapshots(),
+                  stream: FirebaseFirestore.instance
+                      .collection('facility_categories')
+                      .where('isActive', isEqualTo: true)
+                      .snapshots(),
                   builder: (context, snapshot) {
                     final categories = snapshot.data?.docs ?? [];
                     return SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      child: Row(children: [
-                        GestureDetector(
-                          onTap: () => setState(() => _categoryId = null),
-                          child: _filterChip(Icons.business, 'All Facilities',
-                            selected: _categoryId == null)),
-                        for (final category in categories) ...[
-                          const SizedBox(width: 10),
+                      child: Row(
+                        children: [
                           GestureDetector(
-                            onTap: () => setState(() => _categoryId = category.id),
-                            child: _filterChip(Icons.business_outlined,
-                              category.data()['name'] as String? ?? 'Category',
-                              selected: _categoryId == category.id)),
+                            onTap: () => setState(() => _categoryId = null),
+                            child: _filterChip(
+                              Icons.business,
+                              'All Facilities',
+                              selected: _categoryId == null,
+                            ),
+                          ),
+                          for (final category in categories) ...[
+                            const SizedBox(width: 10),
+                            GestureDetector(
+                              onTap: () =>
+                                  setState(() => _categoryId = category.id),
+                              child: _filterChip(
+                                Icons.business_outlined,
+                                category.data()['name'] as String? ??
+                                    'Category',
+                                selected: _categoryId == category.id,
+                              ),
+                            ),
+                          ],
                         ],
-                      ]),
+                      ),
                     );
                   },
                 ),
                 const SizedBox(height: 20),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(20),
@@ -87,45 +108,40 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                 ),
                 const SizedBox(height: 20),
                 StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance.collection('facilities')
-                    .where('isActive', isEqualTo: true).snapshots(),
+                  stream: FirebaseFirestore.instance
+                      .collection('facilities')
+                      .where('isActive', isEqualTo: true)
+                      .snapshots(),
                   builder: (context, snapshot) {
-                    if (snapshot.hasError) return const Text('Unable to load facilities.');
-                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    if (snapshot.hasError)
+                      return const Text('Unable to load facilities.');
+                    if (!snapshot.hasData)
+                      return const Center(child: CircularProgressIndicator());
                     final filtered = snapshot.data!.docs.where((d) {
                       final info = d.data();
-                      final matchesCategory = _categoryId == null ||
+                      final matchesCategory =
+                          _categoryId == null ||
                           info['categoryId'] == _categoryId;
-                      final name = (info['name'] as String? ?? '').toLowerCase();
+                      final name = (info['name'] as String? ?? '')
+                          .toLowerCase();
                       return matchesCategory && name.contains(_search);
                     }).toList();
                     if (filtered.isEmpty) {
                       return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 50),
-                        child: Center(child: Text('No facilities available yet.')),
+                        child: Center(
+                          child: Text('No facilities available yet.'),
+                        ),
                       );
                     }
-                    return Column(children: [
-                      for (final doc in filtered) ...[
-                        _facilityCard(
-                          context,
-                          facilityId: doc.id,
-                          icon: Icons.business_outlined,
-                          name: doc.data()['name'] as String? ?? '',
-                          verified: false,
-                          isOpen: doc.data()['isOnline'] == true,
-                          rating: '—',
-                          address: doc.data()['address'] as String? ?? '',
-                          from: '—',
-                          to: '—',
-                          registeredCount: 0,
-                          minWaitingMinutes: 0,
-                          maxWaitingMinutes: 0,
-                          occupancyPercent: 0,
-                        ),
-                        const SizedBox(height: 15),
+                    return Column(
+                      children: [
+                        for (final doc in filtered) ...[
+                          _liveFacilityCard(context, doc),
+                          const SizedBox(height: 15),
+                        ],
                       ],
-                    ]);
+                    );
                   },
                 ),
               ],
@@ -133,6 +149,56 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _liveFacilityCard(
+    BuildContext context,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+    final online = data['isOnline'] == true;
+    Widget card(String from, String to) => _facilityCard(
+      context,
+      facilityId: doc.id,
+      icon: Icons.business_outlined,
+      name: data['name'] as String? ?? '',
+      verified: false,
+      isOpen: online,
+      rating: '—',
+      address: data['address'] as String? ?? '',
+      from: from,
+      to: to,
+    );
+    if (!online) return card('Closed', 'Closed');
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: doc.reference
+          .collection('queues')
+          .where('isActive', isEqualTo: true)
+          .where('archived', isEqualTo: false)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return card('Unavailable', 'Unavailable');
+        if (!snapshot.hasData) return card('Loading…', 'Loading…');
+        final queues = snapshot.data!.docs;
+        if (queues.isEmpty) return card('No queues', 'No queues');
+        final starts =
+            queues
+                .map((q) => (q.data()['startsAtMinutes'] as num?)?.toInt())
+                .whereType<int>()
+                .toList()
+              ..sort();
+        final ends =
+            queues
+                .map((q) => (q.data()['endsAtMinutes'] as num?)?.toInt())
+                .whereType<int>()
+                .toList()
+              ..sort();
+        return card(
+          starts.isEmpty ? 'Not set' : QueueSchedule.clock(starts.first),
+          ends.isEmpty ? 'Not set' : QueueSchedule.clock(ends.last),
+        );
+      },
     );
   }
 
@@ -146,7 +212,11 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: selected ? Colors.white : Colors.grey[700]),
+          Icon(
+            icon,
+            size: 18,
+            color: selected ? Colors.white : Colors.grey[700],
+          ),
           const SizedBox(width: 6),
           Text(
             label,
@@ -211,7 +281,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[200]! ),
+            border: Border.all(color: Colors.grey[200]!),
             borderRadius: BorderRadius.circular(15),
           ),
           child: Column(
@@ -246,28 +316,45 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                               ),
                             ),
                             if (verified)
-                              const Icon(Icons.verified, color: Colors.blue, size: 18),
+                              const Icon(
+                                Icons.verified,
+                                color: Colors.blue,
+                                size: 18,
+                              ),
                             if (medicalBadge) ...[
                               const SizedBox(width: 5),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.blue[50],
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Text(
                                   'Medical',
-                                  style: TextStyle(color: Colors.blue, fontSize: 11),
+                                  style: TextStyle(
+                                    color: Colors.blue,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ),
                             ],
                           ],
                         ),
                         if (status != null)
-                          Text(status, style: TextStyle(color: Colors.grey[600])),
+                          Text(
+                            status,
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Colors.orange, size: 14),
+                            const Icon(
+                              Icons.star,
+                              color: Colors.orange,
+                              size: 14,
+                            ),
                             const SizedBox(width: 4),
                             Text(rating),
                           ],
@@ -290,14 +377,26 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, color: Colors.blue, size: 18),
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.blue,
+                          size: 18,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Address', style: TextStyle(color: Colors.grey[600])),
-                              Text(address, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text(
+                                'Address',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                              Text(
+                                address,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -319,12 +418,18 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                           Flexible(
                             child: Text(
                               'Quota Capacity ($claimed/$capacity claimed)',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                           Text(
                             '${((claimed / capacity) * 100).round()}% Filled',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -332,7 +437,9 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: LinearProgressIndicator(
-                          value: (claimed / capacity).clamp(0.0, 1.0).toDouble(),
+                          value: (claimed / capacity)
+                              .clamp(0.0, 1.0)
+                              .toDouble(),
                           backgroundColor: Colors.blue[100],
                           color: Colors.blue,
                           minHeight: 6,
@@ -345,22 +452,47 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('From', style: TextStyle(color: Colors.grey[600])),
-                            Text(from, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                            Text(
+                              'From',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            Text(
+                              from,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(width: 20),
-                        Container(width: 1, height: 30, color: Colors.grey[300]),
+                        Container(
+                          width: 1,
+                          height: 30,
+                          color: Colors.grey[300],
+                        ),
                         const SizedBox(width: 20),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('To', style: TextStyle(color: Colors.grey[600])),
-                            Text(to, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(
+                              'To',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            Text(
+                              to,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                         const Spacer(),
-                        const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.blue),
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: Colors.blue,
+                        ),
                       ],
                     ),
                   ],
@@ -371,7 +503,11 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                 alignment: Alignment.centerRight,
                 child: Text(
                   'Tap to view details',
-                  style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

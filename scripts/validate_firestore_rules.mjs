@@ -94,6 +94,7 @@ try {
   await assertSucceeds(join.set({
     facilityId: 'example-facility', staffId: '101',
     employeeUid: 'employee-test', employeeEmail: 'employee@example.com',
+    phone: '+970 59 111 2222',
     status: 'requested', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   }));
   const membership = facility.doc('staff_memberships/employee-test');
@@ -163,6 +164,7 @@ try {
   await assertSucceeds(rejectedEmployee.doc('staff_join_requests/' + deniedHash).set({
     facilityId: 'example-facility', staffId: '102',
     employeeUid: 'rejected-user', employeeEmail: 'rejected@example.com',
+    phone: '+970 59 333 4444',
     status: 'requested', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   }));
   await assertSucceeds(facility.runTransaction(async (tx) => {

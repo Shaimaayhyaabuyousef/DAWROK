@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/facility_context.dart';
 import 'package:flutter/services.dart';
 import 'facility_nav.dart';
 
@@ -12,13 +14,35 @@ class FacilityProfileScreen extends StatefulWidget {
 
 class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
   final TextEditingController name =
-      TextEditingController(text: 'Family Bakery');
+      TextEditingController();
   final TextEditingController phone =
-      TextEditingController(text: '059-456-7890');
+      TextEditingController();
   final TextEditingController address =
-      TextEditingController(text: 'Al-Naser street, Zone B4');
+      TextEditingController();
 
-  final String id = '479-h79-907';
+  String id = '';
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final fid = await FacilityContext.instance.requireFacilityId();
+      final doc = await FirebaseFirestore.instance.collection('facilities').doc(fid).get();
+      if (!mounted) return;
+      setState(() {
+        id = fid;
+        name.text = doc.data()?['name'] as String? ?? '';
+        phone.text = doc.data()?['phone'] as String? ?? '';
+        address.text = doc.data()?['address'] as String? ?? '';
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())));
+    }
+  }
 
   @override
   void dispose() {
@@ -28,19 +52,26 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
     super.dispose();
   }
 
-  void _save() {
-    if (name.text.trim().isEmpty ||
-        phone.text.trim().isEmpty ||
-        address.text.trim().isEmpty) {
+  Future<void> _save() async {
+    if (id.isEmpty || name.text.trim().isEmpty ||
+        phone.text.trim().isEmpty || address.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all required fields')),
-      );
+        const SnackBar(content: Text('Please complete all required fields')));
       return;
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Changes saved locally (demo only)')),
-    );
+    try {
+      final fid = await FacilityContext.instance.requireFacilityId();
+      await FirebaseFirestore.instance.collection('facilities').doc(fid).update({
+        'name': name.text.trim(),
+        'phone': phone.text.trim(),
+        'address': address.text.trim(),
+      });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Facility updated in Firebase.')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())));
+    }
   }
 
   void _copyId() {

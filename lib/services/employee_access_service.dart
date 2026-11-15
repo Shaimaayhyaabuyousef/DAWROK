@@ -53,7 +53,8 @@ class EmployeeAccessService {
     final result = await _auth.createUserWithEmailAndPassword(
       email: email.trim(), password: password);
     if (result.user == null) throw StateError('Could not create staff account.');
-    await StaffPairingService.instance.requestToJoin(invitationCode);
+    await StaffPairingService.instance.requestToJoin(invitationCode,
+      facilityId: facilityId, phone: phone);
     return 'employee_pending_screen';
   }
 

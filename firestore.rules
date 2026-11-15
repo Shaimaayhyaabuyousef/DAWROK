@@ -176,8 +176,8 @@ service cloud.firestore {
           ])
           && qid == 'window_' + string(request.resource.data.windowNumber)
           && request.resource.data.windowNumber is int
-          && request.resource.data.service is string
-          && request.resource.data.service.size() > 0
+          && request.resource.data['service'] is string
+          && request.resource.data['service'].size() > 0
           && request.resource.data.capacity is int
           && request.resource.data.capacity > 0
           && request.resource.data.capacity <= 10000
@@ -197,8 +197,8 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['service','capacity','waitingMinutes','shift',
               'startsAtMinutes','endsAtMinutes','isActive','archived'])
-          && request.resource.data.service is string
-          && request.resource.data.service.size() > 0
+          && request.resource.data['service'] is string
+          && request.resource.data['service'].size() > 0
           && request.resource.data.capacity is int
           && request.resource.data.capacity > 0
           && request.resource.data.waitingMinutes is int

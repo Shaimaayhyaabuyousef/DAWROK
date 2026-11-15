@@ -5,14 +5,43 @@ import 'facility_staff_store.dart';
 import 'facility_add_staff_screen.dart';
 import 'facility_staff_code_dialog.dart';
 
-class FacilityStaffScreen extends StatelessWidget {
+class FacilityStaffScreen extends StatefulWidget {
   const FacilityStaffScreen({super.key});
+
+  @override
+  State<FacilityStaffScreen> createState() => _FacilityStaffScreenState();
+}
+
+class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await FacilityStaffStore.instance.refresh();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not load staff from Firebase: $e')),
+          );
+        }
+      }
+    });
+  }
+
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.white,
     body: SafeArea(bottom: false, child: AnimatedBuilder(
       animation: FacilityStaffStore.instance,
       builder: (context, _) => Column(children: [
         Expanded(child: ListView(padding: const EdgeInsets.fromLTRB(19, 45, 19, 20), children: [
+          if (FacilityStaffStore.instance.error != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: SelectableText(FacilityStaffStore.instance.error!,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+            ),
+          ],
           ...FacilityStaffStore.instance.staff.map((s) => Padding(padding: const EdgeInsets.only(bottom: 16), child: _staffCard(context, s))),
           const SizedBox(height: 3),
           SizedBox(height: 54, child: ElevatedButton.icon(

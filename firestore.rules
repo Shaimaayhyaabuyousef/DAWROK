@@ -296,7 +296,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.slotStart is timestamp
         && request.resource.data.slotStart >= request.time
-        && request.resource.data.slotStart < request.time + duration.value(35,'m')
+        && request.resource.data.slotStart < request.time + duration.value(1,'d')
         && request.resource.data.slotStart.minutes() % 30 == 0
         && request.resource.data.slotStart.seconds() == 0
         && request.resource.data.dayKey == dayKey(request.resource.data.slotStart)

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'facility_nav.dart';
 import 'facility_staff_store.dart';
 import 'facility_add_staff_screen.dart';
@@ -30,6 +31,39 @@ class FacilityStaffScreen extends StatelessWidget {
         SnackBar(content: Text(e.toString())));
     }
   }
+  Future<void> _reissue(BuildContext context, FacilityStaff staff) async {
+    try {
+      final issued = await FacilityStaffStore.instance.replaceInvite(staff);
+      if (!context.mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Staff Link Code'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Give this code to the employee. Valid for 24 hours.'),
+            const SizedBox(height: 18),
+            SelectableText(issued.code,
+              style: const TextStyle(color: facilityBlue,
+                fontWeight: FontWeight.bold, fontSize: 19)),
+            const SizedBox(height: 12),
+            const Text('The code is shown only now. Generate another if lost.'),
+          ]),
+          actions: [
+            TextButton(onPressed: () {
+              Clipboard.setData(ClipboardData(text: issued.code));
+              Navigator.pop(dialogContext);
+            }, child: const Text('Copy Code')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close')),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')));
+    }
+  }
+
   Widget _staffCard(BuildContext context, FacilityStaff s) {
     final isPending = s.state == StaffState.pending;
     final active = s.state == StaffState.active;
@@ -51,13 +85,31 @@ class FacilityStaffScreen extends StatelessWidget {
         const SizedBox(height: 10),
         Text(s.description.isNotEmpty ? s.description : _roleDescription(s.role), style: const TextStyle(color: Color(0xFF485971), height: 1.55, fontSize: 13)),
         const Divider(height: 25, color: Color(0xFFE5EBF1)),
-        if (isPending)
-          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            _action('Reject', Icons.delete_outline, const Color(0xFFEB2856), const Color(0xFFFFF1F3), () async {
-              if (await confirmFacilityAction(context, 'Reject ${s.name}?') && context.mounted) await _write(context, () => FacilityStaffStore.instance.remove(s));
-            }), const SizedBox(width: 8),
-            _action('Accept', Icons.check_circle_outline, const Color(0xFF6FAE34), const Color(0xFFE8F4D9), () => _write(context, () => FacilityStaffStore.instance.changeState(s, StaffState.active))),
-          ])
+        if (isPending) ...[
+          if (s.hasJoinRequest) ...[
+            if (s.requesterEmail != null) Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('Request from: ${s.requesterEmail}',
+                style: const TextStyle(fontSize: 12, color: facilityMuted))),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              _action('Reject', Icons.cancel_outlined,
+                const Color(0xFFEB2856), const Color(0xFFFFF1F3),
+                () => _write(context, () => FacilityStaffStore.instance.reject(s))),
+              const SizedBox(width: 8),
+              _action('Accept', Icons.check_circle_outline,
+                const Color(0xFF6FAE34), const Color(0xFFE8F4D9),
+                () => _write(context, () => FacilityStaffStore.instance.approve(s))),
+            ]),
+          ] else ...[
+            const Text('Waiting for the employee to enter their invitation code.',
+              style: TextStyle(fontSize: 12, color: facilityMuted)),
+            const SizedBox(height: 9),
+            Align(alignment: Alignment.centerRight,
+              child: _action('New Code', Icons.key_outlined,
+                const Color(0xFF007AB6), const Color(0xFFE8F5FF),
+                () => _reissue(context, s))),
+          ],
+        ]
         else ...[
           Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             _action('Delete', Icons.delete_outline, const Color(0xFFEB2856), const Color(0xFFFFF1F3), () async {

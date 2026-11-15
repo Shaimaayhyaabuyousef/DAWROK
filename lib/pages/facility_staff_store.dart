@@ -167,8 +167,10 @@ class FacilityStaffStore extends ChangeNotifier {
         throw StateError('This employee is already approved.');
       }
       final previous = data['inviteHash'] as String?;
+      DocumentSnapshot<Map<String, dynamic>>? oldInvite;
       if (previous != null) {
         final oldClaim = await tx.get(_joins.doc(previous));
+        oldInvite = await tx.get(_invites.doc(previous));
         if (oldClaim.data()?['status'] == 'requested') {
           throw StateError('Review the employee request before replacing its code.');
         }
@@ -178,9 +180,11 @@ class FacilityStaffStore extends ChangeNotifier {
         'issuedAt': FieldValue.serverTimestamp(),
         'expiresAt': Timestamp.fromDate(expires),
       });
-      if (previous != null) tx.update(_invites.doc(previous), {
+      if (previous != null && oldInvite?.data()?['status'] == 'issued') {
+        tx.update(_invites.doc(previous), {
         'status': 'revoked', 'updatedAt': FieldValue.serverTimestamp(),
-      });
+        });
+      }
       tx.update(ref, {
         'inviteHash': hash, 'joinStatus': 'invited', 'state': 'pending',
       });

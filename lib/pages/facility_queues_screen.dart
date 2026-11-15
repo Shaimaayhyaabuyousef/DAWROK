@@ -12,9 +12,31 @@ const _muted = Color(0xFF92A4BE);
 const _border = Color(0xFFD9EEFC);
 
 /// Facility-side queue management. Navigation index 1 in the facility tab bar.
-class FacilityQueuesScreen extends StatelessWidget {
+class FacilityQueuesScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigationTap;
   const FacilityQueuesScreen({super.key, this.onNavigationTap});
+
+  @override
+  State<FacilityQueuesScreen> createState() => _FacilityQueuesScreenState();
+}
+
+class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the real server list when the screen is opened. The existing
+    // AnimatedBuilder will rebuild all cards as soon as it is received.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await FacilityQueueStore.instance.refresh();
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to load queues: $e')),
+        );
+      }
+    });
+  }
 
   Future<void> _openAdd(BuildContext context) async {
     final draft = await showFacilityAddQueueSheet(context);
@@ -70,8 +92,8 @@ class FacilityQueuesScreen extends StatelessWidget {
 
   void _tab(BuildContext context, int index) {
     if (index == 1) return;
-    if (onNavigationTap != null) {
-      onNavigationTap!(index);
+    if (widget.onNavigationTap != null) {
+      widget.onNavigationTap!(index);
       return;
     }
     if (index == 0) {
@@ -106,6 +128,14 @@ class FacilityQueuesScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             _statistics(store),
+                            if (store.error != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                store.error!,
+                                style: const TextStyle(
+                                  color: Color(0xFFB42318), fontSize: 12),
+                              ),
+                            ],
                             const SizedBox(height: 16),
                             for (final queue in store.queues) ...[
                               _queueCard(context, queue),

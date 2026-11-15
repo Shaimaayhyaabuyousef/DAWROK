@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'facility_nav.dart';
 import 'facility_staff_store.dart';
 import 'facility_add_staff_screen.dart';
+import 'facility_staff_code_dialog.dart';
 
 class FacilityStaffScreen extends StatelessWidget {
   const FacilityStaffScreen({super.key});
@@ -35,33 +36,69 @@ class FacilityStaffScreen extends StatelessWidget {
     try {
       final issued = await FacilityStaffStore.instance.replaceInvite(staff);
       if (!context.mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Staff Link Code'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('Give this code to the employee. Valid for 24 hours.'),
-            const SizedBox(height: 18),
-            SelectableText(issued.code,
-              style: const TextStyle(color: facilityBlue,
-                fontWeight: FontWeight.bold, fontSize: 19)),
-            const SizedBox(height: 12),
-            const Text('The code is shown only now. Generate another if lost.'),
-          ]),
-          actions: [
-            TextButton(onPressed: () {
-              Clipboard.setData(ClipboardData(text: issued.code));
-              Navigator.pop(dialogContext);
-            }, child: const Text('Copy Code')),
-            TextButton(onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Close')),
-          ],
-        ),
+      await showStaffCodeDialog(
+        context,
+        code: issued.code,
+        staffName: staff.name,
+        expiresAt: issued.expiresAt,
       );
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')));
+        SnackBar(content: Text('$e')),
+      );
     }
+  }
+
+  Widget _inviteCard(BuildContext context, FacilityStaff staff) {
+    final code = staff.linkCode;
+    if (code == null || code.isEmpty) return const SizedBox.shrink();
+    final expired = staff.codeExpiresAt != null &&
+        DateTime.now().isAfter(staff.codeExpiresAt!);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F9FF),
+        border: Border.all(color: const Color(0xFFBDE6FF)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.key_outlined, color: Color(0xFF008DD8), size: 18),
+          const SizedBox(width: 7),
+          const Expanded(child: Text('Employee Link Code',
+              style: TextStyle(color: facilityDark,
+                fontWeight: FontWeight.w600, fontSize: 13))),
+          Text(expired ? 'Expired' : 'Valid for 24h',
+            style: TextStyle(fontSize: 11,
+              color: expired ? Colors.redAccent : const Color(0xFF007CB2))),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: SelectableText(code,
+            style: const TextStyle(color: facilityDark,
+              fontWeight: FontWeight.bold, fontSize: 15))),
+          IconButton(
+            tooltip: 'Copy employee link code',
+            visualDensity: VisualDensity.compact,
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: code));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Code copied to clipboard')),
+                );
+              }
+            },
+            icon: const Icon(Icons.copy_outlined,
+              color: Color(0xFF008DD8), size: 21),
+          ),
+        ]),
+        if (expired)
+          const Text('Generate a new code before the employee joins.',
+            style: TextStyle(color: Colors.redAccent, fontSize: 11)),
+      ]),
+    );
   }
 
   Widget _staffCard(BuildContext context, FacilityStaff s) {
@@ -86,6 +123,7 @@ class FacilityStaffScreen extends StatelessWidget {
         Text(s.description.isNotEmpty ? s.description : _roleDescription(s.role), style: const TextStyle(color: Color(0xFF485971), height: 1.55, fontSize: 13)),
         const Divider(height: 25, color: Color(0xFFE5EBF1)),
         if (isPending) ...[
+          if (s.linkCode != null) _inviteCard(context, s),
           if (s.hasJoinRequest) ...[
             if (s.requesterEmail != null) Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -105,7 +143,7 @@ class FacilityStaffScreen extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: facilityMuted)),
             const SizedBox(height: 9),
             Align(alignment: Alignment.centerRight,
-              child: _action('New Code', Icons.key_outlined,
+              child: _action(s.linkCode == null ? 'New Code' : 'Regenerate Code', Icons.key_outlined,
                 const Color(0xFF007AB6), const Color(0xFFE8F5FF),
                 () => _reissue(context, s))),
           ],

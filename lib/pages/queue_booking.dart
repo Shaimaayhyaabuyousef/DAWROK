@@ -47,7 +47,9 @@ class QueueBookingStore extends ChangeNotifier {
             .where('citizenId', isEqualTo: u.uid).snapshots().listen((snap) {
           _bookings
             ..clear()
-            ..addAll(snap.docs.map((d) {
+            ..addAll(snap.docs.where((d) =>
+              d.data()['status'] != 'served' && d.data()['status'] != 'absent')
+              .map((d) {
               final m = d.data();
               final time = (m['slotStart'] as Timestamp?)?.toDate() ?? DateTime.now();
               final state = m['status'] as String? ?? 'waiting';

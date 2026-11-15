@@ -78,7 +78,8 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
     try {
       final queues = await FirebaseFirestore.instance
           .collection('facilities').doc(id).collection('queues')
-          .where('isActive', isEqualTo: true).get();
+          .where('isActive', isEqualTo: true)
+          .where('archived', isEqualTo: false).get();
       final available = queues.docs.where((q) => q.data()['archived'] != true).toList();
       if (available.isEmpty) throw StateError('This facility has not opened any queues yet.');
       if (!mounted) return;

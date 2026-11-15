@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'queue_ticket_screen.dart';
-import 'queue_booking.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/booking_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/citizen_identity_service.dart';
 
@@ -9,12 +10,14 @@ const Color _queueDark = Color(0xFF172033);
 
 class AddQueueScreen extends StatefulWidget {
   final String facilityName;
+  final String? facilityId;
   final bool isOpen;
   final bool verified;
 
   const AddQueueScreen({
     super.key,
     required this.facilityName,
+    this.facilityId,
     this.isOpen = true,
     this.verified = false,
   });
@@ -53,62 +56,71 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
 
   Future<void> _confirm() async {
     if (_submitting) return;
+    final id = widget.facilityId;
+    if (id == null || id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please choose a facility from the live directory.')));
+      return;
+    }
     DemoBookingIdentity? demo;
-    try {
-      demo = await CitizenIdentityService.instance.demoBookingIdentity();
-    } catch (_) {}
+    try { demo = await CitizenIdentityService.instance.demoBookingIdentity(); }
+    catch (_) {}
     if (!mounted) return;
     if (demo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete the identity-photo DEMO step first.')),
-      );
+        const SnackBar(content: Text('Complete the identity demo step first.')));
       Navigator.pushNamed(context, 'citizen_id_verification');
       return;
     }
     _idController.text = demo.identifier;
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _submitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-
-    final now = DateTime.now();
-    final ticketNumber = 'TEST-${now.millisecondsSinceEpoch}';
-    final queueNumber = (now.millisecondsSinceEpoch % 40) + 1;
-    // Clearly invalid for real facility scanning or real bookings.
-    final qrPayload = 'DAWROK-DEMO|ticket=$ticketNumber|facility=${widget.facilityName}|mode=test';
-    // Local-only booking: visible in My Queues until app state is reset.
-    QueueBookingStore.instance.addBooking(
-      QueueBooking(
-        ticketNumber: ticketNumber,
-        queueNumber: queueNumber,
-        facilityName: widget.facilityName,
-        idNumber: demo.identifier,
-        beneficiaryName: FirebaseAuth.instance.currentUser?.displayName ?? 'Demo Citizen',
-        createdAt: now,
-        estimatedWaiting: 'Demo only',
-        qrPayload: qrPayload,
-        peopleAhead: 0,
-        status: QueueBookingStatus.inQueue,
-      ),
-    );
-
-    setState(() => _submitting = false);
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => QueueTicketScreen(
-          ticketNumber: ticketNumber,
-          queueNumber: queueNumber,
-          facilityName: widget.facilityName,
+    try {
+      final queues = await FirebaseFirestore.instance
+          .collection('facilities').doc(id).collection('queues')
+          .where('isActive', isEqualTo: true).get();
+      final available = queues.docs.where((q) => q.data()['archived'] != true).toList();
+      if (available.isEmpty) throw StateError('This facility has not opened any queues yet.');
+      if (!mounted) return;
+      String? queueId;
+      if (available.length == 1) {
+        queueId = available.single.id;
+      } else {
+        queueId = await showModalBottomSheet<String>(
+          context: context,
+          builder: (sheetContext) => SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              children: available.map((q) => ListTile(
+                title: Text(q.data()['service'] as String? ?? 'Queue'),
+                subtitle: Text('Window ${q.data()['windowNumber']}'),
+                onTap: () => Navigator.pop(sheetContext, q.id),
+              )).toList(),
+            ),
+          ),
+        );
+      }
+      if (queueId == null) return;
+      final receipt = await BookingService.instance.reserve(
+        facilityId: id, queueId: queueId);
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (_) => QueueTicketScreen(
+          ticketNumber: receipt.id,
+          queueNumber: receipt.windowNumber,
+          facilityName: receipt.facilityName,
           idNumber: demo!.identifier,
-          createdAt: now,
-          estimatedWaiting: 'Demo only',
-          qrPayload: qrPayload,
-        ),
-      ),
-    );
+          createdAt: DateTime.now(),
+          estimatedWaiting: 'Scheduled ${receipt.slotStart.hour.toString().padLeft(2, '0')}:${receipt.slotStart.minute.toString().padLeft(2, '0')}',
+          qrPayload: 'DAWROK|ticket=${receipt.id}|facility=${receipt.facilityId}|queue=${receipt.queueId}',
+        )),
+      );
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override

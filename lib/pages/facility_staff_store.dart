@@ -16,6 +16,8 @@ class FacilityStaff {
   StaffRole role;
   StaffState state;
   String? photoUrl, inviteHash, linkedUid;
+  String? linkCode;
+  DateTime? codeExpiresAt;
   String joinStatus;
   String? requesterEmail, requestStatus;
   FacilityStaff({
@@ -23,6 +25,7 @@ class FacilityStaff {
     required this.window, required this.role, required this.state,
     this.description = '', this.photoUrl, this.inviteHash,
     this.linkedUid, this.joinStatus = 'legacy',
+    this.linkCode, this.codeExpiresAt,
     this.requesterEmail, this.requestStatus,
   });
   bool get hasJoinRequest => requestStatus == 'requested';
@@ -92,6 +95,8 @@ class FacilityStaffStore extends ChangeNotifier {
             state: StaffState.values.firstWhere((x) => x.name == m['state'], orElse: () => StaffState.pending),
             description: m['description'] as String? ?? '',
             inviteHash: m['inviteHash'] as String?,
+            linkCode: m['linkCode'] as String?,
+            codeExpiresAt: (m['codeExpiresAt'] as Timestamp?)?.toDate(),
             linkedUid: m['linkedUid'] as String?,
             joinStatus: m['joinStatus'] as String? ?? 'legacy',
           );
@@ -127,6 +132,7 @@ class FacilityStaffStore extends ChangeNotifier {
       'window': window.trim(), 'role': role.name,
       'state': 'pending', 'description': '',
       'joinStatus': 'invited', 'inviteHash': hash,
+      'linkCode': code, 'codeExpiresAt': Timestamp.fromDate(expires),
       'createdAt': FieldValue.serverTimestamp(),
     });
     batch.set(_invites.doc(hash), {
@@ -138,7 +144,8 @@ class FacilityStaffStore extends ChangeNotifier {
     return StaffInviteResult(
       FacilityStaff(id: id, name: name, nationalId: nationalId,
         window: window, role: role, state: StaffState.pending,
-        inviteHash: hash, joinStatus: 'invited'),
+        inviteHash: hash, joinStatus: 'invited',
+        linkCode: code, codeExpiresAt: expires),
       code, expires,
     );
   }
@@ -187,6 +194,7 @@ class FacilityStaffStore extends ChangeNotifier {
       }
       tx.update(ref, {
         'inviteHash': hash, 'joinStatus': 'invited', 'state': 'pending',
+        'linkCode': code, 'codeExpiresAt': Timestamp.fromDate(expires),
       });
     });
     return StaffInviteResult(m, code, expires);
@@ -221,6 +229,7 @@ class FacilityStaffStore extends ChangeNotifier {
       // replacing its immutable fields.
       tx.update(staffRef, {
         'state': 'active', 'joinStatus': 'approved', 'linkedUid': uid,
+        'linkCode': FieldValue.delete(), 'codeExpiresAt': FieldValue.delete(),
       });
       tx.update(joinRef, {
         'status': 'approved', 'reviewedAt': FieldValue.serverTimestamp(),
@@ -259,6 +268,7 @@ class FacilityStaffStore extends ChangeNotifier {
       });
       tx.update(staffRef, {
         'joinStatus': 'rejected', 'state': 'suspended',
+        'linkCode': FieldValue.delete(), 'codeExpiresAt': FieldValue.delete(),
       });
     });
   }

@@ -183,9 +183,9 @@ class _LoginState extends State<Login> {
                 const SizedBox(height: 15),
                 OutlinedButton.icon(
                   onPressed: _busy ? null : () => Navigator.pushNamed(
-                    context, 'employee_join_screen'),
+                    context, 'employee_login_screen'),
                   icon: const Icon(Icons.badge_outlined, color: _primary),
-                  label: const Text('Staff Login / Staff Invitation',
+                  label: const Text('Employee Sign In',
                     style: TextStyle(color: _primary, fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),

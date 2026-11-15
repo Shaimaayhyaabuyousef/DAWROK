@@ -11,6 +11,8 @@ import 'package:first_project/pages/splash.dart';
 import 'package:first_project/pages/login.dart';
 import 'package:flutter/material.dart';
 import 'package:first_project/pages/facility_home_screen.dart';
+import 'package:first_project/pages/facility_queues_screen.dart';
+import 'package:first_project/pages/facility_scan_screen.dart';
 
 import 'package:first_project/pages/facility_staff_screen.dart';
 import 'package:first_project/pages/facility_search_screen.dart';
@@ -61,6 +63,8 @@ class MyApp extends StatelessWidget {
           'facility_home_screen': (context) =>
     const FacilityHomeScreen(),
     
+'facility_queues_screen': (context) => const FacilityQueuesScreen(),
+'facility_scan_screen': (context) => const FacilityScanScreen(),
 'facility_staff_screen': (context) =>
     const FacilityStaffScreen(),
 

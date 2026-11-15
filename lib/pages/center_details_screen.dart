@@ -6,6 +6,7 @@ const Color _pageBackground = Color(0xFFF7FAFD);
 
 class CenterDetailsScreen extends StatelessWidget {
   final String name;
+  final String? facilityId;
   final String address;
   final String rating;
   final String openingFrom;
@@ -21,6 +22,7 @@ class CenterDetailsScreen extends StatelessWidget {
   const CenterDetailsScreen({
     super.key,
     required this.name,
+    this.facilityId,
     required this.address,
     required this.rating,
     required this.openingFrom,
@@ -136,6 +138,7 @@ class CenterDetailsScreen extends StatelessWidget {
     MaterialPageRoute(
       builder: (_) => AddQueueScreen(
         facilityName: name,
+        facilityId: facilityId,
         isOpen: isOpen,
         verified: verified,
       ),

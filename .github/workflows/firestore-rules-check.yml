@@ -17,5 +17,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: Verify rules load into Firestore Emulator
-        run: npx --yes firebase-tools@latest emulators:exec --project demo-dawrok --only firestore 'echo FIRESTORE_RULES_LOADED'
+      - name: Install test dependencies
+        run: npm install --prefix scripts --no-save @firebase/rules-unit-testing@latest
+      - name: Compile and exercise Firestore rules
+        run: npx --yes firebase-tools@latest emulators:exec --project demo-dawrok --only firestore 'node scripts/validate_firestore_rules.mjs'

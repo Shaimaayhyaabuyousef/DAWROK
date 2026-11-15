@@ -34,6 +34,16 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
       final m = snap.data() ?? {};
       _fullName.text = m['fullName'] as String? ?? '';
       _phone.text = m['phone'] as String? ?? '';
+      if (_phone.text.isEmpty) {
+        final membership = await FirebaseFirestore.instance
+            .collection('staff_memberships').doc(uid).get();
+        final hash = membership.data()?['inviteHash'] as String?;
+        if (hash != null) {
+          final join = await FirebaseFirestore.instance
+              .collection('staff_join_requests').doc(hash).get();
+          _phone.text = join.data()?['phone'] as String? ?? '';
+        }
+      }
       _address.text = m['address'] as String? ?? '';
       _emergencyPhone.text = m['emergencyPhone'] as String? ?? '';
     } catch (e) {

@@ -7,7 +7,12 @@ const _ink = Color(0xFF22334D);
 
 /// Staff-only entry; no citizen/facility screen layout is changed.
 class EmployeeLoginScreen extends StatefulWidget {
-  const EmployeeLoginScreen({super.key});
+  final String? facilityId;
+  final String? invitationCode;
+  final String? contactPhone;
+  const EmployeeLoginScreen({
+    super.key, this.facilityId, this.invitationCode, this.contactPhone,
+  });
   @override
   State<EmployeeLoginScreen> createState() => _EmployeeLoginScreenState();
 }
@@ -23,6 +28,11 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.invitationCode != null) _code.text = widget.invitationCode!;
+  }
+  @override
   void dispose() {
     _email.dispose(); _password.dispose(); _code.dispose(); super.dispose();
   }
@@ -34,10 +44,12 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
       final destination = _newAccount
           ? await EmployeeAccessService.instance.createAccount(
               email: _email.text, password: _password.text,
-              invitationCode: _code.text)
+              invitationCode: _code.text,
+              facilityId: widget.facilityId, phone: widget.contactPhone)
           : await EmployeeAccessService.instance.signIn(
               email: _email.text, password: _password.text,
-              invitationCode: _code.text.isEmpty ? null : _code.text);
+              invitationCode: _code.text.isEmpty ? null : _code.text,
+              facilityId: widget.facilityId, phone: widget.contactPhone);
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, destination, (_) => false);
     } catch (e) {
@@ -70,17 +82,17 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Align(alignment: Alignment.centerLeft, child: IconButton(
-            onPressed: () => Navigator.pushReplacementNamed(context, 'login'),
+            onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back_ios_new, color: _ink))),
           const SizedBox(height: 36),
           CircleAvatar(
             radius: 41, backgroundColor: const Color(0xFFE8F7FF),
             child: const Icon(Icons.badge_outlined, color: _blue, size: 43)),
           const SizedBox(height: 20),
-          const Text('Staff Access', textAlign: TextAlign.center,
+          const Text('Create Staff Account', textAlign: TextAlign.center,
             style: TextStyle(color: _ink, fontSize: 28, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          const Text('Enter your employee invitation code to request access. Your facility must approve your account.',
+          const Text('Complete your Firebase sign-in details. The facility will review your request before work access is enabled.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF7C8DA7), fontSize: 13, height: 1.5)),
           const SizedBox(height: 31),

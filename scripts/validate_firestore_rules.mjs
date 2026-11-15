@@ -108,8 +108,7 @@ try {
     const staff = await tx.get(newStaff);
     const claim = await tx.get(facility.doc('staff_join_requests/' + hash));
     const token = await tx.get(invite);
-    const member = await tx.get(membership);
-    if (!staff.exists || !claim.exists || !token.exists || member.exists) {
+    if (!staff.exists || !claim.exists || !token.exists) {
       throw new Error('Missing staff join prerequisites');
     }
     tx.update(newStaff, {

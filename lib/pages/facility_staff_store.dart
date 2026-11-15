@@ -84,7 +84,25 @@ class FacilityStaffStore extends ChangeNotifier {
       }, onError: (Object e) { error = '$e'; debugPrint('Staff claims: $e'); notifyListeners(); });
       _staffSub = _collection(fid).snapshots().listen((snap) {
         if (generation != _generation) return;
-        _staff..clear()..addAll(snap.docs.map((doc) {
+        _applyStaffDocs(snap.docs);
+      }, onError: (Object e) {
+        error = 'Cannot load employee cards: $e';
+        debugPrint('DAWROK Staff list: $e');
+        notifyListeners();
+      });
+    } catch (e) {
+      if (generation == _generation) {
+        error = 'Cannot load facility account: $e';
+        debugPrint('DAWROK Staff facility: $e');
+        notifyListeners();
+      }
+    }
+  }
+
+  void _applyStaffDocs(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    _staff..clear()..addAll(docs.map((doc) {
           final m = doc.data();
           return FacilityStaff(
             id: int.tryParse(doc.id) ?? 0,
@@ -101,10 +119,30 @@ class FacilityStaffStore extends ChangeNotifier {
             joinStatus: m['joinStatus'] as String? ?? 'legacy',
           );
         }));
-        error = null; _publish();
-      }, onError: (Object e) { error = '$e'; debugPrint('Staff listing: $e'); notifyListeners(); });
+    error = null;
+    _publish();
+  }
+
+  /// Explicit server read after writes and when visiting the Staff screen.
+  /// This keeps the cards synchronized even if the real-time listener failed.
+  Future<void> refresh() async {
+    try {
+      final fid = await _fid();
+      final snap = await _collection(fid)
+          .get(const GetOptions(source: Source.server));
+      _applyStaffDocs(snap.docs);
+      debugPrint('DAWROK: loaded ${snap.docs.length} staff records '
+          'from facilities/$fid/staff');
+    } on FirebaseException catch (e) {
+      error = 'Could not read staff from Firebase: [${e.code}] ${e.message}';
+      debugPrint('DAWROK $error');
+      notifyListeners();
+      rethrow;
     } catch (e) {
-      if (generation == _generation) { error = '$e'; debugPrint('Staff facility: $e'); notifyListeners(); }
+      error = 'Could not refresh staff: $e';
+      debugPrint('DAWROK $error');
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -140,14 +178,41 @@ class FacilityStaffStore extends ChangeNotifier {
       'issuedAt': FieldValue.serverTimestamp(),
       'expiresAt': Timestamp.fromDate(expires),
     });
-    await batch.commit();
-    return StaffInviteResult(
-      FacilityStaff(id: id, name: name, nationalId: nationalId,
-        window: window, role: role, state: StaffState.pending,
-        inviteHash: hash, joinStatus: 'invited',
-        linkCode: code, codeExpiresAt: expires),
-      code, expires,
-    );
+    try {
+      await batch.commit();
+      // Check the actual server docs: do not announce a successful save
+      // merely because the local form submitted.
+      final savedStaff = await staff.get(
+        const GetOptions(source: Source.server));
+      final savedInvite = await _invites.doc(hash).get(
+        const GetOptions(source: Source.server));
+      if (!savedStaff.exists || !savedInvite.exists ||
+          savedStaff.data()?['linkCode'] != code) {
+        throw StateError(
+          'The staff invitation could not be verified on Firebase. '
+          'Check facilities/$fid/staff/$id and staff_invites/$hash.');
+      }
+      debugPrint('DAWROK: staff and invite saved on server '
+          'at facilities/$fid/staff/$id');
+      try {
+        await refresh();
+      } catch (e) {
+        // Both docs already exist; a list refresh error must not
+        // hide the usable invitation code.
+        debugPrint('DAWROK: invitation saved, list refresh failed: $e');
+      }
+      return StaffInviteResult(
+        FacilityStaff(id: id, name: name, nationalId: nationalId,
+          window: window, role: role, state: StaffState.pending,
+          inviteHash: hash, joinStatus: 'invited',
+          linkCode: code, codeExpiresAt: expires),
+        code, expires,
+      );
+    } on FirebaseException catch (e) {
+      debugPrint('DAWROK: failed to create staff invitation: '
+          '[${e.code}] ${e.message}; facilityId=$fid');
+      rethrow;
+    }
   }
 
   Future<void> update(FacilityStaff m, {

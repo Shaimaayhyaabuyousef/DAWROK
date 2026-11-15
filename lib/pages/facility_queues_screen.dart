@@ -46,8 +46,11 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
       return;
     }
     if (!context.mounted) return;
+    final warning = FacilityQueueStore.instance.error;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Queue created successfully')),
+      SnackBar(content: Text(warning == null
+          ? 'Queue created and verified in Firestore.'
+          : 'Queue saved, but the list did not refresh: $warning')),
     );
   }
 

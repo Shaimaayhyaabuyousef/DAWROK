@@ -26,8 +26,10 @@ class BookingService {
     final now = DateTime.now();
     final slot = DateTime(now.year, now.month, now.day, now.hour,
         (now.minute ~/ 30 + 1) * 30);
-    final dayKey = '${slot.year}${_two(slot.month)}${_two(slot.day)}';
-    final slotKey = '${_two(slot.hour)}${_two(slot.minute)}';
+    // Security rules use UTC; clients cannot forge arbitrary day keys.
+    final utc = slot.toUtc();
+    final dayKey = '${utc.year}${_two(utc.month)}${_two(utc.day)}';
+    final slotKey = '${_two(utc.hour)}${_two(utc.minute)}';
     final queueKey = '${facilityId}_${queueId}';
     final facilityRef = db.collection('facilities').doc(facilityId);
     final queueRef = facilityRef.collection('queues').doc(queueId);
@@ -48,7 +50,7 @@ class BookingService {
       if (me.data()?['role'] != 'citizen') {
         throw StateError('Only citizens may reserve tickets.');
       }
-      if (facility.data()?['isActive'] != true) {
+      if (facility.data()?['isActive'] != true || facility.data()?['isOnline'] != true) {
         throw StateError('This facility is not currently available.');
       }
       final q = queue.data();

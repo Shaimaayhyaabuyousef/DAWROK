@@ -80,6 +80,7 @@ try {
       name: 'Example Employee', employeeId: 'TEST-123',
       window: 'Window 1', role: 'windowOfficer', state: 'pending',
       description: '', joinStatus: 'invited', inviteHash: hash,
+      linkCode: 'ABCD-EFGH-JKLM-NPQR-STUV', codeExpiresAt: expires,
       createdAt: ts,
     });
     tx.set(invite, {
@@ -90,6 +91,11 @@ try {
   const employee = testEnv.authenticatedContext('employee-test',
     {email: 'employee@example.com'}).firestore();
   const join = employee.doc('staff_join_requests/' + hash);
+  const staffCard = await assertSucceeds(newStaff.get());
+  if (staffCard.data()?.linkCode !== 'ABCD-EFGH-JKLM-NPQR-STUV') {
+    throw new Error('Generated invite code did not persist on staff card');
+  }
+  await assertFails(employee.doc('facilities/example-facility/staff/101').get());
   await assertSucceeds(employee.doc('staff_invites/' + hash).get());
   await assertSucceeds(join.set({
     facilityId: 'example-facility', staffId: '101',
@@ -114,6 +120,8 @@ try {
     }
     tx.update(newStaff, {
       state: 'active', joinStatus: 'approved', linkedUid: 'employee-test',
+      linkCode: firebase.firestore.FieldValue.delete(),
+      codeExpiresAt: firebase.firestore.FieldValue.delete(),
     });
     tx.update(facility.doc('staff_join_requests/' + hash), {
       status: 'approved', reviewedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -128,6 +136,10 @@ try {
       approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
   }));
+  const approvedStaffCard = await assertSucceeds(newStaff.get());
+  if (approvedStaffCard.data()?.linkCode !== undefined) {
+    throw new Error('Approved employee still contains an active link code.');
+  }
   await assertSucceeds(employeeMember.get());
   const profile = employee.doc('staff_profiles/employee-test');
   await assertFails(employee.doc('facilities/example-facility/queues/window_1').get());
@@ -150,6 +162,9 @@ try {
       name: 'Rejected Employee', employeeId: 'TEST-456', window: 'Window 2',
       role: 'windowOfficer', state: 'pending', description: '',
       joinStatus: 'invited', inviteHash: deniedHash,
+      linkCode: 'WXYZ-2345-6789-ABCD-EFGH',
+      codeExpiresAt: firebase.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 24 * 60 * 60 * 1000)),
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     tx.set(deniedInvite, {
@@ -171,7 +186,11 @@ try {
     await tx.get(rejectedStaff);
     await tx.get(facility.doc('staff_join_requests/' + deniedHash));
     await tx.get(deniedInvite);
-    tx.update(rejectedStaff, {joinStatus: 'rejected', state: 'suspended'});
+    tx.update(rejectedStaff, {
+      joinStatus: 'rejected', state: 'suspended',
+      linkCode: firebase.firestore.FieldValue.delete(),
+      codeExpiresAt: firebase.firestore.FieldValue.delete(),
+    });
     tx.update(facility.doc('staff_join_requests/' + deniedHash), {
       status: 'rejected', reviewedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });

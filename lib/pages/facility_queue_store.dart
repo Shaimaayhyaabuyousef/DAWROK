@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/facility_context.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -83,109 +87,110 @@ String facilityTimeText(TimeOfDay time) {
 int facilityTimeInMinutes(TimeOfDay time) => time.hour * 60 + time.minute;
 
 class FacilityQueueStore extends ChangeNotifier {
-  FacilityQueueStore._();
-
-  static final FacilityQueueStore instance = FacilityQueueStore._();
-
-  // Two sample queues from the design. The summary is calculated from these
-  // records, not hard-coded. Newly created queues start with 0 beneficiaries.
-  final List<FacilityQueue> _queues = [
-    const FacilityQueue(
-      windowNumber: 2,
-      service: 'General Service',
-      counter: 'A',
-      capacity: 50,
-      beneficiaries: 42,
-      waitingMinutes: 12,
-      shift: FacilityQueueShift.morning,
-      startsAt: TimeOfDay(hour: 8, minute: 0),
-      endsAt: TimeOfDay(hour: 13, minute: 30),
-      isActive: true,
-    ),
-    const FacilityQueue(
-      windowNumber: 1,
-      service: 'Appointments',
-      counter: 'A',
-      capacity: 50,
-      beneficiaries: 36,
-      waitingMinutes: 10,
-      shift: FacilityQueueShift.evening,
-      startsAt: TimeOfDay(hour: 14, minute: 0),
-      endsAt: TimeOfDay(hour: 19, minute: 0),
-      isActive: false,
-    ),
-  ];
-
-  int _nextWindowNumber = 3;
+  FacilityQueueStore._() {
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((_) {
+      _watch?.cancel();
+      _facilityId = null;
+      _queues.clear();
+      notifyListeners();
+      _listen();
+    });
+  }
+  static final instance = FacilityQueueStore._();
+  final _db = FirebaseFirestore.instance;
+  StreamSubscription<User?>? _authSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _watch;
+  String? _facilityId;
+  String? error;
+  final List<FacilityQueue> _queues = [];
 
   List<FacilityQueue> get queues => List.unmodifiable(_queues);
-
   int get totalQueues => _queues.length;
-  int get totalWaiting => _queues.fold(0, (sum, q) => sum + q.beneficiaries);
-  int get averageWaitMinutes => _queues.isEmpty
-      ? 0
-      : (_queues.fold(0, (sum, q) => sum + q.waitingMinutes) / _queues.length).round();
+  int get totalWaiting => _queues.fold(0, (n, q) => n + q.beneficiaries);
+  int get averageWaitMinutes => _queues.isEmpty ? 0 :
+    (_queues.fold<int>(0, (n, q) => n + q.waitingMinutes) / _queues.length).round();
 
-  void create(FacilityQueueDraft draft) {
-    final nextNumber = _nextWindowNumber++;
-
-    _queues.insert(0, FacilityQueue(
-      windowNumber: nextNumber,
-      service: draft.service,
-      counter: 'A',
-      capacity: draft.capacity,
-      beneficiaries: 0,
-      waitingMinutes: draft.waitingMinutes,
-      shift: draft.shift,
-      startsAt: draft.startsAt,
-      endsAt: draft.endsAt,
-      isActive: true,
-    ));
-    notifyListeners();
+  Future<void> _listen() async {
+    try {
+      final id = await FacilityContext.instance.requireFacilityId();
+      _facilityId = id;
+      _watch = _db.collection('facilities').doc(id).collection('queues')
+          .snapshots().listen((snap) {
+        _queues
+          ..clear()
+          ..addAll(snap.docs.where((d) => d.data()['archived'] != true)
+              .map(_fromDoc));
+        _queues.sort((a,b) => a.windowNumber.compareTo(b.windowNumber));
+        error = null;
+        notifyListeners();
+      }, onError: (Object e) { error = e.toString(); notifyListeners(); });
+    } catch (e) {
+      error = e.toString();
+      _queues.clear();
+      notifyListeners();
+    }
   }
 
-  void update(int windowNumber, FacilityQueueDraft draft) {
-    final index = _queues.indexWhere((q) => q.windowNumber == windowNumber);
-    if (index == -1) return;
-    _queues[index] = _queues[index].copyWith(
-      service: draft.service,
-      capacity: draft.capacity,
-      waitingMinutes: draft.waitingMinutes,
-      shift: draft.shift,
-      startsAt: draft.startsAt,
-      endsAt: draft.endsAt,
+  FacilityQueue _fromDoc(QueryDocumentSnapshot<Map<String,dynamic>> doc) {
+    final m = doc.data();
+    final start = (m['startsAtMinutes'] as num?)?.toInt() ?? 480;
+    final end = (m['endsAtMinutes'] as num?)?.toInt() ?? 1020;
+    return FacilityQueue(
+      windowNumber: (m['windowNumber'] as num?)?.toInt() ?? 0,
+      service: m['service'] as String? ?? '',
+      counter: m['counter'] as String? ?? 'A',
+      capacity: (m['capacity'] as num?)?.toInt() ?? 0,
+      beneficiaries: (m['waitingCount'] as num?)?.toInt() ?? 0,
+      waitingMinutes: (m['waitingMinutes'] as num?)?.toInt() ?? 0,
+      shift: m['shift'] == 'evening' ? FacilityQueueShift.evening : FacilityQueueShift.morning,
+      startsAt: TimeOfDay(hour: start ~/ 60, minute: start % 60),
+      endsAt: TimeOfDay(hour: end ~/ 60, minute: end % 60),
+      isActive: m['isActive'] == true,
     );
-    notifyListeners();
   }
 
-  void setActive(int windowNumber, bool active) {
-    final index = _queues.indexWhere((q) => q.windowNumber == windowNumber);
-    if (index == -1) return;
-    _queues[index] = _queues[index].copyWith(isActive: active);
-    notifyListeners();
+  DocumentReference<Map<String,dynamic>> _ref(int n) {
+    final id = _facilityId;
+    if (id == null) throw StateError('Facility data has not loaded.');
+    return _db.collection('facilities').doc(id).collection('queues').doc('window_$n');
   }
 
-
-void recordHandled(int windowNumber) {
-  final index = _queues.indexWhere(
-    (queue) => queue.windowNumber == windowNumber,
-  );
-
-  if (index == -1) return;
-
-  final current = _queues[index];
-
-  if (current.beneficiaries <= 0) return;
-
-  _queues[index] = current.copyWith(
-    beneficiaries: current.beneficiaries - 1,
-  );
-
-  notifyListeners();
-}
-
-  void delete(int windowNumber) {
-    _queues.removeWhere((q) => q.windowNumber == windowNumber);
-    notifyListeners();
+  Future<void> create(FacilityQueueDraft draft) async {
+    final id = await FacilityContext.instance.requireFacilityId();
+    final fac = _db.collection('facilities').doc(id);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(fac);
+      final n = ((snap.data()?['nextWindowNumber'] as num?)?.toInt() ?? 0) + 1;
+      tx.update(fac, {'nextWindowNumber': n});
+      tx.set(fac.collection('queues').doc('window_$n'), {
+        'windowNumber': n,
+        'service': draft.service.trim(),
+        'counter': 'A',
+        'capacity': draft.capacity,
+        'waitingCount': 0,
+        'waitingMinutes': draft.waitingMinutes,
+        'shift': draft.shift.name,
+        'startsAtMinutes': facilityTimeInMinutes(draft.startsAt),
+        'endsAtMinutes': facilityTimeInMinutes(draft.endsAt),
+        'isActive': false,
+        'archived': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
+
+  Future<void> update(int n, FacilityQueueDraft draft) => _ref(n).update({
+    'service': draft.service.trim(),
+    'capacity': draft.capacity,
+    'waitingMinutes': draft.waitingMinutes,
+    'shift': draft.shift.name,
+    'startsAtMinutes': facilityTimeInMinutes(draft.startsAt),
+    'endsAtMinutes': facilityTimeInMinutes(draft.endsAt),
+  });
+
+  Future<void> setActive(int n, bool active) => _ref(n).update({'isActive': active});
+  /// Archive instead of deleting ticket history.
+  Future<void> delete(int n) => _ref(n).update({'archived': true, 'isActive': false});
+  /// Ticket counts are owned by reservation transactions, not local widgets.
+  void recordHandled(int n) {}
 }

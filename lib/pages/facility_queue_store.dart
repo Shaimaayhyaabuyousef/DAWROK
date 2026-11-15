@@ -90,6 +90,8 @@ class FacilityQueueStore extends ChangeNotifier {
   FacilityQueueStore._() {
     _authSub = FirebaseAuth.instance.authStateChanges().listen((_) {
       _watch?.cancel();
+      _bookingsSub?.cancel();
+      _counts = {};
       _facilityId = null;
       _queues.clear();
       notifyListeners();
@@ -99,7 +101,8 @@ class FacilityQueueStore extends ChangeNotifier {
   static final instance = FacilityQueueStore._();
   final _db = FirebaseFirestore.instance;
   StreamSubscription<User?>? _authSub;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _watch;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _watch, _bookingsSub;
+  Map<int,int> _counts = {};
   String? _facilityId;
   String? error;
   final List<FacilityQueue> _queues = [];
@@ -114,12 +117,28 @@ class FacilityQueueStore extends ChangeNotifier {
     try {
       final id = await FacilityContext.instance.requireFacilityId();
       _facilityId = id;
+      _bookingsSub = _db.collection('bookings')
+          .where('facilityId', isEqualTo: id).snapshots().listen((snap) {
+        final counts = <int,int>{};
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          if (data['status'] != 'waiting' && data['status'] != 'called') continue;
+          final window = (data['windowNumber'] as num?)?.toInt() ?? 0;
+          counts[window] = (counts[window] ?? 0) + 1;
+        }
+        _counts = counts;
+        for (var i = 0; i < _queues.length; i++) {
+          final q = _queues[i];
+          _queues[i] = q.copyWith(beneficiaries: counts[q.windowNumber] ?? 0);
+        }
+        notifyListeners();
+      }, onError: (Object e) { error = e.toString(); notifyListeners(); });
       _watch = _db.collection('facilities').doc(id).collection('queues')
           .snapshots().listen((snap) {
         _queues
           ..clear()
           ..addAll(snap.docs.where((d) => d.data()['archived'] != true)
-              .map(_fromDoc));
+              .map(_fromDoc).map((q) => q.copyWith(beneficiaries: _counts[q.windowNumber] ?? 0)));
         _queues.sort((a,b) => a.windowNumber.compareTo(b.windowNumber));
         error = null;
         notifyListeners();

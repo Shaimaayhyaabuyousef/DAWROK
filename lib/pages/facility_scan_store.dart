@@ -184,10 +184,7 @@ class FacilityScanStore extends ChangeNotifier {
   Future<void> _close(FacilityVisit v, String status) async {
     final id = _facilityId;
     if (id == null) throw StateError('Facility is not loaded.');
-    final queue = _db.collection('facilities').doc(id)
-        .collection('queues').doc('window_${v.windowNumber}');
     await _db.runTransaction((tx) async {
-      final q = await tx.get(queue);
       final b = await tx.get(_ticket(v.ticketNumber));
       if (b.data()?['status'] != 'called') throw StateError('Ticket is no longer called.');
       if (status == 'served' && b.data()?['checkedIn'] != true) {
@@ -196,8 +193,6 @@ class FacilityScanStore extends ChangeNotifier {
       tx.update(_ticket(v.ticketNumber), {
         'status': status, 'closedAt': FieldValue.serverTimestamp(),
       });
-      final waiting = (q.data()?['waitingCount'] as num?)?.toInt() ?? 0;
-      tx.update(queue, {'waitingCount': waiting > 0 ? waiting - 1 : 0});
     });
     await _log(status == 'served' ? 'Served' : 'Absent', v.ticketNumber,
         FacilityScanOutcome.verified);

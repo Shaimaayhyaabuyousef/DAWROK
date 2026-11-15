@@ -62,13 +62,14 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
     ));
   }
 
-  void _perform(String Function(int) operation) {
+  Future<void> _perform(Future<String> Function(int) operation) async {
     final queue = _selectedQueue;
     if (queue == null || !queue.isActive) {
       _message('Select an active counter first.', invalid: true);
       return;
     }
-    _message(operation(_windowNumber));
+    try { _message(await operation(_windowNumber)); }
+    catch (e) { _message(e.toString(), invalid: true); }
   }
 
   Future<void> _changeCounter() async {
@@ -114,7 +115,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
     _processing = true;
     try { await _camera.stop(); } catch (_) {}
     if (!mounted) return;
-    final result = _visits.verifyDemoCode(raw, _windowNumber);
+    final result = await _visits.verifyDemoCode(raw, _windowNumber);
     _message(result.message, invalid: result.outcome == FacilityScanOutcome.invalid);
     await Future<void>.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
@@ -140,7 +141,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
           onChanged: (value) => typed = value,
           textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(
-            hintText: 'Example: A-104',
+            hintText: 'Ticket ID or QR content',
             labelText: 'Ticket number / QR content',
             border: OutlineInputBorder(),
           ),
@@ -158,7 +159,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
       if (queue == null || !queue.isActive) {
         _message('Select an active counter first.', invalid: true);
       } else {
-        final result = _visits.verifyDemoCode(raw, _windowNumber);
+        final result = await _visits.verifyDemoCode(raw, _windowNumber);
         _message(result.message, invalid: result.outcome == FacilityScanOutcome.invalid);
       }
     }

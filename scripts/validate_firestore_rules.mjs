@@ -139,6 +139,54 @@ try {
   }));
   await assertSucceeds(employee.doc('facilities/example-facility/queues/window_1').get());
   await assertFails(stranger.doc('staff_memberships/employee-test').get());
+
+  // Rejection never creates an active membership.
+  const deniedHash = 'b'.repeat(64);
+  const rejectedStaff = facility.doc('facilities/example-facility/staff/102');
+  const deniedInvite = facility.doc('staff_invites/' + deniedHash);
+  await assertSucceeds(facility.runTransaction(async (tx) => {
+    tx.set(rejectedStaff, {
+      name: 'Rejected Employee', employeeId: 'TEST-456', window: 'Window 2',
+      role: 'windowOfficer', state: 'pending', description: '',
+      joinStatus: 'invited', inviteHash: deniedHash,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    tx.set(deniedInvite, {
+      facilityId: 'example-facility', staffId: '102', status: 'issued',
+      issuedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      expiresAt: firebase.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 24 * 60 * 60 * 1000)),
+    });
+  }));
+  const rejectedEmployee = testEnv.authenticatedContext('rejected-user',
+    {email: 'rejected@example.com'}).firestore();
+  await assertSucceeds(rejectedEmployee.doc('staff_join_requests/' + deniedHash).set({
+    facilityId: 'example-facility', staffId: '102',
+    employeeUid: 'rejected-user', employeeEmail: 'rejected@example.com',
+    status: 'requested', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+  await assertSucceeds(facility.runTransaction(async (tx) => {
+    await tx.get(rejectedStaff);
+    await tx.get(facility.doc('staff_join_requests/' + deniedHash));
+    await tx.get(deniedInvite);
+    tx.update(rejectedStaff, {joinStatus: 'rejected', state: 'suspended'});
+    tx.update(facility.doc('staff_join_requests/' + deniedHash), {
+      status: 'rejected', reviewedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    tx.update(deniedInvite, {
+      status: 'revoked', updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  }));
+  const rejectedDoc = await assertSucceeds(rejectedEmployee
+    .doc('staff_join_requests/' + deniedHash).get());
+  if (rejectedDoc.data()?.status !== 'rejected') {
+    throw new Error('Rejected employee was not notified in Firestore');
+  }
+  const rejectedMembership = await assertSucceeds(rejectedEmployee
+    .doc('staff_memberships/rejected-user').get());
+  if (rejectedMembership.exists) throw new Error('Rejected employee has membership!');
+  console.log('Employee rejection and denied membership tests passed.');
+
   console.log('Staff invitation, approval and required profile tests passed.');
 
   console.log('Facility owner queue transaction and listing permissions passed.');

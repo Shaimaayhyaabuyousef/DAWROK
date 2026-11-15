@@ -1,4 +1,7 @@
 import 'dart:math' as math;
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/facility_context.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +32,7 @@ class FacilityHomeScreen extends StatefulWidget {
 
   const FacilityHomeScreen({
     super.key,
-    this.facilityId = 'demo-facility',
+    this.facilityId = '',
     this.qrTitle = 'QR_Facility',
     this.onNavigationTap,
   });
@@ -39,13 +42,35 @@ class FacilityHomeScreen extends StatefulWidget {
 }
 
 class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
-  bool _online = true;
+  bool _online = false;
+  String _facilityId = '';
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _facilitySub;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFacility();
+  }
+
+  Future<void> _loadFacility() async {
+    try {
+      final id = await FacilityContext.instance.requireFacilityId();
+      _facilitySub = FirebaseFirestore.instance.collection('facilities').doc(id).snapshots().listen((doc) {
+        if (mounted) setState(() { _facilityId = id; _online = doc.data()?['isOnline'] == true; });
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  @override
+  void dispose() { _facilitySub?.cancel(); super.dispose(); }
   int _demoSession = DateTime.now().millisecondsSinceEpoch;
 
   // Placeholder payload. A production QR must come from a trusted server and
   // have validation, expiry, and facility authorization behind it.
   String get _qrPayload =>
-      'dawrok://facility/${Uri.encodeComponent(widget.facilityId)}'
+      'dawrok://facility/${Uri.encodeComponent(_facilityId)}'
       '/check-in?demoSession=$_demoSession';
 
   void _setOnline(bool online) {

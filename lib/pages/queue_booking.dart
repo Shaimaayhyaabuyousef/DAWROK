@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 /// Queue status values shown in the My Queue screen.
@@ -33,58 +36,54 @@ class QueueBooking {
   });
 }
 
-/// In-memory store shared by the booking form, ticket screen and My Queue tab.
-/// Replace this with Firestore/API persistence when the backend is connected.
 class QueueBookingStore extends ChangeNotifier {
-  QueueBookingStore._();
-
-  static final QueueBookingStore instance = QueueBookingStore._();
-
-  final List<QueueBooking> _bookings = [
-    QueueBooking(
-      ticketNumber: 'BK-94821',
-      queueNumber: 8,
-      facilityName: 'Family Bakery',
-      idNumber: '402948219',
-      beneficiaryName: 'Ahmad Salem',
-      createdAt: DateTime.now(),
-      estimatedWaiting: '~5 mins',
-      qrPayload: 'DAWROK|ticket=BK-94821|facility=Family Bakery|queue=8',
-      peopleAhead: 2,
-      status: QueueBookingStatus.yourTurnSoon,
-    ),
-    QueueBooking(
-      ticketNumber: 'BK-71093',
-      queueNumber: 14,
-      facilityName: 'Central Relief Hub',
-      idNumber: '402948220',
-      beneficiaryName: 'Omar Salem',
-      createdAt: DateTime.now(),
-      estimatedWaiting: '2:30 PM',
-      qrPayload: 'DAWROK|ticket=BK-71093|facility=Central Relief Hub|queue=14',
-      peopleAhead: 0,
-      status: QueueBookingStatus.scheduled,
-      scheduledTime: '2:30 PM',
-      windowOpensIn: '2h 15m',
-    ),
-    QueueBooking(
-      ticketNumber: 'BK-88412',
-      queueNumber: 19,
-      facilityName: 'Al-Amal Medical Center',
-      idNumber: '402948221',
-      beneficiaryName: 'Fatima Salem',
-      createdAt: DateTime.now(),
-      estimatedWaiting: '~5 mins',
-      qrPayload: 'DAWROK|ticket=BK-88412|facility=Al-Amal Medical Center|queue=19',
-      peopleAhead: 11,
-      status: QueueBookingStatus.inQueue,
-    ),
-  ];
-
+  QueueBookingStore._() {
+    FirebaseAuth.instance.authStateChanges().listen((u) {
+      _sub?.cancel();
+      _bookings.clear();
+      notifyListeners();
+      if (u != null) {
+        _sub = FirebaseFirestore.instance.collection('bookings')
+            .where('citizenId', isEqualTo: u.uid).snapshots().listen((snap) {
+          _bookings
+            ..clear()
+            ..addAll(snap.docs.map((d) {
+              final m = d.data();
+              final time = (m['slotStart'] as Timestamp?)?.toDate() ?? DateTime.now();
+              final state = m['status'] as String? ?? 'waiting';
+              final ahead = 0;
+              final status = state == 'called' ? QueueBookingStatus.yourTurnSoon
+                : time.isAfter(DateTime.now().add(const Duration(minutes: 30)))
+                    ? QueueBookingStatus.scheduled : QueueBookingStatus.inQueue;
+              return QueueBooking(
+                ticketNumber: d.id,
+                queueNumber: (m['windowNumber'] as num?)?.toInt() ?? 0,
+                facilityName: m['facilityName'] as String? ?? '',
+                idNumber: '', // Sensitive identity documents stay private.
+                beneficiaryName: m['citizenName'] as String? ?? '',
+                createdAt: (m['createdAt'] as Timestamp?)?.toDate() ?? time,
+                estimatedWaiting: state == 'served' ? 'Completed' :
+                    state == 'absent' ? 'Absent' : 'Slot ${time.hour.toString().padLeft(2,'0')}:${time.minute.toString().padLeft(2,'0')}',
+                qrPayload: 'DAWROK|ticket=${d.id}|facility=${m['facilityId']}|queue=${m['queueId']}',
+                peopleAhead: ahead,
+                status: status,
+                scheduledTime: state == 'waiting' ? '${time.hour.toString().padLeft(2,'0')}:${time.minute.toString().padLeft(2,'0')}' : null,
+              );
+            }));
+          _bookings.sort((a,b) => b.createdAt.compareTo(a.createdAt));
+          notifyListeners();
+        }, onError: (Object e) { error = e.toString(); notifyListeners(); });
+      }
+    });
+  }
+  static final instance = QueueBookingStore._();
+  StreamSubscription<QuerySnapshot<Map<String,dynamic>>>? _sub;
+  final List<QueueBooking> _bookings = [];
+  String? error;
   List<QueueBooking> get bookings => List.unmodifiable(_bookings);
 
+  @Deprecated('Use BookingService.reserve to create transactional Firestore tickets.')
   void addBooking(QueueBooking booking) {
-    _bookings.insert(0, booking);
-    notifyListeners();
+    throw StateError('Create bookings using BookingService.reserve.');
   }
 }

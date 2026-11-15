@@ -212,8 +212,9 @@ class FacilityStaffStore extends ChangeNotifier {
       final uid = join.data()?['employeeUid'] as String?;
       if (uid == null || uid.isEmpty) throw StateError('Employee account is missing.');
       final membershipRef = _db.collection('staff_memberships').doc(uid);
-      final existing = await tx.get(membershipRef);
-      if (existing.exists) throw StateError('This employee is already linked.');
+      // Do not read another user's membership from a facility account.
+      // If it already exists, the set is an UPDATE and Firestore rules deny
+      // replacing its immutable fields.
       tx.update(staffRef, {
         'state': 'active', 'joinStatus': 'approved', 'linkedUid': uid,
       });

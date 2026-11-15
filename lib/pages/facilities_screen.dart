@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'center_details_screen.dart';
 
-class FacilitiesScreen extends StatelessWidget {
+class FacilitiesScreen extends StatefulWidget {
   const FacilitiesScreen({super.key});
+  @override State<FacilitiesScreen> createState() => _FacilitiesScreenState();
+}
+
+class _FacilitiesScreenState extends State<FacilitiesScreen> {
+  String? _categoryId;
+  String _search = '';
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +29,7 @@ class FacilitiesScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 TextField(
+                  onChanged: (v) => setState(() => _search = v.trim().toLowerCase()),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search, color: Colors.blue),
                     hintText: 'Search facilities',
@@ -34,17 +42,29 @@ class FacilitiesScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _filterChip(Icons.business, 'All Facilities (8)', selected: true),
-                      const SizedBox(width: 10),
-                      _filterChip(Icons.bakery_dining_outlined, 'Bakeries & Bread (3)'),
-                      const SizedBox(width: 10),
-                      _filterChip(Icons.local_hospital_outlined, 'Medical'),
-                    ],
-                  ),
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance.collection('facility_categories')
+                    .where('isActive', isEqualTo: true).snapshots(),
+                  builder: (context, snapshot) {
+                    final categories = snapshot.data?.docs ?? [];
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(children: [
+                        GestureDetector(
+                          onTap: () => setState(() => _categoryId = null),
+                          child: _filterChip(Icons.business, 'All Facilities',
+                            selected: _categoryId == null)),
+                        for (final category in categories) ...[
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: () => setState(() => _categoryId = category.id),
+                            child: _filterChip(Icons.business_outlined,
+                              category.data()['name'] as String? ?? 'Category',
+                              selected: _categoryId == category.id)),
+                        ],
+                      ]),
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
                 Container(
@@ -66,58 +86,47 @@ class FacilitiesScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                _facilityCard(
-                  context,
-                  icon: Icons.account_balance,
-                  name: 'Al-Nasr Humanitarian Center',
-                  verified: true,
-                  isOpen: true,
-                  status: 'Closes 04:00 PM',
-                  rating: '4.8 (340)',
-                  address: 'Al-Naser Street',
-                  from: '06:00 AM',
-                  to: '08:00 PM',
-                  registeredCount: 48,
-                  minWaitingMinutes: 15,
-                  maxWaitingMinutes: 20,
-                  occupancyPercent: 65,
-                ),
-                const SizedBox(height: 15),
-                _facilityCard(
-                  context,
-                  icon: Icons.bakery_dining_outlined,
-                  name: 'Central Family Bakery & Ration',
-                  verified: true,
-                  isOpen: true,
-                  status: 'Open until 02:00 PM',
-                  rating: '4.9 (512)',
-                  address: 'Al-Naser Street',
-                  from: '05:00 AM',
-                  to: '02:00 PM',
-                  claimed: 102,
-                  capacity: 150,
-                  registeredCount: 102,
-                  minWaitingMinutes: 15,
-                  maxWaitingMinutes: 20,
-                  occupancyPercent: 68,
-                ),
-                const SizedBox(height: 15),
-                _facilityCard(
-                  context,
-                  icon: Icons.local_hospital_outlined,
-                  name: 'Al-Shifa Relief Clinic & Dispensary',
-                  verified: false,
-                  medicalBadge: true,
-                  isOpen: false,
-                  status: 'Check availability before visiting',
-                  rating: '4.7 (189)',
-                  address: 'Al-Remal',
-                  from: '08:00 AM',
-                  to: '04:00 PM',
-                  registeredCount: 32,
-                  minWaitingMinutes: 10,
-                  maxWaitingMinutes: 15,
-                  occupancyPercent: 42,
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance.collection('facilities')
+                    .where('isActive', isEqualTo: true).snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) return const Text('Unable to load facilities.');
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    final filtered = snapshot.data!.docs.where((d) {
+                      final info = d.data();
+                      final matchesCategory = _categoryId == null ||
+                          info['categoryId'] == _categoryId;
+                      final name = (info['name'] as String? ?? '').toLowerCase();
+                      return matchesCategory && name.contains(_search);
+                    }).toList();
+                    if (filtered.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 50),
+                        child: Center(child: Text('No facilities available yet.')),
+                      );
+                    }
+                    return Column(children: [
+                      for (final doc in filtered) ...[
+                        _facilityCard(
+                          context,
+                          facilityId: doc.id,
+                          icon: Icons.business_outlined,
+                          name: doc.data()['name'] as String? ?? '',
+                          verified: false,
+                          isOpen: doc.data()['isOnline'] == true,
+                          rating: '—',
+                          address: doc.data()['address'] as String? ?? '',
+                          from: '—',
+                          to: '—',
+                          registeredCount: 0,
+                          minWaitingMinutes: 0,
+                          maxWaitingMinutes: 0,
+                          occupancyPercent: 0,
+                        ),
+                        const SizedBox(height: 15),
+                      ],
+                    ]);
+                  },
                 ),
               ],
             ),
@@ -155,6 +164,7 @@ class FacilitiesScreen extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     required String name,
+    String? facilityId,
     bool verified = false,
     bool medicalBadge = false,
     bool isOpen = true,
@@ -181,6 +191,7 @@ class FacilitiesScreen extends StatelessWidget {
             MaterialPageRoute(
               builder: (_) => CenterDetailsScreen(
                 name: name,
+                facilityId: facilityId,
                 address: address,
                 rating: rating,
                 openingFrom: from,

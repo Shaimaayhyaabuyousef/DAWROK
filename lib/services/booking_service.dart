@@ -20,12 +20,17 @@ class BookingService {
 
   Future<BookingReceipt> reserve({
     required String facilityId, required String queueId,
+    DateTime? preferredStart,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw StateError('Sign in as a citizen to book.');
     final now = DateTime.now();
-    final slot = DateTime(now.year, now.month, now.day, now.hour,
+    final slot = preferredStart ?? DateTime(now.year, now.month, now.day, now.hour,
         (now.minute ~/ 30 + 1) * 30);
+    if (slot.isBefore(now) || slot.minute % 30 != 0 || slot.second != 0 ||
+        slot.year != now.year || slot.month != now.month || slot.day != now.day) {
+      throw StateError('Choose a future 30-minute slot for today.');
+    }
     // Security rules use UTC; clients cannot forge arbitrary day keys.
     final utc = slot.toUtc();
     final dayKey = '${utc.year}${_two(utc.month)}${_two(utc.day)}';

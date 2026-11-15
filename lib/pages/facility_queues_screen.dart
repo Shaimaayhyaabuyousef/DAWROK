@@ -19,7 +19,11 @@ class FacilityQueuesScreen extends StatelessWidget {
   Future<void> _openAdd(BuildContext context) async {
     final draft = await showFacilityAddQueueSheet(context);
     if (draft == null || !context.mounted) return;
-    FacilityQueueStore.instance.create(draft);
+    try { await FacilityQueueStore.instance.create(draft); } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      return;
+    }
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Queue created successfully')),
     );
@@ -28,7 +32,11 @@ class FacilityQueuesScreen extends StatelessWidget {
   Future<void> _edit(BuildContext context, FacilityQueue queue) async {
     final draft = await showFacilityAddQueueSheet(context, editing: queue);
     if (draft == null || !context.mounted) return;
-    FacilityQueueStore.instance.update(queue.windowNumber, draft);
+    try { await FacilityQueueStore.instance.update(queue.windowNumber, draft); } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      return;
+    }
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Queue updated')),
     );
@@ -50,7 +58,11 @@ class FacilityQueuesScreen extends StatelessWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    FacilityQueueStore.instance.delete(queue.windowNumber);
+    try { await FacilityQueueStore.instance.delete(queue.windowNumber); } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      return;
+    }
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Queue deleted')),
     );
@@ -246,7 +258,9 @@ class FacilityQueuesScreen extends StatelessWidget {
               Expanded(child: _actionButton('Edit', Icons.edit_square, Colors.white, const Color(0xFF354258), () => _edit(context, queue))),
               const SizedBox(width: 6),
               Expanded(child: _actionButton(active ? 'Deactivate' : 'activation', null, const Color(0xFFFF9000), const Color(0xFFFFDEAF), () {
-                FacilityQueueStore.instance.setActive(queue.windowNumber, !active);
+                FacilityQueueStore.instance.setActive(queue.windowNumber, !active).catchError((Object e) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+                });
               })),
             ],
           ),

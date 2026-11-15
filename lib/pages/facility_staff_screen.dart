@@ -23,6 +23,13 @@ class FacilityStaffScreen extends StatelessWidget {
     bottomNavigationBar: const FacilityBottomNav(selected: 2),
   );
 
+  Future<void> _write(BuildContext context, Future<void> Function() action) async {
+    try { await action(); }
+    catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())));
+    }
+  }
   Widget _staffCard(BuildContext context, FacilityStaff s) {
     final isPending = s.state == StaffState.pending;
     final active = s.state == StaffState.active;
@@ -47,20 +54,20 @@ class FacilityStaffScreen extends StatelessWidget {
         if (isPending)
           Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             _action('Reject', Icons.delete_outline, const Color(0xFFEB2856), const Color(0xFFFFF1F3), () async {
-              if (await confirmFacilityAction(context, 'Reject ${s.name}?')) FacilityStaffStore.instance.remove(s);
+              if (await confirmFacilityAction(context, 'Reject ${s.name}?') && context.mounted) await _write(context, () => FacilityStaffStore.instance.remove(s));
             }), const SizedBox(width: 8),
-            _action('Accept', Icons.check_circle_outline, const Color(0xFF6FAE34), const Color(0xFFE8F4D9), () => FacilityStaffStore.instance.changeState(s, StaffState.active)),
+            _action('Accept', Icons.check_circle_outline, const Color(0xFF6FAE34), const Color(0xFFE8F4D9), () => _write(context, () => FacilityStaffStore.instance.changeState(s, StaffState.active))),
           ])
         else ...[
           Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             _action('Delete', Icons.delete_outline, const Color(0xFFEB2856), const Color(0xFFFFF1F3), () async {
-              if (await confirmFacilityAction(context, 'Delete ${s.name}?')) FacilityStaffStore.instance.remove(s);
+              if (await confirmFacilityAction(context, 'Delete ${s.name}?') && context.mounted) await _write(context, () => FacilityStaffStore.instance.remove(s));
             }), const SizedBox(width: 8),
             _action('Edit', Icons.edit_note_outlined, const Color(0xFF34455E), const Color(0xFFF2F5F9), () => Navigator.push(context, MaterialPageRoute(builder: (_) => FacilityAddStaffScreen(editing: s)))),
           ]),
           const SizedBox(height: 8),
           SizedBox(width: double.infinity, height: 38, child: OutlinedButton.icon(
-            onPressed: () => FacilityStaffStore.instance.changeState(s, active ? StaffState.suspended : StaffState.active),
+            onPressed: () => _write(context, () => FacilityStaffStore.instance.changeState(s, active ? StaffState.suspended : StaffState.active)),
             style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFC86B00), backgroundColor: const Color(0xFFFFFBEB), side: const BorderSide(color: Color(0xFFF7D86E)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9))),
             icon: Icon(active ? Icons.block : Icons.check_circle_outline, size: 16), label: Text(active ? 'Removal of validity' : 'Restore validity'),
           )),

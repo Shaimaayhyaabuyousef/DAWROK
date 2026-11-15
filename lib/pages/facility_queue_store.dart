@@ -142,11 +142,43 @@ class FacilityQueueStore extends ChangeNotifier {
         _queues.sort((a,b) => a.windowNumber.compareTo(b.windowNumber));
         error = null;
         notifyListeners();
-      }, onError: (Object e) { error = e.toString(); notifyListeners(); });
+      }, onError: (Object e) { error = 'Failed to load queues: $e'; debugPrint('DAWROK $error'); notifyListeners(); });
     } catch (e) {
-      error = e.toString();
+      error = 'Failed to load facility: $e'; debugPrint('DAWROK $error');
       _queues.clear();
       notifyListeners();
+    }
+  }
+
+  // Fetch a fresh server snapshot even if the real-time listener was lost.
+  Future<void> refresh() async {
+    try {
+      final id = await FacilityContext.instance.requireFacilityId();
+      if (_facilityId != id || _watch == null) {
+        await _watch?.cancel();
+        await _bookingsSub?.cancel();
+        _watch = null;
+        _bookingsSub = null;
+        await _listen();
+      }
+      final snapshot = await _db.collection('facilities').doc(id)
+          .collection('queues').get(const GetOptions(source: Source.server));
+      _facilityId = id;
+      _queues
+        ..clear()
+        ..addAll(snapshot.docs.where((d) => d.data()['archived'] != true)
+          .map(_fromDoc).map((q) =>
+            q.copyWith(beneficiaries: _counts[q.windowNumber] ?? 0)));
+      _queues.sort((a, b) => a.windowNumber.compareTo(b.windowNumber));
+      error = null;
+      notifyListeners();
+      debugPrint('DAWROK: loaded ${snapshot.docs.length} queue documents '
+          'from facilities/$id/queues');
+    } catch (e) {
+      error = 'Could not refresh facility queues: $e';
+      debugPrint('DAWROK $error');
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -177,11 +209,13 @@ class FacilityQueueStore extends ChangeNotifier {
   Future<void> create(FacilityQueueDraft draft) async {
     final id = await FacilityContext.instance.requireFacilityId();
     final fac = _db.collection('facilities').doc(id);
+    late DocumentReference<Map<String, dynamic>> createdQueue;
     await _db.runTransaction((tx) async {
       final snap = await tx.get(fac);
       final n = ((snap.data()?['nextWindowNumber'] as num?)?.toInt() ?? 0) + 1;
       tx.update(fac, {'nextWindowNumber': n});
-      tx.set(fac.collection('queues').doc('window_$n'), {
+      createdQueue = fac.collection('queues').doc('window_$n');
+      tx.set(createdQueue, {
         'windowNumber': n,
         'service': draft.service.trim(),
         'counter': 'A',
@@ -196,6 +230,25 @@ class FacilityQueueStore extends ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
+
+    // Check the actual server document, not only local UI state.
+    final verified = await createdQueue.get(
+      const GetOptions(source: Source.server),
+    );
+    if (!verified.exists) {
+      throw StateError(
+        'Firestore committed but could not find ${createdQueue.path}.',
+      );
+    }
+    debugPrint('DAWROK: created queue at ${createdQueue.path}');
+    try {
+      await refresh();
+    } catch (e) {
+      // The queue is already persisted; this is a read/sync failure.
+      error = 'Queue saved at ${createdQueue.path}, but list refresh failed: $e';
+      debugPrint('DAWROK $error');
+      notifyListeners();
+    }
   }
 
   Future<void> update(int n, FacilityQueueDraft draft) => _ref(n).update({

@@ -15,6 +15,7 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   StaffRole role = StaffRole.windowOfficer;
   String? passcode;
   DateTime? expiresAt;
+  bool _working = false;
   @override void initState() {
     super.initState();
     name = TextEditingController(text: widget.editing?.name ?? '');
@@ -24,23 +25,42 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   }
   @override void dispose() { name.dispose(); id.dispose(); station.dispose(); super.dispose(); }
   Future<void> _generate() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_working || !_formKey.currentState!.validate()) return;
+    setState(() => _working = true);
     try {
       if (widget.editing == null) {
-        await FacilityStaffStore.instance.add(
+        final result = await FacilityStaffStore.instance.add(
           name: name.text.trim(), nationalId: id.text.trim(),
           window: station.text.trim(), role: role);
+        if (!mounted) return;
+        setState(() {
+          passcode = result.code;
+          expiresAt = result.expiresAt;
+        });
       } else {
         await FacilityStaffStore.instance.update(widget.editing!,
           name: name.text.trim(), nationalId: id.text.trim(),
           window: station.text.trim(), role: role);
+        // A previously approved employee remains approved; editing their
+        // details must not create an unrelated invitation.
+        if (widget.editing!.joinStatus != 'approved') {
+          final result = await FacilityStaffStore.instance.replaceInvite(widget.editing!);
+          if (!mounted) return;
+          setState(() {
+            passcode = result.code;
+            expiresAt = result.expiresAt;
+          });
+        }
       }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Staff saved in Firebase. Secure invitation codes are not enabled yet.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(passcode == null
+          ? 'Employee updated successfully.'
+          : 'Staff invitation saved. Give this code to your employee.')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())));
+        SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _working = false);
     }
   }
   @override Widget build(BuildContext context) => Scaffold(
@@ -66,7 +86,7 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
           const SizedBox(height: 16),
           Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('National / Emp ID'), _entry(id, Icons.badge_outlined, 'ID number')])), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Station / Window'), _entry(station, Icons.dns_outlined, 'Window B')]))]),
           const SizedBox(height: 15),
-          SizedBox(width: double.infinity, height: 48, child: ElevatedButton.icon(onPressed: _generate, style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: const Icon(Icons.key_outlined), label: const Text('Generate Link Code', style: TextStyle(fontSize: 16)))),
+          SizedBox(width: double.infinity, height: 48, child: ElevatedButton.icon(onPressed: _working ? null : _generate, style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: const Icon(Icons.key_outlined), label: Text(_working ? 'Saving...' : 'Generate Link Code', style: const TextStyle(fontSize: 16)))),
         ])),
         if (passcode != null) ...[const SizedBox(height: 18), _passcodeCard()],
       ]),
@@ -79,7 +99,7 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   Widget _role(StaffRole value, IconData icon, String label) => Expanded(child: InkWell(
     onTap: () => setState(() => role = value), child: Container(height: 76, decoration: BoxDecoration(color: role == value ? const Color(0xFFEDF8FF) : const Color(0xFFF7F9FC), border: Border.all(color: role == value ? const Color(0xFF00A6EE) : facilityBorder, width: role == value ? 2 : 1), borderRadius: BorderRadius.circular(13)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 20, color: role == value ? const Color(0xFF007BBD) : facilityMuted), const SizedBox(height: 5), Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: role == value ? const Color(0xFF007BBD) : facilityDark))]))));
   Widget _passcodeCard() => Container(width: double.infinity, padding: const EdgeInsets.all(17), decoration: BoxDecoration(border: Border.all(color: const Color(0xFFB6E6FF)), borderRadius: BorderRadius.circular(24)), child: Column(children: [
-    const Row(children: [Icon(Icons.circle, color: Color(0xFF00A5EE), size: 11), SizedBox(width: 9), Expanded(child: Text('Active Pairing Code', style: TextStyle(fontSize: 16, color: facilityDark))), Text('24h validity', style: TextStyle(color: Color(0xFF007EB7)))]),
+    const Row(children: [Icon(Icons.circle, color: Color(0xFF00A5EE), size: 11), SizedBox(width: 9), Expanded(child: Text('Active Pairing Code', style: TextStyle(fontSize: 16, color: facilityDark))), Text(expiresAt == null ? '24h validity' : 'Expires in 24h', style: TextStyle(color: Color(0xFF007EB7)))]),
     const Divider(height: 27),
     const Text('Scan QR or enter alphanumeric code on device', textAlign: TextAlign.center, style: TextStyle(color: facilityMuted, fontSize: 13)),
     const SizedBox(height: 10),

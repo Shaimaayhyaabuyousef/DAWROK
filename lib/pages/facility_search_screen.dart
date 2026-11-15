@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'facility_nav.dart';
+import 'facility_scan_store.dart';
 
 class _Visitor {
   final String ticket, name, id, badge, label, initials;
@@ -14,13 +15,21 @@ class FacilitySearchScreen extends StatefulWidget {
 }
 class _FacilitySearchScreenState extends State<FacilitySearchScreen> {
   final query = TextEditingController();
-  final entries = const [
-    _Visitor('A-104', 'Khalid Abdullah Al-Omari', 'SA-49102', 'Calling Next', 'Counter 02', 'KO', 8, Color(0xFFD9F1FF)),
-    _Visitor('A-105', 'Fatima Salem Al-Dawsari', 'SA-38291', 'Family', '3 Persons', 'FD', 15, Color(0xFFF3E4FF)),
-    _Visitor('A-106', 'Mohammad Tariq Hassan', 'SA-58190', 'In Queue', 'Standard', 'MH', 22, Color(0xFFDCEBFF)),
-    _Visitor('A-108', 'Nour El-Din Mansoor', 'SA-58191', 'In Queue', 'Standard', 'NM', 30, Color(0xFFDCEBFF)),
-  ];
-  @override void dispose() { query.dispose(); super.dispose(); }
+  @override
+  void initState() {
+    super.initState();
+    FacilityScanStore.instance.addListener(_refresh);
+  }
+  void _refresh() { if (mounted) setState(() {}); }
+
+  List<_Visitor> get entries => FacilityScanStore.instance.visits.map((v) =>
+    _Visitor(
+      v.ticketNumber, v.visitorName, v.maskedId,
+      v.status.name, 'Counter ${v.windowNumber}',
+      v.visitorName.isEmpty ? '?' : v.visitorName[0].toUpperCase(),
+      v.estimatedMinutes, const Color(0xFFD9F1FF),
+    )).toList();
+  @override void dispose() { FacilityScanStore.instance.removeListener(_refresh); query.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) {
     final text = query.text.trim().toLowerCase();
     final result = entries.where((e) => text.isEmpty || '${e.name} ${e.id} ${e.ticket}'.toLowerCase().contains(text)).toList();

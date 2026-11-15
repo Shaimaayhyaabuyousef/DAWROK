@@ -102,8 +102,39 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
         );
       }
       if (queueId == null) return;
+      final selectedQueue = available.firstWhere((q) => q.id == queueId);
+      final row = selectedQueue.data();
+      final start = (row['startsAtMinutes'] as num?)?.toInt() ?? 0;
+      final end = (row['endsAtMinutes'] as num?)?.toInt() ?? 0;
+      final now = DateTime.now();
+      final slots = <DateTime>[];
+      for (var minute = ((start + 29) ~/ 30) * 30;
+          minute + 30 <= end && minute < 1440; minute += 30) {
+        final proposed = DateTime(now.year, now.month, now.day,
+            minute ~/ 60, minute % 60);
+        if (proposed.isAfter(now)) slots.add(proposed);
+      }
+      if (slots.isEmpty) throw StateError('No available booking times today.');
+      if (!mounted) return;
+      final chosenTime = await showModalBottomSheet<DateTime>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(title: Text('Choose an available time')),
+              for (final time in slots)
+                ListTile(
+                  title: Text('${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'),
+                  onTap: () => Navigator.pop(sheetContext, time),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (chosenTime == null) return;
       final receipt = await BookingService.instance.reserve(
-        facilityId: id, queueId: queueId);
+        facilityId: id, queueId: queueId, preferredStart: chosenTime);
       if (!mounted) return;
       Navigator.pushReplacement(
         context, MaterialPageRoute(builder: (_) => QueueTicketScreen(

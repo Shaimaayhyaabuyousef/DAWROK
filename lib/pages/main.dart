@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'employee_join_screen.dart';
 import 'employee_login_screen.dart';
 import 'employee_pending_screen.dart';
 import 'employee_profile_screen.dart';
@@ -48,6 +49,7 @@ class MyApp extends StatelessWidget {
       routes: {
          "onboarding": (context) => const Onboarding(),
         "login": (context) => const Login(),
+        'employee_join_screen': (context) => const EmployeeJoinScreen(),
         'employee_login_screen': (context) => const EmployeeLoginScreen(),
         'employee_pending_screen': (context) => const EmployeePendingScreen(),
         'employee_profile_screen': (context) => const EmployeeProfileScreen(),

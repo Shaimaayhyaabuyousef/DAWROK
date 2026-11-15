@@ -26,16 +26,40 @@ class EmployeeAccessService {
     return 'employee_login_screen';
   }
 
-  Future<String> signIn({required String email, required String password,
-    String? invitationCode, String? facilityId, String? phone}) async {
+  /// Returning employees always sign in using email and password only.
+  /// A link code is never required for login and is never re-submitted here.
+  Future<String> signIn({
+    required String email,
+    required String password,
+  }) async {
     final result = await _auth.signInWithEmailAndPassword(
-      email: email.trim(), password: password);
+      email: email.trim(),
+      password: password,
+    );
     if (result.user == null) throw StateError('Could not sign in.');
-    if (invitationCode != null && invitationCode.trim().isNotEmpty) {
-      await StaffPairingService.instance.requestToJoin(invitationCode,
-        facilityId: facilityId, phone: phone);
-    }
     return routeFor(result.user);
+  }
+
+  /// Existing Firebase Auth accounts may apply for a facility using a fresh
+  /// invitation. This is a JOIN REQUEST action, not a sign-in requirement.
+  Future<String> requestWithExistingAccount({
+    required String email,
+    required String password,
+    required String invitationCode,
+    required String facilityId,
+    required String phone,
+  }) async {
+    final result = await _auth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    if (result.user == null) throw StateError('Could not sign in to request access.');
+    await StaffPairingService.instance.requestToJoin(
+      invitationCode,
+      facilityId: facilityId,
+      phone: phone,
+    );
+    return 'employee_pending_screen';
   }
 
   Future<String> createAccount({

@@ -79,8 +79,8 @@ class BookingService {
       tx.set(guardRef, {'uid': user.uid, 'queues': queues,
         'slots': slots, 'updatedAt': FieldValue.serverTimestamp()});
       tx.set(capacityRef, {'reserved': reserved + 1,
+        'lastBookingId': bookingRef.id,
         'updatedAt': FieldValue.serverTimestamp()});
-      tx.update(queueRef, {'waitingCount': FieldValue.increment(1)});
       tx.set(bookingRef, {
         'citizenId': user.uid,
         'citizenName': me.data()?['displayName'] ?? user.displayName ?? '',

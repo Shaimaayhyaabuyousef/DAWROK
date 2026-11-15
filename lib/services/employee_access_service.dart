@@ -27,12 +27,13 @@ class EmployeeAccessService {
   }
 
   Future<String> signIn({required String email, required String password,
-    String? invitationCode}) async {
+    String? invitationCode, String? facilityId, String? phone}) async {
     final result = await _auth.signInWithEmailAndPassword(
       email: email.trim(), password: password);
     if (result.user == null) throw StateError('Could not sign in.');
     if (invitationCode != null && invitationCode.trim().isNotEmpty) {
-      await StaffPairingService.instance.requestToJoin(invitationCode);
+      await StaffPairingService.instance.requestToJoin(invitationCode,
+        facilityId: facilityId, phone: phone);
     }
     return routeFor(result.user);
   }
@@ -40,6 +41,8 @@ class EmployeeAccessService {
   Future<String> createAccount({
     required String email, required String password,
     required String invitationCode,
+    String? facilityId,
+    String? phone,
   }) async {
     if (invitationCode.trim().isEmpty) {
       throw StateError('Ask your facility for a staff invitation code first.');

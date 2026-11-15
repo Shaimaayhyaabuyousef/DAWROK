@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'citizen_identity_service.dart';
+import 'employee_access_service.dart';
 
 /// Shared sign-in: the role is resolved from a trusted Firestore profile.
 /// This service never creates a facility account or changes anyone's role.
@@ -41,7 +42,9 @@ class AppAuthService {
     final snapshot = await _db.collection('users').doc(user.uid).get();
     final data = snapshot.data();
     if (data == null) {
-      throw StateError('الحساب غير مرتبط بملف مستخدم في Firestore.');
+      // Employees have independent Auth identities; owner approval creates
+      // a protected membership instead of a self-assigned role in users.
+      return EmployeeAccessService.instance.routeFor(user);
     }
 
     final role = data['role'];

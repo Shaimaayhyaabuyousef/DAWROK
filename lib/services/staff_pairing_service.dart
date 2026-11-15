@@ -100,35 +100,4 @@ class StaffPairingService {
     return snap.data();
   }
 }
-).hasMatch(phone.trim())) {
-      throw StateError('Enter a valid phone number.');
-    }
-    await _db.collection('staff_join_requests').doc(hash).set({
-      'facilityId': data['facilityId'],
-      'staffId': data['staffId'],
-      'employeeUid': user.uid,
-      'employeeEmail': user.email!,
-      'status': 'requested',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
 
-  Future<String> requestStatus(String displayedCode) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw StateError('Sign in first.');
-    final hash = digest(displayedCode);
-    final request = await _db.collection('staff_join_requests').doc(hash).get();
-    if (!request.exists) return 'not_requested';
-    if (request.data()?['employeeUid'] != user.uid) {
-      throw StateError('This request belongs to a different account.');
-    }
-    return request.data()?['status'] as String? ?? 'unknown';
-  }
-
-  Future<Map<String, dynamic>?> myApprovedMembership() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
-    final snap = await _db.collection('staff_memberships').doc(user.uid).get();
-    return snap.data();
-  }
-}

@@ -209,3 +209,4 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
       ),
     ),
   );
+}

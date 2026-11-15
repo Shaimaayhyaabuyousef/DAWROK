@@ -73,8 +73,15 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
       'dawrok://facility/${Uri.encodeComponent(_facilityId)}'
       '/check-in?demoSession=$_demoSession';
 
-  void _setOnline(bool online) {
-    setState(() => _online = online);
+  Future<void> _setOnline(bool online) async {
+    if (_facilityId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance.collection('facilities').doc(_facilityId)
+          .update({'isOnline': online});
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())));
+    }
   }
 
   void _refreshQr() {

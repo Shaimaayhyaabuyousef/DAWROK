@@ -67,7 +67,10 @@ class StaffPairingService {
       throw StateError('Facility ID does not match the invitation.');
     }
     if (phone != null && phone.trim().isNotEmpty &&
-        !RegExp(r'^\+?[0-9\s-]{8,20}
+        !RegExp(r'^\+?[0-9\s-]{8,20}$').hasMatch(phone.trim())) {
+      throw StateError('Enter a valid phone number.');
+    }
+    await _db.collection('staff_join_requests').doc(hash).set({
       'facilityId': data['facilityId'],
       'staffId': data['staffId'],
       'employeeUid': user.uid,

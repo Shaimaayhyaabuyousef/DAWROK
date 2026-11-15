@@ -202,8 +202,9 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Align(alignment: Alignment.topRight, child: IconButton(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Save your profile to continue.'))),
+                  tooltip: 'Settings',
+                  onPressed: _saving ? null
+                    : () => Navigator.pushNamed(context, 'app_settings'),
                   icon: const Icon(Icons.settings_outlined,
                     color: Color(0xFF65768F), size: 26))),
                 const SizedBox(height: 32),

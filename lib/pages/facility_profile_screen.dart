@@ -99,8 +99,8 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: IconButton(
-                onPressed: () =>
-                    _showComingSoon('Settings page coming soon'),
+                tooltip: 'Settings',
+                onPressed: () => Navigator.pushNamed(context, 'app_settings'),
                 icon: const Icon(
                   Icons.settings_outlined,
                   color: Color(0xFF4B5C77),

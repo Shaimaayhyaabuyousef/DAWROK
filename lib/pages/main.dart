@@ -69,6 +69,9 @@ class MyApp extends StatelessWidget {
             const ProfileScreen(),
         'citizen_settings': (context) =>
     const CitizenSettingsScreen(),
+        // All roles share the existing settings UI. Keep the citizen route
+        // for compatibility with the citizen profile.
+        'app_settings': (context) => const CitizenSettingsScreen(),
 
           'facility_home_screen': (context) =>
     const FacilityHomeScreen(),

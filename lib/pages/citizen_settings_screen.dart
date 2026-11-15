@@ -9,6 +9,8 @@ const _softBlue = Color(0xFF64B9FA);
 const _ink = Color(0xFF182235);
 const _muted = Color(0xFF71849F);
 
+/// Shared settings for citizens, facilities and employees.
+/// The original class name is retained for existing citizen navigation.
 class CitizenSettingsScreen extends StatefulWidget {
   const CitizenSettingsScreen({super.key});
 
@@ -18,6 +20,7 @@ class CitizenSettingsScreen extends StatefulWidget {
 
 class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
   bool _busy = false;
+  bool _confirmingLogout = false;
 
   @override
   void initState() {
@@ -58,7 +61,8 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
   }
 
   Future<void> _logout() async {
-    if (_busy) return;
+    if (_busy || _confirmingLogout) return;
+    _confirmingLogout = true;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -77,13 +81,15 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
         ],
       ),
     );
+    _confirmingLogout = false;
     if (confirmed != true || !mounted) return;
 
+    final navigator = Navigator.of(context, rootNavigator: true);
     setState(() => _busy = true);
     try {
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil('login', (_) => false);
+      navigator.pushNamedAndRemoveUntil('login', (_) => false);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -218,7 +224,9 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
       builder: (context, dark, _) {
         final bg = dark ? const Color(0xFF101B2A) : Colors.white;
         final fg = dark ? Colors.white : _ink;
-        return Scaffold(
+        return PopScope(
+          canPop: !_busy,
+          child: Scaffold(
           backgroundColor: bg,
           body: SafeArea(
             child: Center(
@@ -242,7 +250,8 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                               tooltip: 'Back to Profile',
                               icon: Icon(Icons.arrow_back_ios_new,
                                 color: fg, size: 24),
-                              onPressed: () => Navigator.maybePop(context),
+                              onPressed: _busy ? null
+                                : () => Navigator.maybePop(context),
                             ),
                           ),
                           Align(
@@ -346,6 +355,7 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                 ),
               ),
             ),
+          ),
           ),
         );
       },

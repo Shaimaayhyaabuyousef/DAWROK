@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'facility_nav.dart';
@@ -24,15 +23,25 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
     role = widget.editing?.role ?? StaffRole.windowOfficer;
   }
   @override void dispose() { name.dispose(); id.dispose(); station.dispose(); super.dispose(); }
-  void _generate() {
+  Future<void> _generate() async {
     if (!_formKey.currentState!.validate()) return;
-    if (widget.editing == null) {
-      FacilityStaffStore.instance.add(name: name.text.trim(), nationalId: id.text.trim(), window: station.text.trim(), role: role);
-    } else {
-      FacilityStaffStore.instance.update(widget.editing!, name: name.text.trim(), nationalId: id.text.trim(), window: station.text.trim(), role: role);
+    try {
+      if (widget.editing == null) {
+        await FacilityStaffStore.instance.add(
+          name: name.text.trim(), nationalId: id.text.trim(),
+          window: station.text.trim(), role: role);
+      } else {
+        await FacilityStaffStore.instance.update(widget.editing!,
+          name: name.text.trim(), nationalId: id.text.trim(),
+          window: station.text.trim(), role: role);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Staff saved in Firebase. Secure invitation codes are not enabled yet.')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())));
     }
-    final random = Random.secure();
-    setState(() { passcode = '${100 + random.nextInt(900)}-${100 + random.nextInt(900)}'; expiresAt = DateTime.now().add(const Duration(hours: 24)); });
   }
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.white,

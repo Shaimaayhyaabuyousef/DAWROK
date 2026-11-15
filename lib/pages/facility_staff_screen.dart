@@ -119,9 +119,13 @@ class FacilityStaffScreen extends StatelessWidget {
           ]),
           const SizedBox(height: 8),
           SizedBox(width: double.infinity, height: 38, child: OutlinedButton.icon(
-            onPressed: () => _write(context, () => FacilityStaffStore.instance.changeState(s, active ? StaffState.suspended : StaffState.active)),
+            onPressed: () => s.joinStatus == 'approved'
+              ? _write(context, () => FacilityStaffStore.instance.changeState(s, active ? StaffState.suspended : StaffState.active))
+              : _reissue(context, s),
             style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFC86B00), backgroundColor: const Color(0xFFFFFBEB), side: const BorderSide(color: Color(0xFFF7D86E)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9))),
-            icon: Icon(active ? Icons.block : Icons.check_circle_outline, size: 16), label: Text(active ? 'Removal of validity' : 'Restore validity'),
+            icon: Icon(active ? Icons.block : Icons.check_circle_outline, size: 16), label: Text(s.joinStatus == 'approved'
+              ? (active ? 'Removal of validity' : 'Restore validity')
+              : 'Generate New Code'),
           )),
         ],
       ]),

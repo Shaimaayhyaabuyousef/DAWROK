@@ -3,289 +3,362 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/employee_access_service.dart';
-import '../services/employee_work_service.dart';
+import 'employee_scanner_screen.dart';
 
 const _blue = Color(0xFF03A9F4);
-const _ink = Color(0xFF25354B);
-const _muted = Color(0xFF8597B0);
+const _ink = Color(0xFF27344D);
+const _muted = Color(0xFF899BB4);
+const _outline = Color(0xFFE0E9F2);
 
+/// Two-tab staff workspace, matching the supplied employee-home reference.
+/// The facility's operational controls and owner screens are unchanged.
 class EmployeeHomeScreen extends StatefulWidget {
   const EmployeeHomeScreen({super.key});
-  @override State<EmployeeHomeScreen> createState() => _EmployeeHomeScreenState();
+  @override
+  State<EmployeeHomeScreen> createState() => _EmployeeHomeScreenState();
 }
+
 class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   int _tab = 0;
-  String? _message;
-  bool _busy = false;
-  final _search = TextEditingController();
-  final _ticket = TextEditingController();
-  late final Future<Map<String,dynamic>> _access;
+  String? _queueId;
+  bool _checkingRoute = false;
 
-  @override void initState() {
-    super.initState(); _access = _load();
-  }
-  Future<Map<String,dynamic>> _load() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw StateError('Employee not signed in.');
-    final route = await EmployeeAccessService.instance.routeFor(user);
-    if (route != 'employee_home_screen') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
-      });
-      throw StateError('Employee access requirements not completed.');
-    }
-    final doc = await FirebaseFirestore.instance
-      .collection('staff_memberships').doc(user.uid).get();
-    return doc.data() ?? {};
-  }
-  @override void dispose() { _search.dispose(); _ticket.dispose(); super.dispose(); }
-  Future<void> _run(Future<String> Function() action) async {
-    if (_busy) return;
-    setState(() { _busy = true; _message = null; });
+  Future<void> _ensureAccess() async {
+    if (_checkingRoute || !mounted) return;
+    _checkingRoute = true;
     try {
-      final result = await action();
-      if (mounted) setState(() => _message = result);
+      final next = await EmployeeAccessService.instance.currentDestination();
+      if (!mounted) return;
+      if (next != 'employee_home_screen') {
+        Navigator.pushNamedAndRemoveUntil(context, next, (_) => false);
+      }
     } catch (e) {
-      if (mounted) setState(() => _message = e.toString());
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Access check failed: $e')));
     } finally {
-      if (mounted) setState(() => _busy = false);
+      _checkingRoute = false;
     }
   }
-  Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
-    if (mounted) Navigator.pushNamedAndRemoveUntil(context, 'employee_login_screen', (_) => false);
-  }
-  @override Widget build(BuildContext context) => FutureBuilder<Map<String,dynamic>>(
-    future: _access,
-    builder: (context, access) {
-      if (!access.hasData) return Scaffold(
-        body: Center(child: access.hasError
-          ? Text('${access.error}') : const CircularProgressIndicator()));
-      final m = access.data!;
-      final fid = m['facilityId'] as String? ?? '';
-      final role = m['role'] as String? ?? 'employee';
-      final canOperate = role == 'windowOfficer' || role == 'supervisor';
-      return Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(child: StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
-          stream: EmployeeWorkService.instance.tickets(fid),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) return Center(child: Text('Unable to load tickets: ${snapshot.error}'));
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-            final active = snapshot.data!.docs.where((x) =>
-              x.data()['status'] == 'waiting' || x.data()['status'] == 'called').toList();
-            return Column(children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
-                child: Row(children: [
-                  const CircleAvatar(radius: 22, backgroundColor: Color(0xFFE6F6FF),
-                    child: Icon(Icons.badge_outlined, color: _blue)),
-                  const SizedBox(width: 10),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Welcome back,', style: TextStyle(color: _muted, fontSize: 12)),
-                      Text(FirebaseAuth.instance.currentUser?.displayName ?? 'Employee',
-                        style: const TextStyle(color: _ink, fontSize: 17, fontWeight: FontWeight.w700))
-                    ])),
-                  IconButton(onPressed: _signOut, icon: const Icon(Icons.logout, color: _blue)),
-                ]),
-              ),
-              Expanded(child: _tab == 0
-                ? _dashboard(fid, m, active)
-                : _tab == 1 ? _tickets(active, canOperate)
-                : _tab == 2 ? _scanner(canOperate) : _profile(m)),
-            ]);
-          },
-        )),
-        bottomNavigationBar: SafeArea(top: false, child: Container(height: 64,
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFE9F0F8)))),
-          child: Row(children: [
-            _nav(0, Icons.home_outlined, 'Home'),
-            _nav(1, Icons.receipt_long_outlined, 'Queues'),
-            _nav(2, Icons.qr_code_scanner, 'Scan'),
-            _nav(3, Icons.person_outline, 'Profile'),
-          ]))),
-      );
-    },
-  );
-  Widget _nav(int index, IconData icon, String label) => Expanded(
-    child: InkWell(onTap: () => setState(() => _tab = index),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(icon, size: 25, color: _tab == index ? _blue : _muted),
-        Text(label, style: TextStyle(fontSize: 11,
-          color: _tab == index ? _blue : _muted)),
-      ])));
 
-  Widget _card(Widget child) => Container(width: double.infinity,
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureAccess());
+  }
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) Navigator.pushNamedAndRemoveUntil(
+      context, 'employee_login_screen', (_) => false);
+  }
+
+  Widget _card(Widget child) => Container(
     padding: const EdgeInsets.all(17),
     decoration: BoxDecoration(
-      color: Colors.white, border: Border.all(color: const Color(0xFFDCEBF6)),
-      borderRadius: BorderRadius.circular(18),
-      boxShadow: const [BoxShadow(color: Color(0x0A4C6E90),
-        blurRadius: 10, offset: Offset(0, 5))]),
-    child: child);
-
-  Widget _dashboard(String fid, Map<String,dynamic> m,
-      List<QueryDocumentSnapshot<Map<String,dynamic>>> active) =>
-    SingleChildScrollView(padding: const EdgeInsets.fromLTRB(24, 25, 24, 30),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
-          stream: FirebaseFirestore.instance.collection('facilities').doc(fid).snapshots(),
-          builder: (context, fac) => _card(Column(
-            crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('MY FACILITY', style: TextStyle(
-                color: _muted, fontSize: 11, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Text(fac.data?.data()?['name'] as String? ?? 'Facility',
-                style: const TextStyle(fontSize: 19,
-                  fontWeight: FontWeight.w700, color: _ink)),
-              const SizedBox(height: 13),
-              Text('Role: ${m['role']}', style: const TextStyle(color: _muted)),
-              Text('Station: ${m['window']}', style: const TextStyle(color: _muted)),
-            ]))),
-        const SizedBox(height: 16),
-        Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(
-          color: const Color(0xFFEAF7FF), borderRadius: BorderRadius.circular(17)),
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Column(children: [
-                Text('${active.length}', style: const TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 26, color: _blue)),
-                const Text('ACTIVE TICKETS', style: TextStyle(fontSize: 11, color: _muted)),
-              ]),
-              Column(children: [
-                Text('${active.where((x) => x.data()['status'] == 'called').length}',
-                  style: const TextStyle(fontWeight: FontWeight.bold,
-                    fontSize: 26, color: _blue)),
-                const Text('CALLED', style: TextStyle(fontSize: 11, color: _muted)),
-              ]),
-            ])),
-        const SizedBox(height: 23),
-        const Text('Queue Activity', style: TextStyle(
-          fontSize: 20, fontWeight: FontWeight.bold, color: _ink)),
-        const SizedBox(height: 13),
-        if (active.isEmpty) _card(const Text('No active reservations yet.',
-          style: TextStyle(color: _muted)))
-        else for (final doc in active.take(5)) ...[
-          _ticketCard(doc, m['role'] != 'logistics'),
-          const SizedBox(height: 12),
-        ],
-      ]));
-
-  Widget _tickets(List<QueryDocumentSnapshot<Map<String,dynamic>>> items,
-      bool canOperate) => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(23, 22, 23, 32),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Text('Queue Tickets', style: TextStyle(
-        color: _ink, fontSize: 23, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 16),
-      TextField(controller: _search, onChanged: (_) => setState(() {}),
-        decoration: InputDecoration(
-          prefixIcon: const Icon(Icons.search, color: _blue),
-          hintText: 'Search ticket or citizen',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)))),
-      if (_message != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Text(_message!, style: const TextStyle(color: _blue))),
-      const SizedBox(height: 16),
-      for (final doc in items.where((x) {
-        final q = _search.text.toLowerCase();
-        return x.id.toLowerCase().contains(q) ||
-          (x.data()['citizenName'] as String? ?? '').toLowerCase().contains(q);
-      })) ...[_ticketCard(doc, canOperate), const SizedBox(height: 12)],
-      if (items.isEmpty) const Center(child: Padding(
-        padding: EdgeInsets.only(top: 45),
-        child: Text('No queue tickets available.', style: TextStyle(color: _muted)))),
-    ]));
-
-  Widget _ticketCard(QueryDocumentSnapshot<Map<String,dynamic>> doc, bool canOperate) {
-    final m = doc.data();
-    final status = m['status'] as String? ?? 'waiting';
-    return _card(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(child: Text(m['citizenName'] as String? ?? 'Citizen',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _ink))),
-        Text(status.toUpperCase(), style: const TextStyle(color: _blue,
-          fontWeight: FontWeight.bold, fontSize: 11)),
+      color: Colors.white,
+      border: Border.all(color: _outline),
+      borderRadius: BorderRadius.circular(17),
+      boxShadow: const [
+        BoxShadow(color: Color(0x080D2B47), blurRadius: 5, offset: Offset(0, 2)),
       ]),
-      const SizedBox(height: 8),
-      Text('Ticket: ${doc.id}', style: const TextStyle(color: _muted, fontSize: 12)),
-      const SizedBox(height: 6),
-      Text('Window ${m['windowNumber']} · ${m['service']}',
-        style: const TextStyle(color: _muted, fontSize: 12)),
-      if (canOperate) ...[
-        const SizedBox(height: 11),
-        Wrap(spacing: 7, children: [
-          if (status == 'waiting') _actionButton('Call',
-            () => _run(() => EmployeeWorkService.instance.changeTicket(doc.id, 'called'))),
-          if (status == 'called') ...[
-            _actionButton('Served', () => _run(
-              () => EmployeeWorkService.instance.changeTicket(doc.id, 'served'))),
-            _actionButton('Postpone', () => _run(
-              () => EmployeeWorkService.instance.changeTicket(doc.id, 'postpone'))),
-            _actionButton('Absent', () => _run(
-              () => EmployeeWorkService.instance.changeTicket(doc.id, 'absent'))),
+    child: child,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.pushNamedAndRemoveUntil(
+          context, 'employee_login_screen', (_) => false);
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('staff_memberships').doc(uid).snapshots(),
+      builder: (context, membership) {
+        if (membership.hasError) return Scaffold(
+          body: Center(child: Text('Cannot load staff membership: ${membership.error}')));
+        if (!membership.hasData) return const Scaffold(
+          body: Center(child: CircularProgressIndicator()));
+        final m = membership.data!.data();
+        if (m == null || m['state'] != 'active') {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _ensureAccess());
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        final fid = m['facilityId'] as String? ?? '';
+        if (fid.isEmpty) return const Scaffold(body: Center(
+          child: Text('Employee is not linked to a facility.')));
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(child: _tab == 1
+            ? _profileTab(m)
+            : _homeTab(fid, m)),
+          bottomNavigationBar: SafeArea(top: false, child: Container(
+            height: 69,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: _outline)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(17))),
+            child: Row(children: [
+              _nav(0, Icons.home_outlined, 'Home'),
+              _nav(1, Icons.person_outline, 'Profile'),
+            ]),
+          )),
+        );
+      },
+    );
+  }
+
+  Widget _nav(int index, IconData icon, String label) => Expanded(
+    child: InkWell(
+      onTap: () => setState(() => _tab = index),
+      child: Center(child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+        decoration: BoxDecoration(
+          color: _tab == index ? const Color(0xFFE6F7FF) : Colors.white,
+          borderRadius: BorderRadius.circular(35)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: _blue, size: 24),
+          if (_tab == index) ...[
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(
+              fontSize: 13, color: _blue)),
           ],
         ]),
-      ],
-    ]));
-  }
-  Widget _actionButton(String label, VoidCallback onTap) => OutlinedButton(
-    onPressed: _busy ? null : onTap,
-    style: OutlinedButton.styleFrom(
-      foregroundColor: _blue,
-      side: const BorderSide(color: Color(0xFFC5E6FA))),
-    child: Text(label, style: const TextStyle(fontSize: 12)));
+      )),
+    ),
+  );
 
-  Widget _scanner(bool canOperate) => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(24, 36, 24, 26),
-    child: Column(children: [
-      const Text('Ticket Verification', style: TextStyle(
-        fontWeight: FontWeight.bold, fontSize: 23, color: _ink)),
-      const SizedBox(height: 24),
-      Container(width: 245, height: 218,
-        decoration: BoxDecoration(color: const Color(0xFF132036),
-          borderRadius: BorderRadius.circular(19)),
-        child: const Icon(Icons.qr_code_scanner, color: _blue, size: 99)),
-      const SizedBox(height: 20),
-      const Text('Enter the ticket number or QR content',
-        style: TextStyle(color: _muted, fontSize: 13)),
-      const SizedBox(height: 12),
-      TextField(controller: _ticket,
-        decoration: InputDecoration(hintText: 'Ticket / QR payload',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)))),
-      const SizedBox(height: 19),
-      SizedBox(width: double.infinity, height: 52, child: ElevatedButton(
-        onPressed: _busy || !canOperate ? null
-          : () => _run(() => EmployeeWorkService.instance.checkIn(_ticket.text)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _blue, foregroundColor: Colors.white),
-        child: Text(canOperate ? 'Verify Ticket' : 'No verification permission'))),
-      if (_message != null) Padding(padding: const EdgeInsets.only(top: 13),
-        child: Text(_message!, style: const TextStyle(color: _blue))),
-    ]));
+  Widget _homeTab(String fid, Map<String, dynamic> membership) =>
+    StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('facilities').doc(fid).snapshots(),
+      builder: (context, facility) =>
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance.collection('facilities')
+              .doc(fid).collection('queues').snapshots(),
+          builder: (context, queues) {
+            final facilityData = facility.data?.data() ?? {};
+            final online = facilityData['isOnline'] == true;
+            final available = queues.data?.docs.where((doc) =>
+                doc.data()['isActive'] == true &&
+                doc.data()['archived'] != true).toList() ?? [];
+            final selected = available.where((doc) => doc.id == _queueId).toList();
+            final q = selected.isNotEmpty
+                ? selected.first : (available.isNotEmpty ? available.first : null);
+            if (q != null && _queueId != q.id) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _queueId = q.id);
+              });
+            }
+            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance.collection('bookings')
+                .where('facilityId', isEqualTo: fid).snapshots(),
+              builder: (context, bookings) {
+                final tickets = bookings.data?.docs.where((doc) =>
+                  q != null && doc.data()['queueId'] == q.id).toList() ?? [];
+                final waiting = tickets.where((doc) =>
+                  doc.data()['status'] == 'waiting' ||
+                  doc.data()['status'] == 'called').length;
+                final utc = DateTime.now().toUtc();
+                final key = '${utc.year}${utc.month.toString().padLeft(2, '0')}${utc.day.toString().padLeft(2, '0')}';
+                final served = tickets.where((doc) =>
+                  doc.data()['status'] == 'served' && doc.data()['dayKey'] == key).length;
+                final start = (q?.data()['startsAtMinutes'] as num?)?.toInt() ?? 0;
+                final end = (q?.data()['endsAtMinutes'] as num?)?.toInt() ?? 0;
+                String clock(int v) => '${(v ~/ 60).toString().padLeft(2, '0')}:${(v % 60).toString().padLeft(2, '0')}';
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      CircleAvatar(radius: 4, backgroundColor:
+                        online ? const Color(0xFF14B889) : Colors.orange),
+                      const SizedBox(width: 12),
+                      Text(online ? 'ONLINE' : 'OFFLINE',
+                        style: TextStyle(fontSize: 13, letterSpacing: 1,
+                          color: online ? const Color(0xFF00A47A) : Colors.orange)),
+                    ]),
+                    const SizedBox(height: 45),
+                    _card(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        Container(
+                          width: 53, height: 53,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEDF9FF),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFCCECFF))),
+                          child: const Icon(Icons.storefront_outlined, color: _blue, size: 29)),
+                        const SizedBox(width: 13),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Text('Active Facility',
+                            style: TextStyle(color: _muted, fontSize: 13)),
+                          const SizedBox(height: 5),
+                          Text(facilityData['name'] as String? ?? 'Facility',
+                            style: const TextStyle(color: _ink,
+                              fontWeight: FontWeight.w700, fontSize: 21)),
+                        ])),
+                        const Icon(Icons.verified_outlined,
+                          color: Color(0xFF00A97F)),
+                      ]),
+                      const Divider(height: 27, color: _outline),
+                      Row(children: [
+                        Expanded(child: Text(
+                          'Zone: ${facilityData['address'] ?? 'Not specified'}',
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Color(0xFF687C99), fontSize: 12))),
+                        if (q != null) Text('Hours: ${clock(start)} - ${clock(end)}',
+                          style: const TextStyle(color: Color(0xFF008DDB), fontSize: 11)),
+                      ]),
+                    ])),
+                    const SizedBox(height: 44),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 9, bottom: 22),
+                      child: Text('Select the teller',
+                        style: TextStyle(color: Color(0xFF384962),
+                          fontSize: 18, fontWeight: FontWeight.w600))),
+                    _card(Row(children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(13),
+                          color: const Color(0xFFF0F4F8)),
+                        child: const Icon(Icons.support_agent_outlined,
+                          color: _blue, size: 24)),
+                      const SizedBox(width: 9),
+                      Expanded(child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: q?.id,
+                          hint: const Text('No active counters yet'),
+                          items: [
+                            for (final doc in available)
+                              DropdownMenuItem(
+                                value: doc.id,
+                                child: Text('Counter ${doc.data()['windowNumber']} - ${doc.data()['service']}',
+                                  maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          ],
+                          onChanged: (id) => setState(() => _queueId = id),
+                        ),
+                      )),
+                    ])),
+                    const SizedBox(height: 55),
+                    Row(children: [
+                      Expanded(child: _stat(Icons.people_outline,
+                        'Served Today', served.toString(), 'beneficiaries')),
+                      const SizedBox(width: 12),
+                      Expanded(child: _stat(Icons.access_time,
+                        'In Waiting Queue', waiting.toString(), 'waiting')),
+                    ]),
+                    const SizedBox(height: 26),
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [
+                          Color(0xFF09AFF7), Color(0xFF0084C8)]),
+                        borderRadius: BorderRadius.circular(16)),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0x2FFFFFFF),
+                            borderRadius: BorderRadius.circular(25)),
+                          child: const Text('● Ready to Serve',
+                            style: TextStyle(color: Colors.white, fontSize: 13)),
+                        ),
+                        const SizedBox(height: 22),
+                        const Text('Scan Beneficiary Card or Code',
+                          style: TextStyle(color: Colors.white,
+                            fontWeight: FontWeight.w700, fontSize: 20)),
+                        const SizedBox(height: 21),
+                        SizedBox(
+                          width: double.infinity, height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: q == null ||
+                              !{'windowOfficer','supervisor'}.contains(membership['role'])
+                              ? null : () => Navigator.push(context,
+                                MaterialPageRoute(builder: (_) => EmployeeScannerScreen(
+                                  facilityId: fid,
+                                  queueId: q.id,
+                                  windowNumber: (q.data()['windowNumber'] as num).toInt(),
+                                ))),
+                            icon: const Icon(Icons.crop_free_rounded, size: 22),
+                            label: const Text('Open Instant Scanner',
+                              style: TextStyle(fontSize: 16)),
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: const Color(0xFF0084CA),
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(13))),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ]),
+                );
+              },
+            );
+          },
+        ),
+    );
 
-  Widget _profile(Map<String,dynamic> m) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 32, 24, 20),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Icon(Icons.account_circle_outlined, size: 83, color: _blue),
-      const SizedBox(height: 16),
-      const Text('Employee Profile', textAlign: TextAlign.center,
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 23, color: _ink)),
-      const SizedBox(height: 21),
-      _card(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(FirebaseAuth.instance.currentUser?.email ?? ''),
-        const SizedBox(height: 9),
-        Text('Role: ${m['role']}', style: const TextStyle(color: _muted)),
-        Text('Status: ${m['state']}', style: const TextStyle(color: _blue)),
-      ])),
-      const SizedBox(height: 15),
-      ElevatedButton.icon(onPressed: () =>
-        Navigator.pushNamed(context, 'employee_profile_screen'),
-        icon: const Icon(Icons.edit_outlined), label: const Text('Edit My Profile'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _blue, foregroundColor: Colors.white)),
-      const SizedBox(height: 10),
-      OutlinedButton.icon(onPressed: _signOut,
-        icon: const Icon(Icons.logout), label: const Text('Log Out')),
-    ]));
+  Widget _stat(IconData icon, String title, String count, String suffix) =>
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F9FC),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: const Color(0xFFEDF1F6))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(icon, color: _blue, size: 17),
+          const SizedBox(width: 7),
+          Expanded(child: Text(title,
+            style: const TextStyle(color: Color(0xFF7789A1), fontSize: 12))),
+        ]),
+        const SizedBox(height: 11),
+        Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: 4, children: [
+          Text(count, style: const TextStyle(color: _ink,
+            fontWeight: FontWeight.w700, fontSize: 24)),
+          Text(suffix, style: const TextStyle(color: _muted, fontSize: 12)),
+        ]),
+      ]),
+    );
+
+  Widget _profileTab(Map<String, dynamic> membership) =>
+    SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 45, 24, 28),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const Icon(Icons.account_circle_outlined, size: 105, color: _blue),
+        const SizedBox(height: 20),
+        const Text('Employee Profile', textAlign: TextAlign.center,
+          style: TextStyle(color: _ink, fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 27),
+        _card(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(FirebaseAuth.instance.currentUser?.displayName ?? 'Employee',
+            style: const TextStyle(color: _ink,
+              fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 7),
+          Text(FirebaseAuth.instance.currentUser?.email ?? '',
+            style: const TextStyle(color: _muted)),
+          const Divider(height: 24),
+          Text('Role: ${membership['role']}', style: const TextStyle(color: _muted)),
+          Text('Status: ${membership['state']}', style: const TextStyle(color: _blue)),
+        ])),
+        const SizedBox(height: 20),
+        SizedBox(height: 52, child: ElevatedButton(
+          onPressed: () => Navigator.pushNamed(context, 'employee_profile_screen'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _blue, foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
+          child: const Text('Edit My Profile'))),
+        const SizedBox(height: 12),
+        TextButton.icon(onPressed: _logout,
+          icon: const Icon(Icons.logout),
+          label: const Text('Log Out')),
+      ]),
+    );
 }

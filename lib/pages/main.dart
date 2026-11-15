@@ -1,4 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'employee_login_screen.dart';
+import 'employee_pending_screen.dart';
+import 'employee_profile_screen.dart';
+import 'employee_home_screen.dart';
 import 'package:first_project/firebase_options.dart';
 import 'package:first_project/pages/facilities_screen.dart';
 import 'package:first_project/pages/home_screen.dart';
@@ -44,6 +48,10 @@ class MyApp extends StatelessWidget {
       routes: {
          "onboarding": (context) => const Onboarding(),
         "login": (context) => const Login(),
+        'employee_login_screen': (context) => const EmployeeLoginScreen(),
+        'employee_pending_screen': (context) => const EmployeePendingScreen(),
+        'employee_profile_screen': (context) => const EmployeeProfileScreen(),
+        'employee_home_screen': (context) => const EmployeeHomeScreen(),
         'signup': (context) =>
     const CitizenSignUpScreen(),
     'citizen_id_verification': (context) =>

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'facility_nav.dart';
 import 'facility_staff_code_dialog.dart';
 import 'facility_staff_store.dart';
@@ -14,6 +16,8 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   late final TextEditingController name, id, station;
   StaffRole role = StaffRole.windowOfficer;
   bool _working = false;
+  String? _saveError;
+
   @override void initState() {
     super.initState();
     name = TextEditingController(text: widget.editing?.name ?? '');
@@ -23,8 +27,12 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   }
   @override void dispose() { name.dispose(); id.dispose(); station.dispose(); super.dispose(); }
   Future<void> _generate() async {
-    if (_working || !_formKey.currentState!.validate()) return;
-    setState(() => _working = true);
+    if (_working) return;
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _saveError = 'Complete all required fields first.');
+      return;
+    }
+    setState(() { _working = true; _saveError = null; });
     try {
       final currentMember = widget.editing;
       StaffInviteResult? issued;
@@ -63,10 +71,43 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
       // Return to the existing Staff cards; the new code is read from
       // the owner-only Firestore staff document by the real-time listener.
       if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save employee: $e')),
-      );
+    } catch (e, stack) {
+      debugPrint('DAWROK: Generate Link Code failed: $e');
+      debugPrintStack(stackTrace: stack);
+      String message;
+      if (e is FirebaseException) {
+        if (e.code == 'permission-denied') {
+          message = 'Firebase denied saving this employee. Check that you '
+              'signed in as the active facility owner, and that the latest '
+              'firestore.rules were deployed to project dawrok-f908e. '
+              'Error: [${e.code}] ${e.message ?? ''}';
+        } else if (e.code == 'unavailable') {
+          message = 'Cannot reach Firestore right now. Check the connection '
+              'and retry. [${e.code}] ${e.message ?? ''}';
+        } else {
+          message = 'Firebase [${e.code}]: ${e.message ?? e.toString()}';
+        }
+      } else if (FirebaseAuth.instance.currentUser == null) {
+        message = 'The facility session has expired. Sign in again.';
+      } else {
+        message = e.toString();
+      }
+      if (mounted) {
+        setState(() => _saveError = message);
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Employee was not added'),
+            content: SelectableText(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -94,6 +135,11 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
           const SizedBox(height: 16),
           Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('National / Emp ID'), _entry(id, Icons.badge_outlined, 'ID number')])), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Station / Window'), _entry(station, Icons.dns_outlined, 'Window B')]))]),
           const SizedBox(height: 15),
+          if (_saveError != null) ...[
+            Text(_saveError!, style: const TextStyle(
+              color: Color(0xFFC62828), fontSize: 12)),
+            const SizedBox(height: 12),
+          ],
           SizedBox(width: double.infinity, height: 48, child: ElevatedButton.icon(onPressed: _working ? null : _generate, style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: const Icon(Icons.key_outlined), label: Text(_working ? 'Saving...' : 'Generate Link Code', style: const TextStyle(fontSize: 16)))),
         ])),
       ]),

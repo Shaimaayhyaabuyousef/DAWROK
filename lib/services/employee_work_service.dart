@@ -1,3 +1,4 @@
+import 'citizen_account_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -82,6 +83,11 @@ class EmployeeWorkService {
     await _canOperate();
     final fid = await _facility();
     final ref = _db.collection('bookings').doc(id);
+    if (action == 'served' || action == 'absent') {
+      await CitizenAccountService.instance.completeTicket(id, fid, action);
+      await _log(fid, action, id);
+      return 'Ticket updated: $action';
+    }
     await _db.runTransaction((tx) async {
       final ticket = await tx.get(ref);
       final data = ticket.data();
@@ -92,13 +98,6 @@ class EmployeeWorkService {
       if (action == 'called' && state == 'waiting') {
         tx.update(ref, {'status':'called',
           'calledAt': FieldValue.serverTimestamp()});
-      } else if (action == 'served' && state == 'called' &&
-          data['checkedIn'] == true) {
-        tx.update(ref, {'status':'served',
-          'closedAt': FieldValue.serverTimestamp()});
-      } else if (action == 'absent' && state == 'called') {
-        tx.update(ref, {'status':'absent',
-          'closedAt': FieldValue.serverTimestamp()});
       } else if (action == 'postpone' && state == 'called') {
         tx.update(ref, {'status':'waiting',
           'postponements': FieldValue.increment(1)});

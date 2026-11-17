@@ -11,6 +11,7 @@ const _muted = Color(0xFF687B96);
 class CenterDetailsScreen extends StatelessWidget {
   final String name, address, rating, openingFrom, openingTo;
   final String? facilityId, status;
+  final String reward;
   final bool isOpen, verified;
   final int registeredCount,
       minWaitingMinutes,
@@ -18,6 +19,7 @@ class CenterDetailsScreen extends StatelessWidget {
       occupancyPercent;
   const CenterDetailsScreen({
     super.key,
+    this.reward = 'none',
     required this.name,
     this.facilityId,
     required this.address,
@@ -160,7 +162,10 @@ class CenterDetailsScreen extends StatelessWidget {
           queues,
           index + 1,
           total + reserved,
-          canBook || (slots.isNotEmpty && reserved < capacity),
+          canBook || (slots.isNotEmpty && (reward == 'extra'
+            ? reserved - ((snapshot.data!.data()?['rewardReserved'] as num?)?.toInt() ?? 0) >= capacity
+              && ((snapshot.data!.data()?['rewardReserved'] as num?)?.toInt() ?? 0) < ((row['rewardCapacity'] as num?)?.toInt() ?? 0)
+            : reserved - ((snapshot.data!.data()?['rewardReserved'] as num?)?.toInt() ?? 0) < capacity)),
         );
       },
     );
@@ -599,6 +604,7 @@ class CenterDetailsScreen extends StatelessWidget {
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => AddQueueScreen(
+                                        reward: reward,
                                         facilityName: title,
                                         facilityId: facilityId,
                                         isOpen: open,

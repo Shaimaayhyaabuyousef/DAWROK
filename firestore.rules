@@ -65,6 +65,97 @@ service cloud.firestore {
         && get(memberRef(request.auth.uid)).data.role in ['windowOfficer', 'supervisor'];
     }
 
+    function accountPath(uid) { return /databases/$(database)/documents/citizen_accounts/$(uid); }
+    function accountData(uid) { return exists(accountPath(uid)) ? get(accountPath(uid)).data : {'points':0,'streak':0,'suspendedAt':null,'reviewRequired':false}; }
+    function admin() { return signedIn() && request.auth.token.get('admin',false) == true; }
+    function canBook(uid) {
+      let a = accountData(uid);
+      return !a.reviewRequired && (a.suspendedAt == null || request.time >= a.suspendedAt + duration.value(7,'d'));
+    }
+    function accountShape(a) {
+      return a.keys().hasOnly(['points','streak','suspendedAt','reviewRequired','lastBookingId','lastAction','updatedAt'])
+        && a.points is int && a.streak is int && a.streak >= 0
+        && (a.suspendedAt == null || a.suspendedAt is timestamp)
+        && a.reviewRequired is bool && a.lastBookingId is string && a.updatedAt == request.time;
+    }
+    function scoreResult(uid,a) {
+      let old = accountData(uid);
+      let before = get(bookingPath(a.lastBookingId)).data;
+      let after = getAfter(bookingPath(a.lastBookingId)).data;
+      let absent = after.status == 'absent';
+      let firstBan = absent && old.suspendedAt == null && old.streak + 1 >= 3;
+      let review = old.reviewRequired || (absent && old.suspendedAt != null && request.time >= old.suspendedAt + duration.value(7,'d'));
+      return before.citizenId == uid && before.status == 'called'
+        && (facilityOwner(before.facilityId) || staffOperator(before.facilityId))
+        && after.status in ['served','absent'] && after.closedAt == request.time
+        && a.lastAction == after.status && a.points == old.points + (absent ? -5 : 5)
+        && a.streak == (!absent || firstBan ? 0 : old.streak + 1)
+        && a.suspendedAt == (firstBan ? request.time : old.suspendedAt) && a.reviewRequired == review;
+    }
+    function redeemPoints(uid,a) {
+      let old = accountData(uid);
+      let ticket = getAfter(bookingPath(a.lastBookingId)).data;
+      return isSelf(uid) && canBook(uid) && old.points >= 100 && !exists(bookingPath(a.lastBookingId))
+        && ticket.citizenId == uid && ticket.createdAt == request.time
+        && ticket.get('reward','none') in ['extra','priority'] && a.points == old.points - 100
+        && a.streak == old.streak && a.suspendedAt == old.suspendedAt && a.reviewRequired == old.reviewRequired && a.lastAction == 'redeem';
+    }
+    function paidReward(uid,bid,reward) {
+      let after = getAfter(accountPath(uid)).data;
+      return reward == 'none' || (reward in ['extra','priority'] && after.lastBookingId == bid && after.lastAction == 'redeem'
+        && after.updatedAt == request.time && after.points == accountData(uid).points - 100);
+    }
+    function validCapacity(b) {
+      let q = get(queuePath(b.facilityId,b.queueId)).data;
+      let path = capPath(b.facilityId,b.queueId,b.dayKey);
+      let old = exists(path) ? get(path).data : {'reserved':0};
+      let after = getAfter(path).data;
+      let extra = b.get('reward','none') == 'extra';
+      return after.reserved == old.reserved + 1
+        && after.get('rewardReserved',0) == old.get('rewardReserved',0) + (extra ? 1 : 0)
+        && (extra ? (old.reserved - old.get('rewardReserved',0) >= q.capacity && after.get('rewardReserved',0) <= q.get('rewardCapacity',0))
+          : (old.reserved - old.get('rewardReserved',0) < q.capacity));
+    }
+    function scoredClose(bid) {
+      let a = getAfter(accountPath(resource.data.citizenId)).data;
+      return a.lastBookingId == bid && a.lastAction == request.resource.data.status && a.updatedAt == request.time && request.resource.data.closedAt == request.time;
+    }
+    match /citizen_accounts/{uid} {
+      allow get: if isSelf(uid) || admin() || (signedIn() &&
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && userDoc(request.auth.uid).role == 'facility' && userDoc(request.auth.uid).status == 'active')
+        || (exists(memberRef(request.auth.uid)) && staffOperator(get(memberRef(request.auth.uid)).data.facilityId))));
+      allow list, delete: if false;
+      allow create, update: if accountShape(request.resource.data) && (scoreResult(uid,request.resource.data) || redeemPoints(uid,request.resource.data));
+      allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['streak','suspendedAt','reviewRequired','updatedAt'])
+        && request.resource.data.streak == 0 && request.resource.data.suspendedAt == null && request.resource.data.reviewRequired == false && request.resource.data.updatedAt == request.time;
+      match /events/{eid} {
+        allow read: if isSelf(uid);
+        allow delete: if false;
+        allow update: if isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read == true;
+        allow create: if request.resource.data.keys().hasOnly(['type','bookingId','delta','read','createdAt'])
+          && request.resource.data.read == false && request.resource.data.createdAt == request.time
+          && ((eid == 'welcome' && isSelf(uid) && citizen() && request.resource.data.type == 'welcome'
+              && request.resource.data.bookingId == '' && request.resource.data.delta == 0)
+            || validAccountEvent(uid,eid,request.resource.data));
+      }
+    }
+    function validAccountEvent(uid,eid,e) {
+      let b = getAfter(bookingPath(e.bookingId)).data;
+      return b.citizenId == uid && ((eid == 'book_' + e.bookingId && isSelf(uid) && b.createdAt == request.time
+          && e.type == 'booking' && e.delta == (b.get('reward','none') == 'none' ? 0 : -100))
+        || (eid == 'result_' + e.bookingId && (facilityOwner(b.facilityId) || staffOperator(b.facilityId))
+          && b.closedAt == request.time && e.type == b.status && b.status in ['served','absent'] && e.delta == (b.status == 'served' ? 5 : -5)));
+    }
+    match /reports/{rid} {
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['uid','message','status','createdAt'])
+        && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'open'
+        && request.resource.data.message is string && request.resource.data.message.size() >= 10
+        && request.resource.data.message.size() <= 2000 && request.resource.data.createdAt == request.time;
+      allow read: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','response']) && request.resource.data.status in ['open','resolved'];
+      allow delete: if false;
+    }
+
     match /users/{uid} {
       allow get: if isSelf(uid);
       allow list: if false;
@@ -198,13 +289,16 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
             'windowNumber','service','counter','capacity','waitingCount',
             'waitingMinutes','shift','startsAtMinutes','endsAtMinutes',
-            'isActive','archived','createdAt'
+            'isActive','archived','createdAt','rewardCapacity'
           ])
           && qid == 'window_' + string(request.resource.data.windowNumber)
           && request.resource.data.windowNumber is int
           && request.resource.data['service'] is string
           && request.resource.data['service'].size() > 0
           && request.resource.data.capacity is int
+          && request.resource.data.get('rewardCapacity',0) is int
+          && request.resource.data.get('rewardCapacity',0) >= 0
+          && request.resource.data.get('rewardCapacity',0) <= 1000
           && request.resource.data.capacity > 0
           && request.resource.data.capacity <= 10000
           && request.resource.data.waitingCount == 0
@@ -221,11 +315,14 @@ service cloud.firestore {
         allow update: if facilityOwner(fid)
           && resource.data.archived == false
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['service','capacity','waitingMinutes','shift',
+            .hasOnly(['service','capacity','rewardCapacity','waitingMinutes','shift',
               'startsAtMinutes','endsAtMinutes','isActive','archived'])
           && request.resource.data['service'] is string
           && request.resource.data['service'].size() > 0
           && request.resource.data.capacity is int
+          && request.resource.data.get('rewardCapacity',0) is int
+          && request.resource.data.get('rewardCapacity',0) >= 0
+          && request.resource.data.get('rewardCapacity',0) <= 1000
           && request.resource.data.capacity > 0
           && request.resource.data.waitingMinutes is int
           && request.resource.data.startsAtMinutes is int
@@ -244,23 +341,25 @@ service cloud.firestore {
           allow create: if citizen()
             && day.matches('^[0-9]{8}$')
             && request.resource.data.keys().hasOnly(
-              ['reserved','lastBookingId','updatedAt'])
+              ['reserved','rewardReserved','lastBookingId','updatedAt'])
             && request.resource.data.reserved == 1
             && request.resource.data.updatedAt == request.time
             && getAfter(bookingPath(request.resource.data.lastBookingId)).data.createdAt == request.time
             && getAfter(bookingPath(request.resource.data.lastBookingId)).data.dayKey == day
             && getAfter(bookingPath(request.resource.data.lastBookingId)).data.facilityId == fid
-            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.queueId == qid;
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.queueId == qid
+            && validCapacity(getAfter(bookingPath(request.resource.data.lastBookingId)).data);
           allow update: if citizen()
             && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['reserved','lastBookingId','updatedAt'])
+                .hasOnly(['reserved','rewardReserved','lastBookingId','updatedAt'])
             && request.resource.data.reserved == resource.data.reserved + 1
             && request.resource.data.lastBookingId != resource.data.lastBookingId
             && request.resource.data.updatedAt == request.time
             && getAfter(bookingPath(request.resource.data.lastBookingId)).data.createdAt == request.time
             && getAfter(bookingPath(request.resource.data.lastBookingId)).data.dayKey == day
             && getAfter(bookingPath(request.resource.data.lastBookingId)).data.facilityId == fid
-            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.queueId == qid;
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.queueId == qid
+            && validCapacity(getAfter(bookingPath(request.resource.data.lastBookingId)).data);
         }
       }
 
@@ -365,10 +464,13 @@ service cloud.firestore {
           || facilityOwner(resource.data.facilityId)
           || staffActive(resource.data.facilityId));
       allow create: if citizen()
+        && canBook(request.auth.uid)
+        && request.resource.data.get('reward','none') in ['none','extra','priority']
+        && paidReward(request.auth.uid,bid,request.resource.data.get('reward','none'))
         && request.resource.data.keys().hasOnly([
           'citizenId','citizenName','facilityId','facilityName',
           'queueId','windowNumber','service','dayKey','slot',
-          'slotStart','status','checkedIn','postponements','createdAt'
+          'slotStart','status','checkedIn','postponements','createdAt','reward'
         ])
         && request.resource.data.citizenId == request.auth.uid
         && request.resource.data.status == 'waiting'
@@ -401,11 +503,7 @@ service cloud.firestore {
         && getAfter(capPath(request.resource.data.facilityId,
             request.resource.data.queueId,
             request.resource.data.dayKey)).data.lastBookingId == bid
-        && getAfter(capPath(request.resource.data.facilityId,
-            request.resource.data.queueId,
-            request.resource.data.dayKey)).data.reserved <=
-            get(queuePath(request.resource.data.facilityId,
-              request.resource.data.queueId)).data.capacity;
+        && validCapacity(request.resource.data);
       allow update: if (facilityOwner(resource.data.facilityId)
           || staffOperator(resource.data.facilityId))
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -420,6 +518,7 @@ service cloud.firestore {
           || (resource.data.status == 'called' &&
             request.resource.data.status in ['called','waiting','served','absent'])
         )
+        && (!(request.resource.data.status in ['served','absent']) || scoredClose(bid))
         && (request.resource.data.status != 'served'
           || resource.data.checkedIn == true);
       allow delete: if false;

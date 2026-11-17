@@ -6,7 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'center_details_screen.dart';
 
 class FacilitiesScreen extends StatefulWidget {
-  const FacilitiesScreen({super.key});
+  final String reward;
+  const FacilitiesScreen({super.key, this.reward = 'none'});
   @override
   State<FacilitiesScreen> createState() => _FacilitiesScreenState();
 }
@@ -260,6 +261,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
             context,
             MaterialPageRoute(
               builder: (_) => CenterDetailsScreen(
+                reward: widget.reward,
                 name: name,
                 facilityId: facilityId,
                 address: address,

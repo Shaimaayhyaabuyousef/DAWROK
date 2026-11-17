@@ -1,3 +1,6 @@
+import 'citizen_points_screen.dart';
+import 'citizen_notifications_screen.dart';
+import 'citizen_report_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'employee_join_screen.dart';
 import 'employee_login_screen.dart';
@@ -47,6 +50,9 @@ class MyApp extends StatelessWidget {
     // home: const FacilityHomeScreen(),
 
       routes: {
+        'citizen_points': (_) => const CitizenPointsScreen(),
+        'citizen_notifications': (_) => const CitizenNotificationsScreen(),
+        'citizen_report': (_) => const CitizenReportScreen(),
          "onboarding": (context) => const Onboarding(),
         "login": (context) => const Login(),
         'employee_join_screen': (context) => const EmployeeJoinScreen(),

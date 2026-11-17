@@ -13,6 +13,7 @@ const Color _queueDark = Color(0xFF172033);
 
 class AddQueueScreen extends StatefulWidget {
   final String facilityName;
+  final String reward;
   final String? facilityId;
   final String? queueId;
   final bool isOpen;
@@ -20,6 +21,7 @@ class AddQueueScreen extends StatefulWidget {
 
   const AddQueueScreen({
     super.key,
+    this.reward = 'none',
     required this.facilityName,
     this.facilityId,
     this.queueId,
@@ -150,6 +152,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
         facilityId: id,
         queueId: queueId,
         preferredStart: chosenTime,
+        reward: widget.reward,
       );
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -194,6 +197,8 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
                     _buildFacilitySummary(),
                     const SizedBox(height: 48),
                     _buildIdForm(),
+                    if (widget.reward != 'none') Padding(padding: const EdgeInsets.only(top: 16),
+                      child: Text('${widget.reward == 'extra' ? 'Extra reward place' : 'Priority within your time slot'} · 100 points. Charged only after a successful booking.')),
                   ],
                 ),
               ),

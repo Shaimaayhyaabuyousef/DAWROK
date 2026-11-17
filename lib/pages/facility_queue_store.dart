@@ -14,6 +14,7 @@ class FacilityQueue {
   final String service;
   final String counter;
   final int capacity;
+  final int rewardCapacity;
   final int beneficiaries;
   final int waitingMinutes;
   final FacilityQueueShift shift;
@@ -26,6 +27,7 @@ class FacilityQueue {
     required this.service,
     required this.counter,
     required this.capacity,
+    this.rewardCapacity = 0,
     required this.beneficiaries,
     required this.waitingMinutes,
     required this.shift,
@@ -38,6 +40,7 @@ class FacilityQueue {
     String? service,
     String? counter,
     int? capacity,
+    int? rewardCapacity,
     int? beneficiaries,
     int? waitingMinutes,
     FacilityQueueShift? shift,
@@ -50,6 +53,7 @@ class FacilityQueue {
       service: service ?? this.service,
       counter: counter ?? this.counter,
       capacity: capacity ?? this.capacity,
+      rewardCapacity: rewardCapacity ?? this.rewardCapacity,
       beneficiaries: beneficiaries ?? this.beneficiaries,
       waitingMinutes: waitingMinutes ?? this.waitingMinutes,
       shift: shift ?? this.shift,
@@ -63,6 +67,7 @@ class FacilityQueue {
 class FacilityQueueDraft {
   final String service;
   final int capacity;
+  final int rewardCapacity;
   final int waitingMinutes;
   final FacilityQueueShift shift;
   final TimeOfDay startsAt;
@@ -71,6 +76,7 @@ class FacilityQueueDraft {
   const FacilityQueueDraft({
     required this.service,
     required this.capacity,
+    this.rewardCapacity = 0,
     required this.waitingMinutes,
     required this.shift,
     required this.startsAt,
@@ -191,6 +197,7 @@ class FacilityQueueStore extends ChangeNotifier {
       service: m['service'] as String? ?? '',
       counter: m['counter'] as String? ?? 'A',
       capacity: (m['capacity'] as num?)?.toInt() ?? 0,
+      rewardCapacity: (m['rewardCapacity'] as num?)?.toInt() ?? 0,
       beneficiaries: (m['waitingCount'] as num?)?.toInt() ?? 0,
       waitingMinutes: (m['waitingMinutes'] as num?)?.toInt() ?? 0,
       shift: m['shift'] == 'evening' ? FacilityQueueShift.evening : FacilityQueueShift.morning,
@@ -220,6 +227,7 @@ class FacilityQueueStore extends ChangeNotifier {
         'service': draft.service.trim(),
         'counter': 'A',
         'capacity': draft.capacity,
+    'rewardCapacity': draft.rewardCapacity,
         'waitingCount': 0,
         'waitingMinutes': draft.waitingMinutes,
         'shift': draft.shift.name,
@@ -254,6 +262,7 @@ class FacilityQueueStore extends ChangeNotifier {
   Future<void> update(int n, FacilityQueueDraft draft) => _ref(n).update({
     'service': draft.service.trim(),
     'capacity': draft.capacity,
+    'rewardCapacity': draft.rewardCapacity,
     'waitingMinutes': draft.waitingMinutes,
     'shift': draft.shift.name,
     'startsAtMinutes': facilityTimeInMinutes(draft.startsAt),

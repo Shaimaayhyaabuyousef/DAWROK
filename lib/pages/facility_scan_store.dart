@@ -1,3 +1,5 @@
+import '../services/citizen_account_service.dart';
+import '../services/booking_order.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -78,7 +80,7 @@ class FacilityScanStore extends ChangeNotifier {
           .snapshots().listen((snap) {
         _visits
           ..clear()
-          ..addAll(snap.docs.map((d) {
+          ..addAll((snap.docs.toList()..sort((a,b) => compareBookingRows(a.data(),a.id,b.data(),b.id))).map((d) {
             final m = d.data();
             final status = FacilityVisitStatus.values.firstWhere(
               (v) => v.name == m['status'], orElse: () => FacilityVisitStatus.waiting);
@@ -184,16 +186,7 @@ class FacilityScanStore extends ChangeNotifier {
   Future<void> _close(FacilityVisit v, String status) async {
     final id = _facilityId;
     if (id == null) throw StateError('Facility is not loaded.');
-    await _db.runTransaction((tx) async {
-      final b = await tx.get(_ticket(v.ticketNumber));
-      if (b.data()?['status'] != 'called') throw StateError('Ticket is no longer called.');
-      if (status == 'served' && b.data()?['checkedIn'] != true) {
-        throw StateError('Check-in is required before serving.');
-      }
-      tx.update(_ticket(v.ticketNumber), {
-        'status': status, 'closedAt': FieldValue.serverTimestamp(),
-      });
-    });
+    await CitizenAccountService.instance.completeTicket(v.ticketNumber, id, status);
     await _log(status == 'served' ? 'Served' : 'Absent', v.ticketNumber,
         FacilityScanOutcome.verified);
   }

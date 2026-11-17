@@ -1,3 +1,6 @@
+import 'citizen_account_service.dart';
+import 'reliability_policy.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -31,7 +34,10 @@ class BookingService {
     required String facilityId,
     required String queueId,
     DateTime? preferredStart,
+    String reward = 'none',
   }) async {
+    if (!['none', 'extra', 'priority'].contains(reward))
+      throw ArgumentError.value(reward);
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw StateError('Sign in as a citizen to book.');
     final now = DateTime.now();
@@ -79,6 +85,18 @@ class BookingService {
       final queue = await tx.get(queueRef);
       final guard = await tx.get(guardRef);
       final daily = await tx.get(capacityRef);
+      final accountRef = CitizenAccountService.instance.account(user.uid);
+      final account = CitizenAccountService.policy(
+        (await tx.get(accountRef)).data(),
+      );
+      if (account.blocked(DateTime.now()))
+        throw StateError(
+          account.reviewRequired
+              ? 'Booking is restricted pending review. Please submit a report.'
+              : 'Booking is temporarily restricted until ${account.blockedUntil!.toLocal()}.',
+        );
+      if (reward != 'none' && account.points < ReliabilityPolicy.rewardCost)
+        throw StateError('You need 100 points to redeem this reward.');
       if (me.data()?['role'] != 'citizen') {
         throw StateError('Only citizens may reserve tickets.');
       }
@@ -118,9 +136,19 @@ class BookingService {
       }
       final reserved = (daily.data()?['reserved'] as num?)?.toInt() ?? 0;
       final capacity = (q['capacity'] as num?)?.toInt() ?? 0;
-      if (capacity < 1 || reserved >= capacity) {
-        throw StateError('This queue has reached its daily booking capacity.');
-      }
+      final rewardReserved =
+          (daily.data()?['rewardReserved'] as num?)?.toInt() ?? 0;
+      final rewardCapacity = (q['rewardCapacity'] as num?)?.toInt() ?? 0;
+      final normalUsed = reserved - rewardReserved;
+      if (reward == 'extra') {
+        if (normalUsed < capacity)
+          throw StateError(
+            'Regular places are still available. Choose a regular booking.',
+          );
+        if (rewardReserved >= rewardCapacity)
+          throw StateError('No reward places are available for this queue.');
+      } else if (capacity < 1 || normalUsed >= capacity)
+        throw StateError('Regular booking capacity is full.');
       queues[queueKey] = bookingRef.id;
       slots[slotKey] = bookingRef.id;
       tx.set(guardRef, {
@@ -131,10 +159,12 @@ class BookingService {
       });
       tx.set(capacityRef, {
         'reserved': reserved + 1,
+        'rewardReserved': rewardReserved + (reward == 'extra' ? 1 : 0),
         'lastBookingId': bookingRef.id,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       tx.set(bookingRef, {
+        'reward': reward,
         'citizenId': user.uid,
         'citizenName': me.data()?['displayName'] ?? user.displayName ?? '',
         'facilityId': facilityId,
@@ -150,6 +180,31 @@ class BookingService {
         'postponements': 0,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      if (reward != 'none') {
+        tx.set(accountRef, {
+          'points': account.points - 100,
+          'streak': account.streak,
+          'suspendedAt': account.suspendedAt == null
+              ? null
+              : Timestamp.fromDate(account.suspendedAt!),
+          'reviewRequired': account.reviewRequired,
+          'lastBookingId': bookingRef.id,
+          'lastAction': 'redeem',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      tx.set(
+        CitizenAccountService.instance
+            .events(user.uid)
+            .doc('book_${bookingRef.id}'),
+        {
+          'type': 'booking',
+          'bookingId': bookingRef.id,
+          'delta': reward == 'none' ? 0 : -100,
+          'read': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+      );
       receipt = BookingReceipt(
         id: bookingRef.id,
         facilityId: facilityId,

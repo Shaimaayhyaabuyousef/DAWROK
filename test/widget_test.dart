@@ -1,29 +1,69 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:first_project/pages/home_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    //await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  Widget view({
+    Map<String, dynamic>? booking,
+    bool loading = false,
+    String? error,
+    VoidCallback? search,
+  }) => MaterialApp(
+    home: CitizenHomeView(
+      name: 'Citizen',
+      points: 0,
+      booking: booking,
+      ticketId: 'test-ticket',
+      loading: loading,
+      error: error,
+      onSearch: search ?? () {},
+      onPoints: () {},
+      onNotifications: () {},
+      onTicket: () {},
+      onBookings: () {},
+      onProfile: () {},
+      onRetry: () {},
+    ),
+  );
+  testWidgets(
+    'new citizen has no fabricated ticket and search remains navigable',
+    (tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var searched = false;
+      await tester.pumpWidget(view(search: () => searched = true));
+      expect(find.text('0 Pts'), findsOneWidget);
+      expect(find.text('ACTIVE RESERVATION'), findsNothing);
+      await tester.tap(find.text('Search facilities'));
+      expect(searched, isTrue);
+      await tester.scrollUntilVisible(
+        find.text('Your next turn starts here'),
+        200,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets('real active ticket replaces the empty state', (tester) async {
+    await tester.pumpWidget(
+      view(
+        booking: {
+          'facilityName': 'Family Bakery',
+          'service': 'Bread',
+          'status': 'waiting',
+        },
+      ),
+    );
+    await tester.scrollUntilVisible(find.text('ACTIVE RESERVATION'), 200);
+    expect(find.textContaining('test-ticket'), findsOneWidget);
+    expect(find.text('Your next turn starts here'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('loading and error never imply no bookings', (tester) async {
+    await tester.pumpWidget(view(loading: true));
+    expect(find.text('Your next turn starts here'), findsNothing);
+    await tester.pumpWidget(view(error: 'Unable to load'));
+    expect(find.text('Your next turn starts here'), findsNothing);
   });
 }

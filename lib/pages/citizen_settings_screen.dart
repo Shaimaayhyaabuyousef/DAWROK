@@ -43,22 +43,7 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
     );
   }
 
-  void _report() {
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Report a problem'),
-        content: const Text(
-          'In-app report submission is not connected yet. '
-          'Please contact the Dawrok support team through your project support channel.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context),
-            child: const Text('OK')),
-        ],
-      ),
-    );
-  }
+  void _report() => Navigator.pushNamed(context, 'citizen_report');
 
   Future<void> _logout() async {
     if (_busy || _confirmingLogout) return;

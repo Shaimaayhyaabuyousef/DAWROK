@@ -59,6 +59,7 @@ class _QueueSheetContent extends StatefulWidget {
 class _QueueSheetContentState extends State<_QueueSheetContent> {
   String? _service;
   int _capacity = 50;
+  int _rewardCapacity = 0;
   int _waitingMinutes = 15;
   FacilityQueueShift _shift = FacilityQueueShift.morning;
   TimeOfDay _from = const TimeOfDay(hour: 8, minute: 0);
@@ -73,6 +74,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
     if (queue != null) {
       _service = queue.service;
       _capacity = queue.capacity;
+      _rewardCapacity = queue.rewardCapacity;
       _waitingMinutes = queue.waitingMinutes;
       _shift = queue.shift;
       _from = queue.startsAt;
@@ -129,6 +131,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
     Navigator.of(context).pop(FacilityQueueDraft(
       service: _service!,
       capacity: _capacity,
+      rewardCapacity: _rewardCapacity,
       waitingMinutes: _waitingMinutes,
       shift: _shift,
       startsAt: _from,
@@ -186,6 +189,13 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
                     const Text('Capacity:', style: TextStyle(fontSize: 14.5, color: Colors.black)),
                     const SizedBox(height: 8),
                     _capacityCard(),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      const Expanded(child: Text('Extra reward places', style: TextStyle(color: _muted))),
+                      _stepButton(Icons.remove, () => setState(() => _rewardCapacity = math.max(0, _rewardCapacity - 1))),
+                      Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('$_rewardCapacity')),
+                      _stepButton(Icons.add, () => setState(() => _rewardCapacity = math.min(1000, _rewardCapacity + 1)), blue: true),
+                    ]),
                     const SizedBox(height: 17),
                     const Text(
                       'Approximate waiting time:',

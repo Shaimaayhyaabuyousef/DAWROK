@@ -34,14 +34,7 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
     });
   }
 
-  void _info() {
-    showAboutDialog(
-      context: context,
-      applicationName: 'Dawrok',
-      applicationVersion: 'Prototype',
-      applicationLegalese: 'Queue booking and turn management.',
-    );
-  }
+  void _info() => Navigator.pushNamed(context, 'who_we_are');
 
   void _report() => Navigator.pushNamed(context, 'report');
 

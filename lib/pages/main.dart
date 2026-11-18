@@ -1,3 +1,4 @@
+import 'who_we_are_screen.dart';
 import 'citizen_points_screen.dart';
 import 'citizen_notifications_screen.dart';
 import 'citizen_report_screen.dart';
@@ -50,6 +51,7 @@ class MyApp extends StatelessWidget {
     // home: const FacilityHomeScreen(),
 
       routes: {
+        'who_we_are': (_) => const WhoWeAreScreen(),
         'citizen_points': (_) => const CitizenPointsScreen(),
         'citizen_notifications': (_) => const CitizenNotificationsScreen(),
         'citizen_report': (_) => const ReportScreen(),

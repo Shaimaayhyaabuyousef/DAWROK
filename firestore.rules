@@ -111,7 +111,10 @@ service cloud.firestore {
       let old = exists(path) ? get(path).data : {'reserved':0};
       let after = getAfter(path).data;
       let extra = b.get('reward','none') == 'extra';
-      return after.reserved == old.reserved + 1
+      return b.queuePosition is int && b.queuePosition == old.reserved + 1
+        && after.lastSlotStart == b.slotStart
+        && (!('lastSlotStart' in old) || b.slotStart >= old.lastSlotStart)
+        && after.reserved == old.reserved + 1
         && after.get('rewardReserved',0) == old.get('rewardReserved',0) + (extra ? 1 : 0)
         && (extra ? (old.reserved - old.get('rewardReserved',0) >= q.capacity && after.get('rewardReserved',0) <= q.get('rewardCapacity',0))
           : (old.reserved - old.get('rewardReserved',0) < q.capacity));
@@ -384,7 +387,7 @@ service cloud.firestore {
           allow create: if citizen()
             && day.matches('^[0-9]{8}$')
             && request.resource.data.keys().hasOnly(
-              ['reserved','rewardReserved','lastBookingId','updatedAt'])
+              ['reserved','rewardReserved','lastBookingId','lastSlotStart','updatedAt'])
             && request.resource.data.reserved == 1
             && request.resource.data.updatedAt == request.time
             && getAfter(bookingPath(request.resource.data.lastBookingId)).data.createdAt == request.time
@@ -394,7 +397,7 @@ service cloud.firestore {
             && validCapacity(getAfter(bookingPath(request.resource.data.lastBookingId)).data);
           allow update: if citizen()
             && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['reserved','rewardReserved','lastBookingId','updatedAt'])
+                .hasOnly(['reserved','rewardReserved','lastBookingId','lastSlotStart','updatedAt'])
             && request.resource.data.reserved == resource.data.reserved + 1
             && request.resource.data.lastBookingId != resource.data.lastBookingId
             && request.resource.data.updatedAt == request.time
@@ -513,7 +516,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'citizenId','citizenName','facilityId','facilityName',
           'queueId','windowNumber','service','dayKey','slot',
-          'slotStart','status','checkedIn','postponements','createdAt','reward'
+          'slotStart','queuePosition','status','checkedIn','postponements','createdAt','reward'
         ])
         && request.resource.data.citizenId == request.auth.uid
         && request.resource.data.status == 'waiting'

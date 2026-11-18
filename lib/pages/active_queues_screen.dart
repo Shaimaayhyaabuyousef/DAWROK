@@ -50,6 +50,8 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
         builder: (context) => QueueTicketScreen(
           ticketNumber: booking.ticketNumber,
           queueNumber: booking.queueNumber,
+          windowNumber: booking.windowNumber,
+          scheduledAt: booking.scheduledAt,
           facilityName: booking.facilityName,
           idNumber: booking.idNumber,
           createdAt: booking.createdAt,

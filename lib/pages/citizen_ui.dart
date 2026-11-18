@@ -29,14 +29,16 @@ Future<void> openCitizenTicket(
       MaterialPageRoute(
         builder: (_) => QueueTicketScreen(
           ticketNumber: id,
-          queueNumber: (data['windowNumber'] as num?)?.toInt() ?? 0,
+          queueNumber: (data['queuePosition'] as num?)?.toInt() ?? 0,
+          windowNumber: (data['windowNumber'] as num?)?.toInt(),
+          scheduledAt: time,
           facilityName: data['facilityName'] as String? ?? '',
           idNumber: nationalId,
           createdAt:
               (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
           estimatedWaiting: time == null
               ? '—'
-              : 'Scheduled ${citizenTime(time)}',
+              : '~${time.difference(DateTime.now()).inMinutes.clamp(0, 1440)} min',
           qrPayload:
               'DAWROK|ticket=$id|facility=${data['facilityId']}|queue=${data['queueId']}',
         ),

@@ -19,7 +19,7 @@ Accounts start with zero points. `citizen_accounts/{uid}` stores the balance and
 Every successful redemption costs 100 points. Citizens choose:
 
 1. **Extra place:** normal daily capacity must be exhausted, and the facility must have an unused `rewardCapacity` place. This separate quota defaults to zero and is set in the facility queue editor. It never reopens a closed or archived queue.
-2. **Priority:** requires normal capacity. Within the same queue and time slot, priority tickets precede regular tickets; earlier slots retain precedence. Creation time, then ticket ID, break ties. A currently called ticket is not displaced.
+2. **Priority:** requires normal capacity. Within the same queue and time slot, priority tickets precede regular tickets; earlier slots retain precedence. Assigned queue position breaks ties for new tickets; creation time and ticket ID remain fallbacks for older tickets. Arrival windows are assigned automatically at confirmation. A currently called ticket is not displaced.
 
 The daily counter stores total `reserved` and `rewardReserved`. Counter changes, booking, points debit and notification commit together. An unsuccessful attempt consumes neither a place nor points. Daily queue and time-slot duplication guards still apply.
 

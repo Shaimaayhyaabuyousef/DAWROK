@@ -5,7 +5,6 @@ import 'queue_ticket_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/booking_service.dart';
-import '../services/queue_schedule.dart';
 import '../services/citizen_identity_service.dart';
 
 const Color _queuePrimary = Color(0xFF4AAAF0);
@@ -122,36 +121,9 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
         );
       }
       if (queueId == null) return;
-      final selectedQueue = available.firstWhere((q) => q.id == queueId);
-      final row = selectedQueue.data();
-      final start = (row['startsAtMinutes'] as num?)?.toInt() ?? 0;
-      final end = (row['endsAtMinutes'] as num?)?.toInt() ?? 0;
-      final slots = QueueSchedule.availableSlots(start, end, DateTime.now());
-      if (slots.isEmpty) throw StateError('No available booking times today.');
-      if (!mounted) return;
-      final chosenTime = await showModalBottomSheet<DateTime>(
-        context: context,
-        builder: (sheetContext) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              const ListTile(title: Text('Choose an available time')),
-              for (final time in slots)
-                ListTile(
-                  title: Text(
-                    '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-                  ),
-                  onTap: () => Navigator.pop(sheetContext, time),
-                ),
-            ],
-          ),
-        ),
-      );
-      if (chosenTime == null) return;
       final receipt = await BookingService.instance.reserve(
         facilityId: id,
         queueId: queueId,
-        preferredStart: chosenTime,
         reward: widget.reward,
       );
       if (!mounted) return;
@@ -160,12 +132,14 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
         MaterialPageRoute(
           builder: (_) => QueueTicketScreen(
             ticketNumber: receipt.id,
-            queueNumber: receipt.windowNumber,
+            queueNumber: receipt.queuePosition,
+            windowNumber: receipt.windowNumber,
+            scheduledAt: receipt.slotStart,
             facilityName: receipt.facilityName,
             idNumber: receipt.nationalId,
             createdAt: DateTime.now(),
             estimatedWaiting:
-                'Scheduled ${receipt.slotStart.hour.toString().padLeft(2, '0')}:${receipt.slotStart.minute.toString().padLeft(2, '0')}',
+                '~${receipt.slotStart.difference(DateTime.now()).inMinutes.clamp(0, 1440)} min',
             qrPayload:
                 'DAWROK|ticket=${receipt.id}|facility=${receipt.facilityId}|queue=${receipt.queueId}',
           ),
@@ -197,8 +171,13 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
                     _buildFacilitySummary(),
                     const SizedBox(height: 48),
                     _buildIdForm(),
-                    if (widget.reward != 'none') Padding(padding: const EdgeInsets.only(top: 16),
-                      child: Text('${widget.reward == 'extra' ? 'Extra reward place' : 'Priority within your time slot'} · 100 points. Charged only after a successful booking.')),
+                    if (widget.reward != 'none')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Text(
+                          '${widget.reward == 'extra' ? 'Extra reward place' : 'Priority within your time slot'} · 100 points. Charged only after a successful booking.',
+                        ),
+                      ),
                   ],
                 ),
               ),

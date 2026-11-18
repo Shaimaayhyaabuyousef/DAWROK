@@ -15,6 +15,9 @@ int compareBookingRows(
     a['reward'] == 'priority' ? 1 : 0,
   );
   if (priority != 0) return priority;
+  final ap = a['queuePosition'];
+  final bp = b['queuePosition'];
+  if (ap is num && bp is num && ap != bp) return ap.compareTo(bp);
   final created = time(a, 'createdAt').compareTo(time(b, 'createdAt'));
   return created == 0 ? aid.compareTo(bid) : created;
 }

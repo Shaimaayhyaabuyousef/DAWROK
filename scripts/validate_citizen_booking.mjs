@@ -43,11 +43,11 @@ try {
     await tx.get(guard); await tx.get(daily);
     assert.equal(id.data().nationalId,'123456789');
     tx.set(guard,{uid:'booking-citizen',queues:{'booking-facility_window_1':ticket.id},slots:{[slot]:ticket.id},updatedAt:stamp()});
-    tx.set(daily,{reserved:1,lastBookingId:ticket.id,updatedAt:stamp()});
+    tx.set(daily,{reserved:1,lastSlotStart:firebase.firestore.Timestamp.fromDate(date),lastBookingId:ticket.id,updatedAt:stamp()});
     tx.set(ticket,{citizenId:'booking-citizen',citizenName:me.data().displayName,
       facilityId:'booking-facility',facilityName:facility.data().name,
       queueId:'window_1',windowNumber:q.data().windowNumber, service:q.data().service,
-      dayKey:day,slot,slotStart:firebase.firestore.Timestamp.fromDate(date),
+      queuePosition:1,dayKey:day,slot,slotStart:firebase.firestore.Timestamp.fromDate(date),
       status:'waiting',checkedIn:false,postponements:0,createdAt:stamp()});
   }));
   assert.equal((await assertSucceeds(daily.get())).data().reserved,1);

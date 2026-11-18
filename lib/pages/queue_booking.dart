@@ -10,6 +10,8 @@ enum QueueBookingStatus { yourTurnSoon, scheduled, inQueue }
 class QueueBooking {
   final String ticketNumber;
   final int queueNumber;
+  final int? windowNumber;
+  final DateTime? scheduledAt;
   final String facilityName;
   final String idNumber;
   final String beneficiaryName;
@@ -24,6 +26,8 @@ class QueueBooking {
   const QueueBooking({
     required this.ticketNumber,
     required this.queueNumber,
+    this.windowNumber,
+    this.scheduledAt,
     required this.facilityName,
     required this.idNumber,
     required this.beneficiaryName,
@@ -94,7 +98,9 @@ class QueueBookingStore extends ChangeNotifier {
                           return QueueBooking(
                             ticketNumber: d.id,
                             queueNumber:
-                                (m['windowNumber'] as num?)?.toInt() ?? 0,
+                                (m['queuePosition'] as num?)?.toInt() ?? 0,
+                            windowNumber: (m['windowNumber'] as num?)?.toInt(),
+                            scheduledAt: time,
                             facilityName: m['facilityName'] as String? ?? '',
                             idNumber: savedId, // Read only from this citizen's private identity document.
                             beneficiaryName: m['citizenName'] as String? ?? '',
@@ -105,7 +111,7 @@ class QueueBookingStore extends ChangeNotifier {
                                 ? 'Completed'
                                 : state == 'absent'
                                 ? 'Absent'
-                                : 'Slot ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+                                : '~${time.difference(DateTime.now()).inMinutes.clamp(0, 1440)} min',
                             qrPayload:
                                 'DAWROK|ticket=${d.id}|facility=${m['facilityId']}|queue=${m['queueId']}',
                             peopleAhead: ahead,

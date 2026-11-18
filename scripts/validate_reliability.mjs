@@ -11,14 +11,17 @@ const client=uid=>env.authenticatedContext(uid).firestore();
 async function seed(path,data){await env.withSecurityRulesDisabled(c=>c.firestore().doc(path).set(data));}
 async function user(uid,points=0){await seed(`users/${uid}`,{role:'citizen',displayName:uid});await seed(`citizen_accounts/${uid}`,{...defaults,points});}
 async function queue(q,capacity=2,rewardCapacity=1){await seed(`facilities/reliability/queues/${q}`,{windowNumber:1,service:'General',capacity,rewardCapacity,startsAtMinutes:0,endsAtMinutes:1440,isActive:true,archived:false});}
-async function reserve(uid,q,reward='none',{skipDebit=false,debit=100}={}){
+async function reserve(uid,q,reward='none',{skipDebit=false,debit=100,position}={}){
  const db=client(uid),ticket=db.collection('bookings').doc(),guard=db.doc(`users/${uid}/booking_days/${day}`),cap=db.doc(`facilities/reliability/queues/${q}/days/${day}`),acc=db.doc(`citizen_accounts/${uid}`);
- await db.runTransaction(async tx=>{const a=(await tx.get(acc)).data()??defaults,g=(await tx.get(guard)).data()??{},c=(await tx.get(cap)).data()??{reserved:0};
+ let observed;
+ for(let attempt=0;;attempt++){try{
+ await db.runTransaction(async tx=>{const a=(await tx.get(acc)).data()??defaults,g=(await tx.get(guard)).data()??{},c=(await tx.get(cap)).data()??{reserved:0};observed=c.reserved;
  tx.set(guard,{uid,queues:{...g.queues,[`reliability_${q}`]:ticket.id},slots:{...g.slots,[slot]:ticket.id},updatedAt:stamp()});
- tx.set(cap,{reserved:c.reserved+1,rewardReserved:(c.rewardReserved??0)+(reward==='extra'?1:0),lastBookingId:ticket.id,updatedAt:stamp()});
- tx.set(ticket,{citizenId:uid,citizenName:uid,facilityId:'reliability',facilityName:'Test',queueId:q,windowNumber:1,service:'General',dayKey:day,slot,slotStart:firebase.firestore.Timestamp.fromDate(time),status:'waiting',checkedIn:false,postponements:0,createdAt:stamp(),reward});
+ tx.set(cap,{reserved:c.reserved+1,lastSlotStart:firebase.firestore.Timestamp.fromDate(time),rewardReserved:(c.rewardReserved??0)+(reward==='extra'?1:0),lastBookingId:ticket.id,updatedAt:stamp()});
+ tx.set(ticket,{citizenId:uid,citizenName:uid,facilityId:'reliability',facilityName:'Test',queueId:q,windowNumber:1,service:'General',queuePosition:position??c.reserved+1,dayKey:day,slot,slotStart:firebase.firestore.Timestamp.fromDate(time),status:'waiting',checkedIn:false,postponements:0,createdAt:stamp(),reward});
  if(reward!=='none'&&!skipDebit)tx.set(acc,{...a,points:a.points-debit,lastBookingId:ticket.id,lastAction:'redeem',updatedAt:stamp()});
  tx.set(acc.collection('events').doc(`book_${ticket.id}`),{type:'booking',bookingId:ticket.id,delta:reward==='none'?0:-100,read:false,createdAt:stamp()});});return ticket.id;
+ }catch(e){if(e.code!=='permission-denied'||attempt>=2||(await cap.get({source:'server'})).data()?.reserved===observed)throw e;}}
 }
 async function called(uid,id){await seed(`bookings/${id}`,{citizenId:uid,facilityId:'reliability',status:'called',checkedIn:true,postponements:0});}
 async function close(id,outcome='served',actor='owner'){
@@ -31,6 +34,13 @@ async function close(id,outcome='served',actor='owner'){
 try{
  await seed('users/owner',{role:'facility',status:'active',facilityId:'reliability'});await seed('facilities/reliability',{ownerUid:'owner',name:'Test',isActive:true,isOnline:true});
  await user('new');await queue('normal');
+ await user('turnA');await user('turnB');await user('turnFake');await queue('turns',5);
+ await assertFails(reserve('turnFake','turns','none',{position:99}));
+ const turnIds=await Promise.all([reserve('turnA','turns'),reserve('turnB','turns')]);
+ const turns=await Promise.all(turnIds.map(id=>client('owner').doc(`bookings/${id}`).get()));
+ assert.deepEqual(turns.map(d=>d.data().queuePosition).sort(),[1,2]);
+ await assertFails(client('owner').doc(`bookings/${turnIds[0]}`).update({queuePosition:9}));
+
  const welcome=client('new').doc('citizen_accounts/new/events/welcome');const w={type:'welcome',bookingId:'',delta:0,read:false,createdAt:stamp()};await assertSucceeds(welcome.set(w));await assertFails(welcome.set(w));await assertSucceeds(welcome.update({read:true}));
  const id=await reserve('new','normal');await client('owner').doc(`bookings/${id}`).update({status:'called',calledAt:stamp()});await client('owner').doc(`bookings/${id}`).update({checkedIn:true});await assertSucceeds(close(id));assert.equal((await client('new').doc('citizen_accounts/new').get()).data().points,5);await assertFails(close(id));await assertFails(client('new').doc('citizen_accounts/new').update({points:999}));
  await user('blocked',150);for(let i=0;i<3;i++){await called('blocked',`miss${i}`);await assertSucceeds(close(`miss${i}`,'absent'));}let a=(await client('blocked').doc('citizen_accounts/blocked').get()).data();assert.equal(a.points,135);assert.ok(a.suspendedAt);await queue('blocked');await assertFails(reserve('blocked','blocked'));await assertFails(reserve('blocked','blocked','priority'));

@@ -43,7 +43,7 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
     );
   }
 
-  void _report() => Navigator.pushNamed(context, 'citizen_report');
+  void _report() => Navigator.pushNamed(context, 'report');
 
   Future<void> _logout() async {
     if (_busy || _confirmingLogout) return;

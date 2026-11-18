@@ -146,14 +146,52 @@ service cloud.firestore {
         || (eid == 'result_' + e.bookingId && (facilityOwner(b.facilityId) || staffOperator(b.facilityId))
           && b.closedAt == request.time && e.type == b.status && b.status in ['served','absent'] && e.delta == (b.status == 'served' ? 5 : -5)));
     }
+    function validReporter(r) {
+      let profile = exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? userDoc(request.auth.uid) : {};
+      return (r.reporterRole == 'citizen' && profile.get('role','') == 'citizen' && r.reporterFacilityId == '')
+        || (r.reporterRole == 'facility' && profile.get('role','') == 'facility'
+          && facilityOwner(r.reporterFacilityId))
+        || (r.reporterRole == 'employee' && profile.get('role','') != 'citizen'
+          && profile.get('role','') != 'facility' && exists(memberRef(request.auth.uid))
+          && get(memberRef(request.auth.uid)).data.state == 'active'
+          && get(memberRef(request.auth.uid)).data.facilityId == r.reporterFacilityId);
+    }
+    function validReportPhoto(p) {
+      return p.keys().hasOnly(['bytes','contentType','createdAt'])
+        && p.bytes is bytes && p.bytes.size() > 0 && p.bytes.size() <= 200000
+        && p.contentType == 'image/jpeg' && p.createdAt == request.time;
+    }
     match /reports/{rid} {
-      allow create: if signedIn() && request.resource.data.keys().hasOnly(['uid','message','status','createdAt'])
-        && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'open'
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid','reporterRole','reporterFacilityId','type',
+          'facilityId','facilityName','message','anonymous','hasPhoto','status','createdAt'])
+        && request.resource.data.uid == request.auth.uid && validReporter(request.resource.data)
+        && request.resource.data.status == 'open' && request.resource.data.createdAt == request.time
         && request.resource.data.message is string && request.resource.data.message.size() >= 10
-        && request.resource.data.message.size() <= 2000 && request.resource.data.createdAt == request.time;
-      allow read: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
-      allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','response']) && request.resource.data.status in ['open','resolved'];
+        && request.resource.data.message.size() <= 500 && request.resource.data.anonymous is bool
+        && request.resource.data.hasPhoto is bool
+        && ((request.resource.data.type == 'app' && request.resource.data.facilityId == '' && request.resource.data.facilityName == '')
+          || (request.resource.data.type == 'facility' && request.resource.data.reporterRole == 'citizen'
+            && get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.isActive == true
+            && get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.name == request.resource.data.facilityName))
+        && (!request.resource.data.hasPhoto || validReportPhoto(getAfter(/databases/$(database)/documents/reports/$(rid)/attachments/photo).data));
+      // Allows an idempotent transaction to check a new random report ID.
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/reports/$(rid)) || admin() || resource.data.uid == request.auth.uid);
+      allow list: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','response'])
+        && request.resource.data.status in ['open','resolved']
+        && request.resource.data.get('response','') is string && request.resource.data.get('response','').size() <= 2000;
       allow delete: if false;
+      match /attachments/{aid} {
+        allow read: if admin() || (signedIn() && get(/databases/$(database)/documents/reports/$(rid)).data.uid == request.auth.uid);
+        allow create: if signedIn() && aid == 'photo' && validReportPhoto(request.resource.data)
+          && !exists(/databases/$(database)/documents/reports/$(rid))
+          && getAfter(/databases/$(database)/documents/reports/$(rid)).data.uid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/reports/$(rid)).data.hasPhoto == true
+          && getAfter(/databases/$(database)/documents/reports/$(rid)).data.createdAt == request.time;
+        allow update, delete: if false;
+      }
     }
 
     match /users/{uid} {
@@ -196,6 +234,11 @@ service cloud.firestore {
         && request.resource.data.get('address','').size() <= 200;
       allow delete: if false;
 
+      match /notifications/{nid} {
+        allow read: if isSelf(uid);
+        allow update: if isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read == true;
+        allow create, delete: if false;
+      }
       match /booking_days/{day} {
         allow get: if isSelf(uid);
         allow list, delete: if false;

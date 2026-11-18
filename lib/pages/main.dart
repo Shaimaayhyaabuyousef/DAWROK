@@ -52,7 +52,8 @@ class MyApp extends StatelessWidget {
       routes: {
         'citizen_points': (_) => const CitizenPointsScreen(),
         'citizen_notifications': (_) => const CitizenNotificationsScreen(),
-        'citizen_report': (_) => const CitizenReportScreen(),
+        'citizen_report': (_) => const ReportScreen(),
+        'report': (_) => const ReportScreen(),
          "onboarding": (context) => const Onboarding(),
         "login": (context) => const Login(),
         'employee_join_screen': (context) => const EmployeeJoinScreen(),

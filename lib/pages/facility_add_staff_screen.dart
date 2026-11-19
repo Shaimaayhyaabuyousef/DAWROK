@@ -40,7 +40,7 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
         issued = await FacilityStaffStore.instance.add(
           name: name.text.trim(),
           nationalId: id.text.trim(),
-          window: station.text.trim(),
+          window: 'Automatic',
           role: role,
         );
       } else {
@@ -48,7 +48,7 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
           currentMember,
           name: name.text.trim(),
           nationalId: id.text.trim(),
-          window: station.text.trim(),
+          window: 'Automatic',
           role: role,
         );
         if (currentMember.joinStatus != 'approved') {
@@ -133,7 +133,7 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
             _role(StaffRole.logistics, Icons.local_shipping_outlined, 'Logistics'),
           ]),
           const SizedBox(height: 16),
-          Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('National / Emp ID'), _entry(id, Icons.badge_outlined, 'ID number')])), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Station / Window'), _entry(station, Icons.dns_outlined, 'Window B')]))]),
+          const Text('Assigned automatically to a vacant service position after approval.', style: TextStyle(color: Color(0xFF60738E))),
           const SizedBox(height: 15),
           if (_saveError != null) ...[
             Text(_saveError!, style: const TextStyle(

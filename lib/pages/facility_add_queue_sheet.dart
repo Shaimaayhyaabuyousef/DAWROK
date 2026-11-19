@@ -61,6 +61,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
   int _capacity = 50;
   int _rewardCapacity = 0;
   int _waitingMinutes = 15;
+  int _windowCount = 0;
   FacilityQueueShift _shift = FacilityQueueShift.morning;
   TimeOfDay _from = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay _to = const TimeOfDay(hour: 13, minute: 30);
@@ -76,6 +77,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
       _capacity = queue.capacity;
       _rewardCapacity = queue.rewardCapacity;
       _waitingMinutes = queue.waitingMinutes;
+      _windowCount = queue.windowCount;
       _shift = queue.shift;
       _from = queue.startsAt;
       _to = queue.endsAt;
@@ -130,6 +132,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
     setState(() => _saving = true);
     Navigator.of(context).pop(FacilityQueueDraft(
       service: _service!,
+      windowCount: _windowCount,
       capacity: _capacity,
       rewardCapacity: _rewardCapacity,
       waitingMinutes: _waitingMinutes,
@@ -189,6 +192,14 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
                     const Text('Capacity:', style: TextStyle(fontSize: 14.5, color: Colors.black)),
                     const SizedBox(height: 8),
                     _capacityCard(),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      const Expanded(child: Text('Service windows')),
+                      _stepButton(Icons.remove, () => setState(() => _windowCount = math.max(0, _windowCount - 1))),
+                      Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('$_windowCount')),
+                      _stepButton(Icons.add, () => setState(() => _windowCount = math.min(20, _windowCount + 1)), blue: true),
+                    ]),
+                    Text(_windowCount == 0 ? 'No windows — direct queue service' : 'Employees are assigned automatically to vacant windows', style: const TextStyle(color: _muted, fontSize: 12)),
                     const SizedBox(height: 10),
                     Row(children: [
                       const Expanded(child: Text('Extra reward places', style: TextStyle(color: _muted))),

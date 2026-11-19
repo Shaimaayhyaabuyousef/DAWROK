@@ -51,6 +51,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
           ticketNumber: booking.ticketNumber,
           queueNumber: booking.queueNumber,
           windowNumber: booking.windowNumber,
+          windowCount: booking.windowCount,
           scheduledAt: booking.scheduledAt,
           facilityName: booking.facilityName,
           idNumber: booking.idNumber,

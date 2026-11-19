@@ -1,16 +1,17 @@
 import 'dart:async';
+import '../services/queue_assignment_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/facility_context.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Demo-only state. Connect this service to a server to make changes shared
-/// between the facility staff and citizen applications.
+/// Firestore queue configuration, independent of service-window assignments.
 enum FacilityQueueShift { morning, evening }
 
 class FacilityQueue {
-  final int windowNumber;
+  final int windowNumber; // Stable legacy queue number, not a service window.
+  final int windowCount;
   final String service;
   final String counter;
   final int capacity;
@@ -24,6 +25,7 @@ class FacilityQueue {
 
   const FacilityQueue({
     required this.windowNumber,
+    this.windowCount = 1,
     required this.service,
     required this.counter,
     required this.capacity,
@@ -50,6 +52,7 @@ class FacilityQueue {
   }) {
     return FacilityQueue(
       windowNumber: windowNumber,
+      windowCount: windowCount,
       service: service ?? this.service,
       counter: counter ?? this.counter,
       capacity: capacity ?? this.capacity,
@@ -65,6 +68,7 @@ class FacilityQueue {
 }
 
 class FacilityQueueDraft {
+  final int windowCount;
   final String service;
   final int capacity;
   final int rewardCapacity;
@@ -74,6 +78,7 @@ class FacilityQueueDraft {
   final TimeOfDay endsAt;
 
   const FacilityQueueDraft({
+    this.windowCount = 0,
     required this.service,
     required this.capacity,
     this.rewardCapacity = 0,
@@ -129,7 +134,7 @@ class FacilityQueueStore extends ChangeNotifier {
         for (final doc in snap.docs) {
           final data = doc.data();
           if (data['status'] != 'waiting' && data['status'] != 'called') continue;
-          final window = (data['windowNumber'] as num?)?.toInt() ?? 0;
+          final window = int.tryParse((data['queueId'] as String? ?? '').replaceFirst('window_', '')) ?? 0;
           counts[window] = (counts[window] ?? 0) + 1;
         }
         _counts = counts;
@@ -194,6 +199,7 @@ class FacilityQueueStore extends ChangeNotifier {
     final end = (m['endsAtMinutes'] as num?)?.toInt() ?? 1020;
     return FacilityQueue(
       windowNumber: (m['windowNumber'] as num?)?.toInt() ?? 0,
+      windowCount: (m['windowCount'] as num?)?.toInt() ?? 1,
       service: m['service'] as String? ?? '',
       counter: m['counter'] as String? ?? 'A',
       capacity: (m['capacity'] as num?)?.toInt() ?? 0,
@@ -224,6 +230,7 @@ class FacilityQueueStore extends ChangeNotifier {
       createdQueue = fac.collection('queues').doc('window_$n');
       tx.set(createdQueue, {
         'windowNumber': n,
+        'windowCount': draft.windowCount,
         'service': draft.service.trim(),
         'counter': 'A',
         'capacity': draft.capacity,
@@ -239,6 +246,7 @@ class FacilityQueueStore extends ChangeNotifier {
       });
     });
 
+    await QueueAssignmentService.instance.rebalance(id);
     // Check the actual server document, not only local UI state.
     final verified = await createdQueue.get(
       const GetOptions(source: Source.server),
@@ -259,19 +267,45 @@ class FacilityQueueStore extends ChangeNotifier {
     }
   }
 
-  Future<void> update(int n, FacilityQueueDraft draft) => _ref(n).update({
-    'service': draft.service.trim(),
-    'capacity': draft.capacity,
-    'rewardCapacity': draft.rewardCapacity,
-    'waitingMinutes': draft.waitingMinutes,
-    'shift': draft.shift.name,
-    'startsAtMinutes': facilityTimeInMinutes(draft.startsAt),
-    'endsAtMinutes': facilityTimeInMinutes(draft.endsAt),
-  });
+  Future<void> update(int n, FacilityQueueDraft draft) async {
+    final ref = _ref(n);
+    final before = await ref.get();
+    if ((before.data()?['windowCount'] ?? 1) != draft.windowCount) {
+      final tickets = await _db.collection('bookings').where('facilityId', isEqualTo: _facilityId).get();
+      if (tickets.docs.any((d) => d.data()['queueId'] == ref.id && d.data()['status'] == 'called')) {
+        throw StateError('Finish called tickets before changing the number of windows.');
+      }
+    }
+    await _db.runTransaction((tx) async {
+      final q = (await tx.get(ref)).data()!;
+      final oldCount = (q['windowCount'] as num?)?.toInt() ?? 1;
+      if (oldCount != draft.windowCount) {
+        for (final w in serviceWindows(oldCount)) {
+          final lane = await tx.get(ref.collection('lanes').doc('$w'));
+          if ((lane.data()?['ticketId'] as String? ?? '').isNotEmpty) {
+            throw StateError('Finish called tickets before changing windows.');
+          }
+        }
+      }
+      tx.update(ref, {
+        'service': draft.service.trim(), 'windowCount': draft.windowCount,
+        'capacity': draft.capacity, 'rewardCapacity': draft.rewardCapacity,
+        'waitingMinutes': draft.waitingMinutes, 'shift': draft.shift.name,
+        'startsAtMinutes': facilityTimeInMinutes(draft.startsAt),
+        'endsAtMinutes': facilityTimeInMinutes(draft.endsAt),
+      });
+    });
+    await QueueAssignmentService.instance.rebalance(_facilityId!);
+  }
 
   Future<void> setActive(int n, bool active) => _ref(n).update({'isActive': active});
   /// Archive instead of deleting ticket history.
-  Future<void> delete(int n) => _ref(n).update({'archived': true, 'isActive': false});
+  Future<void> delete(int n) async {
+    final tickets = await _db.collection('bookings').where('facilityId', isEqualTo: _facilityId).get();
+    if (tickets.docs.any((d) => d.data()['queueId'] == _ref(n).id && ['waiting','called'].contains(d.data()['status']))) throw StateError('Finish existing tickets before archiving this queue.');
+    await _ref(n).update({'archived': true, 'isActive': false});
+    await QueueAssignmentService.instance.rebalance(_facilityId!);
+  }
   /// Ticket counts are owned by reservation transactions, not local widgets.
   void recordHandled(int n) {}
 }

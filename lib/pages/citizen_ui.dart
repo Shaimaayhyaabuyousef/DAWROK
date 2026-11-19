@@ -31,6 +31,7 @@ Future<void> openCitizenTicket(
           ticketNumber: id,
           queueNumber: (data['queuePosition'] as num?)?.toInt() ?? 0,
           windowNumber: (data['windowNumber'] as num?)?.toInt(),
+          windowCount: (data['windowCount'] as num?)?.toInt(),
           scheduledAt: time,
           facilityName: data['facilityName'] as String? ?? '',
           idNumber: nationalId,

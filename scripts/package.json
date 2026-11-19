@@ -11,6 +11,6 @@
     "firebase-tools": "^15.36.0"
   },
   "scripts": {
-    "test:rules": "firebase emulators:exec --config ../firebase.emulator.json --project demo-dawrok --only firestore \"node validate_reports.mjs && node validate_reliability.mjs && node validate_citizen_booking.mjs && node validate_firestore_rules.mjs\""
+    "test:rules": "firebase emulators:exec --config ../firebase.emulator.json --project demo-dawrok --only firestore \"node validate_queue_windows.mjs && node validate_reports.mjs && node validate_reliability.mjs && node validate_citizen_booking.mjs && node validate_firestore_rules.mjs\""
   }
 }

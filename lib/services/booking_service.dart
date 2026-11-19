@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 class BookingReceipt {
   final String id, facilityId, facilityName, queueId, dayKey, slot;
   final String nationalId;
-  final int windowNumber, queuePosition;
+  final int windowNumber, queuePosition, windowCount;
   final DateTime slotStart;
   const BookingReceipt({
     required this.id,
@@ -17,6 +17,7 @@ class BookingReceipt {
     required this.queueId,
     required this.windowNumber,
     required this.queuePosition,
+    required this.windowCount,
     required this.dayKey,
     required this.slot,
     required this.slotStart,
@@ -175,7 +176,9 @@ class BookingService {
             'facilityId': facilityId,
             'facilityName': facility.data()?['name'] ?? '',
             'queueId': queueId,
-            'windowNumber': q['windowNumber'],
+            'windowNumber': 0,
+            'windowCount': (q['windowCount'] as num?)?.toInt() ?? 1,
+            'routingVersion': 2,
             'queuePosition': reserved + 1,
             'service': q['service'],
             'dayKey': dayKey,
@@ -216,7 +219,8 @@ class BookingService {
             facilityId: facilityId,
             facilityName: facility.data()?['name'] as String? ?? '',
             queueId: queueId,
-            windowNumber: (q['windowNumber'] as num).toInt(),
+            windowNumber: 0,
+            windowCount: (q['windowCount'] as num?)?.toInt() ?? 1,
             queuePosition: reserved + 1,
             dayKey: dayKey,
             slot: slotKey,

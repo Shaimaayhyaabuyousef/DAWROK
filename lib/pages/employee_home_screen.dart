@@ -135,6 +135,12 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
 
   Widget _homeTab(String fid, Map<String, dynamic> membership) =>
     StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('facilities').doc(fid).collection('operations').doc('assignments').snapshots(),
+      builder: (context, routing) {
+        if (routing.hasError) return const Center(child: Text('Unable to load your service assignment. Please try again.'));
+        if (!routing.hasData) return const Center(child: CircularProgressIndicator());
+        final assignment = (routing.data?.data()?['assignments'] as Map?)?[FirebaseAuth.instance.currentUser?.uid] as Map?;
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('facilities').doc(fid).snapshots(),
       builder: (context, facility) =>
         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -144,8 +150,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
             final facilityData = facility.data?.data() ?? {};
             final online = facilityData['isOnline'] == true;
             final available = queues.data?.docs.where((doc) =>
-                doc.data()['isActive'] == true &&
-                doc.data()['archived'] != true).toList() ?? [];
+                doc.id == assignment?['queueId'] && doc.data()['archived'] != true).toList() ?? [];
             final selected = available.where((doc) => doc.id == _queueId).toList();
             final q = selected.isNotEmpty
                 ? selected.first : (available.isNotEmpty ? available.first : null);
@@ -232,12 +237,12 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                         child: DropdownButton<String>(
                           isExpanded: true,
                           value: q?.id,
-                          hint: const Text('No active counters yet'),
+                          hint: const Text('Awaiting a vacant service position'),
                           items: [
                             for (final doc in available)
                               DropdownMenuItem(
                                 value: doc.id,
-                                child: Text('Counter ${doc.data()['windowNumber']} - ${doc.data()['service']}',
+                                child: Text('${doc.data()['service']} • ${assignment?['windowNumber'] == 0 ? 'Direct service' : 'Window ${assignment?['windowNumber']}'}',
                                   maxLines: 1, overflow: TextOverflow.ellipsis)),
                           ],
                           onChanged: (id) => setState(() => _queueId = id),
@@ -283,7 +288,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                                 MaterialPageRoute(builder: (_) => EmployeeScannerScreen(
                                   facilityId: fid,
                                   queueId: q.id,
-                                  windowNumber: (q.data()['windowNumber'] as num).toInt(),
+                                  windowNumber: (assignment!['windowNumber'] as num).toInt(),
                                 ))),
                             icon: const Icon(Icons.crop_free_rounded, size: 22),
                             label: const Text('Open Instant Scanner',
@@ -303,6 +308,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
             );
           },
         ),
+    );
+      },
     );
 
   Widget _stat(IconData icon, String title, String count, String suffix) =>

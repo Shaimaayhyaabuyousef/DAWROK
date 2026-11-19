@@ -9,6 +9,8 @@ int compareBookingRows(
 ) {
   int time(Map<String, dynamic> row, String key) =>
       (row[key] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+  final postponed = ((a['postponements'] as num?) ?? 0).compareTo((b['postponements'] as num?) ?? 0);
+  if (postponed != 0) return postponed;
   final slot = time(a, 'slotStart').compareTo(time(b, 'slotStart'));
   if (slot != 0) return slot;
   final priority = (b['reward'] == 'priority' ? 1 : 0).compareTo(

@@ -46,7 +46,7 @@ try {
     tx.set(daily,{reserved:1,lastSlotStart:firebase.firestore.Timestamp.fromDate(date),lastBookingId:ticket.id,updatedAt:stamp()});
     tx.set(ticket,{citizenId:'booking-citizen',citizenName:me.data().displayName,
       facilityId:'booking-facility',facilityName:facility.data().name,
-      queueId:'window_1',windowNumber:q.data().windowNumber, service:q.data().service,
+      queueId:'window_1',windowNumber:0,windowCount:1,routingVersion:2, service:q.data().service,
       queuePosition:1,dayKey:day,slot,slotStart:firebase.firestore.Timestamp.fromDate(date),
       status:'waiting',checkedIn:false,postponements:0,createdAt:stamp()});
   }));

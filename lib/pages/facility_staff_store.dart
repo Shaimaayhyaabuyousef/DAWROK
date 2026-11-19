@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../services/facility_context.dart';
+import '../services/queue_assignment_service.dart';
 import '../services/staff_pairing_service.dart';
 
 enum StaffState { active, suspended, pending }
@@ -44,6 +45,7 @@ class FacilityStaffStore extends ChangeNotifier {
       _generation++;
       _staffSub?.cancel(); _requestsSub?.cancel();
       _staffSub = null; _requestsSub = null;
+      _assignSub?.cancel(); _assignments = {};
       _facilityId = null; _staff.clear(); _requests.clear();
       error = null; notifyListeners(); _listen();
     });
@@ -62,8 +64,14 @@ class FacilityStaffStore extends ChangeNotifier {
   CollectionReference<Map<String,dynamic>> get _invites => _db.collection('staff_invites');
   CollectionReference<Map<String,dynamic>> get _joins => _db.collection('staff_join_requests');
 
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _assignSub;
+  Map<String, dynamic> _assignments = {};
   void _publish() {
     for (final item in _staff) {
+      final assignment = _assignments[item.linkedUid];
+      item.window = assignment is Map
+        ? 'Queue ${assignment['queueId'].toString().replaceFirst('window_', '')} • ${assignment['windowNumber'] == 0 ? 'Direct service' : 'Window ${assignment['windowNumber']}'}'
+        : 'Awaiting vacant service position';
       final claim = item.inviteHash == null ? null : _requests[item.inviteHash];
       item.requestStatus = claim?['status'] as String?;
       item.requesterEmail = claim?['employeeEmail'] as String?;
@@ -76,6 +84,12 @@ class FacilityStaffStore extends ChangeNotifier {
       final fid = await FacilityContext.instance.requireFacilityId();
       if (generation != _generation) return;
       _facilityId = fid;
+      await _assignSub?.cancel();
+      _assignSub = _db.collection('facilities').doc(fid).collection('operations').doc('assignments').snapshots().listen((snap) {
+        if (generation != _generation) return;
+        _assignments = Map<String, dynamic>.from(snap.data()?['assignments'] as Map? ?? {});
+        _publish();
+      }, onError: (Object e) { if (generation == _generation) { error = 'Cannot load service assignments: $e'; notifyListeners(); } });
       _requestsSub = _joins.where('facilityId', isEqualTo: fid)
           .snapshots().listen((snap) {
         if (generation != _generation) return;
@@ -219,10 +233,14 @@ class FacilityStaffStore extends ChangeNotifier {
     required String name, required String nationalId,
     required String window, required StaffRole role,
   }) async {
-    await (await _ref(m)).update({
-      'name': name.trim(), 'employeeId': nationalId.trim(),
-      'window': window.trim(), 'role': role.name,
-    });
+    final ref = await _ref(m);
+    final batch = _db.batch();
+    batch.update(ref, {'name':name.trim(), 'employeeId':nationalId.trim(), 'role':role.name});
+    if (m.linkedUid != null && m.joinStatus == 'approved') {
+      batch.update(_db.collection('staff_memberships').doc(m.linkedUid), {'role':role.name});
+    }
+    await batch.commit();
+    await QueueAssignmentService.instance.rebalance(await _fid());
   }
 
   Future<StaffInviteResult> replaceInvite(FacilityStaff m) async {
@@ -308,6 +326,7 @@ class FacilityStaffStore extends ChangeNotifier {
         'approvedAt': FieldValue.serverTimestamp(),
       });
     });
+    await QueueAssignmentService.instance.rebalance(fid);
   }
 
   Future<void> reject(FacilityStaff m) async {
@@ -349,6 +368,7 @@ class FacilityStaffStore extends ChangeNotifier {
     batch.update(ref, {'state': state.name});
     batch.update(membership, {'state': state.name});
     await batch.commit();
+    await QueueAssignmentService.instance.rebalance(await _fid());
   }
 
   Future<void> remove(FacilityStaff m) async {

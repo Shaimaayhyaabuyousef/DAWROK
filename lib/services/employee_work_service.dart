@@ -1,4 +1,4 @@
-import 'citizen_account_service.dart';
+import 'queue_operations_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -51,61 +51,31 @@ class EmployeeWorkService {
     });
   }
 
-  Future<String> checkIn(String input) async {
+  Future<String> checkIn(String input, String qid, int window) async {
     await _canOperate();
     final fid = await _facility();
     var id = input.trim();
     if (id.startsWith('DAWROK|')) {
-      final parts = id.split('|');
-      final entry = parts.where((p) => p.startsWith('ticket=')).toList();
-      if (entry.length != 1) throw StateError('Invalid ticket QR.');
-      id = entry.single.substring(7);
+      final parts = id.split('|').where((p) => p.startsWith('ticket=')).toList();
+      if (parts.length != 1) throw StateError('Invalid QR.');
+      id = parts.single.substring(7);
     }
-    if (id.isEmpty) throw StateError('Enter a ticket number or QR payload.');
-    final ref = _db.collection('bookings').doc(id);
-    await _db.runTransaction((tx) async {
-      final snap = await tx.get(ref);
-      final data = snap.data();
-      if (data == null || data['facilityId'] != fid) {
-        throw StateError('This ticket does not belong to your facility.');
-      }
-      if (data['status'] != 'waiting' && data['status'] != 'called') {
-        throw StateError('This ticket is not available for check-in.');
-      }
-      if (data['checkedIn'] == true) throw StateError('Already checked in.');
-      tx.update(ref, {'checkedIn': true});
-    });
-    await _log(fid, 'Ticket check-in', id);
-    return 'Ticket verified and checked in.';
+    await QueueOperationsService.instance.checkIn(id, fid, qid, window);
+    await _log(fid, 'Checked in', id);
+    return 'Ticket checked in.';
   }
-
-  Future<String> changeTicket(String id, String action) async {
+  Future<String> callNext(String qid, int window) async {
+    await _canOperate();
+    return QueueOperationsService.instance.callNext(await _facility(), qid, window);
+  }
+  Future<String> changeTicket(String id, String action, String qid, int window) async {
     await _canOperate();
     final fid = await _facility();
-    final ref = _db.collection('bookings').doc(id);
-    if (action == 'served' || action == 'absent') {
-      await CitizenAccountService.instance.completeTicket(id, fid, action);
-      await _log(fid, action, id);
-      return 'Ticket updated: $action';
+    if (action == 'postpone') {
+      await QueueOperationsService.instance.postpone(id, fid, qid, window);
+    } else {
+      await QueueOperationsService.instance.close(id, fid, action);
     }
-    await _db.runTransaction((tx) async {
-      final ticket = await tx.get(ref);
-      final data = ticket.data();
-      if (data == null || data['facilityId'] != fid) {
-        throw StateError('Ticket not found in your facility.');
-      }
-      final state = data['status'];
-      if (action == 'called' && state == 'waiting') {
-        tx.update(ref, {'status':'called',
-          'calledAt': FieldValue.serverTimestamp()});
-      } else if (action == 'postpone' && state == 'called') {
-        tx.update(ref, {'status':'waiting',
-          'postponements': FieldValue.increment(1)});
-      } else {
-        throw StateError('Ticket cannot be $action from state $state.');
-      }
-    });
-    await _log(fid, action, id);
     return 'Ticket updated: $action';
   }
 }

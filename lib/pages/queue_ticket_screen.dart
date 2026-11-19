@@ -9,6 +9,7 @@ class QueueTicketScreen extends StatelessWidget {
   final String ticketNumber;
   final int queueNumber;
   final int? windowNumber;
+  final int? windowCount;
   final DateTime? scheduledAt;
   final String facilityName;
   final String idNumber;
@@ -21,6 +22,7 @@ class QueueTicketScreen extends StatelessWidget {
     required this.ticketNumber,
     required this.queueNumber,
     this.windowNumber,
+    this.windowCount,
     this.scheduledAt,
     required this.facilityName,
     required this.idNumber,
@@ -293,7 +295,7 @@ class QueueTicketScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'Ticket $ticketNumber${windowNumber == null ? '' : ' · Window $windowNumber'}',
+                  'Ticket $ticketNumber${windowNumber == null ? '' : (windowNumber == 0 ? (windowCount == 0 ? ' · Direct service' : ' · Window assigned when called') : ' · Window $windowNumber')}',
                   style: const TextStyle(
                     color: Color(0xFF66758B),
                     fontSize: 13,

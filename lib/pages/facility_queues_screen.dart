@@ -72,7 +72,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete queue?'),
-        content: Text('Remove Window #${queue.windowNumber.toString().padLeft(2, '0')}? This cannot be undone.'),
+        content: Text('Remove Queue #${queue.windowNumber.toString().padLeft(2, '0')}? This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           TextButton(
@@ -237,7 +237,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                         ),
                       ),
                       const Spacer(),
-                      Text('Window #${queue.windowNumber.toString().padLeft(2, '0')}',
+                      Text('Queue #${queue.windowNumber.toString().padLeft(2, '0')}',
                         style: const TextStyle(color: _muted, fontSize: 12)),
                       const SizedBox(height: 10),
                     ],
@@ -256,8 +256,8 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                     children: [
                       const Icon(Icons.card_giftcard_rounded, color: Color(0xFF008EDE), size: 15),
                       const SizedBox(height: 5),
-                      const Text('COUNTER', style: TextStyle(color: Color(0xFF006FAE), fontSize: 10, fontWeight: FontWeight.w700)),
-                      Text(queue.counter, style: const TextStyle(color: Color(0xFF006FAE), fontSize: 11, fontWeight: FontWeight.bold)),
+                      Text(queue.windowCount == 0 ? 'SERVICE' : 'WINDOWS', style: TextStyle(color: Color(0xFF006FAE), fontSize: 10, fontWeight: FontWeight.w700)),
+                      Text(queue.windowCount == 0 ? 'Direct' : '${queue.windowCount}', style: const TextStyle(color: Color(0xFF006FAE), fontSize: 11, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),

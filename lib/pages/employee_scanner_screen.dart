@@ -69,7 +69,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
         FilledButton(
           onPressed: () {
             Navigator.pop(dialogContext);
-            _run(() => EmployeeWorkService.instance.checkIn(_text.text));
+            _run(() => EmployeeWorkService.instance.checkIn(_text.text, widget.queueId, widget.windowNumber));
           },
           child: const Text('Verify')),
       ],
@@ -81,7 +81,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
     final code = capture.barcodes.isEmpty ? null
         : capture.barcodes.first.rawValue;
     if (code == null || code.isEmpty) return;
-    await _run(() => EmployeeWorkService.instance.checkIn(code));
+    await _run(() => EmployeeWorkService.instance.checkIn(code, widget.queueId, widget.windowNumber));
   }
 
   @override
@@ -95,7 +95,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
           final queueTickets = tickets.data?.docs.where((doc) =>
             doc.data()['queueId'] == widget.queueId).toList() ?? [];
           final called = queueTickets.where((doc) =>
-            doc.data()['status'] == 'called').toList();
+            doc.data()['status'] == 'called' && doc.data()['windowNumber'] == widget.windowNumber).toList();
           final waiting = queueTickets.where((doc) =>
             doc.data()['status'] == 'waiting').toList();
           waiting.sort((a,b) => compareBookingRows(a.data(),a.id,b.data(),b.id));
@@ -122,7 +122,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                     child: const Icon(Icons.apartment_outlined, color: _blue)),
                   const SizedBox(width: 12),
                   Expanded(child: Text(
-                    'Counter ${widget.windowNumber.toString().padLeft(2, '0')}  •  Floor 1',
+                    widget.windowNumber == 0 ? 'Direct queue service' : 'Window ${widget.windowNumber}',
                     style: const TextStyle(color: _ink, fontSize: 16))),
                   CircleAvatar(radius: 4, backgroundColor:
                     waiting.isNotEmpty || called.isNotEmpty
@@ -187,17 +187,20 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                 Expanded(child: _action('Next', () => _run(() =>
                   current != null ? Future.value('Finish the current ticket first.') : waiting.isEmpty
                     ? Future.value('No waiting tickets.')
-                    : EmployeeWorkService.instance.changeTicket(
-                        waiting.first.id, 'called')), primary: true)),
+                    : EmployeeWorkService.instance.callNext(widget.queueId, widget.windowNumber)), primary: true)),
                 const SizedBox(width: 12),
                 Expanded(child: _action('Absent', current == null ? null
                   : () => _run(() => EmployeeWorkService.instance
-                    .changeTicket(current, 'absent')))),
+                    .changeTicket(current, 'absent', widget.queueId, widget.windowNumber)))),
                 const SizedBox(width: 12),
                 Expanded(child: _action('Post', current == null ? null
                   : () => _run(() => EmployeeWorkService.instance
-                    .changeTicket(current, 'postpone')))),
+                    .changeTicket(current, 'postpone', widget.queueId, widget.windowNumber)))),
               ]),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: current == null || _busy ? null : () => _run(() =>
+                EmployeeWorkService.instance.changeTicket(current, 'served', widget.queueId, widget.windowNumber)),
+                child: const Text('Complete service')),
               const SizedBox(height: 47),
               StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
                 stream: FirebaseFirestore.instance

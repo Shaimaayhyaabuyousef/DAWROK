@@ -11,6 +11,7 @@ class QueueBooking {
   final String ticketNumber;
   final int queueNumber;
   final int? windowNumber;
+  final int? windowCount;
   final DateTime? scheduledAt;
   final String facilityName;
   final String idNumber;
@@ -27,6 +28,7 @@ class QueueBooking {
     required this.ticketNumber,
     required this.queueNumber,
     this.windowNumber,
+    this.windowCount,
     this.scheduledAt,
     required this.facilityName,
     required this.idNumber,
@@ -100,6 +102,7 @@ class QueueBookingStore extends ChangeNotifier {
                             queueNumber:
                                 (m['queuePosition'] as num?)?.toInt() ?? 0,
                             windowNumber: (m['windowNumber'] as num?)?.toInt(),
+                            windowCount: (m['windowCount'] as num?)?.toInt(),
                             scheduledAt: time,
                             facilityName: m['facilityName'] as String? ?? '',
                             idNumber: savedId, // Read only from this citizen's private identity document.

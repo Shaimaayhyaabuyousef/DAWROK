@@ -55,6 +55,13 @@ class CitizenAccountService {
       final uid = ticket['citizenId'] as String;
       final old = policy((await tx.get(account(uid))).data());
       final next = old.close(outcome, DateTime.now());
+      DocumentReference<Map<String, dynamic>>? lane;
+      if (ticket['routingVersion'] == 2) {
+        lane = db.collection('facilities').doc(facilityId).collection('queues')
+            .doc(ticket['queueId'] as String).collection('lanes').doc('${ticket['windowNumber']}');
+        if ((await tx.get(lane)).data()?['ticketId'] != ticketId) throw StateError('This service position no longer holds the ticket.');
+      }
+      if (lane != null) tx.set(lane, {'ticketId':'', 'updatedAt':FieldValue.serverTimestamp()});
       tx.update(ticketRef, {
         'status': outcome,
         'closedAt': FieldValue.serverTimestamp(),

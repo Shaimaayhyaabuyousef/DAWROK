@@ -1,4 +1,4 @@
-import '../services/citizen_account_service.dart';
+import '../services/queue_operations_service.dart';
 import '../services/booking_order.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,6 +14,7 @@ class FacilityVisit {
   final String visitorName;
   final String maskedId;
   final int windowNumber;
+  final String queueId;
   final int estimatedMinutes;
   FacilityVisitStatus status;
   bool checkedIn;
@@ -24,6 +25,7 @@ class FacilityVisit {
     required this.visitorName,
     required this.maskedId,
     required this.windowNumber,
+    required this.queueId,
     required this.estimatedMinutes,
     this.status = FacilityVisitStatus.waiting,
     this.checkedIn = false,
@@ -88,7 +90,8 @@ class FacilityScanStore extends ChangeNotifier {
               ticketNumber: d.id,
               visitorName: m['citizenName'] as String? ?? '',
               maskedId: '••••',
-              windowNumber: (m['windowNumber'] as num?)?.toInt() ?? 0,
+              windowNumber: m['routingVersion'] == 2 ? (m['windowNumber'] as num?)?.toInt() ?? 0 : 1,
+              queueId: m['queueId'] as String? ?? '',
               estimatedMinutes: 30,
               status: status, checkedIn: m['checkedIn'] == true,
               postponements: (m['postponements'] as num?)?.toInt() ?? 0,
@@ -132,66 +135,37 @@ class FacilityScanStore extends ChangeNotifier {
     });
   }
 
-  FacilityVisit? currentFor(int windowNumber) {
+  FacilityVisit? currentFor(int n, {int window = 0}) {
     for (final v in _visits) {
-      if (v.windowNumber == windowNumber && v.status == FacilityVisitStatus.called) return v;
+      if (v.queueId == 'window_$n' && v.windowNumber == window && v.status == FacilityVisitStatus.called) return v;
     }
     return null;
   }
 
-  int waitingCount(int n) => _visits.where((v) =>
-    v.windowNumber == n && v.status == FacilityVisitStatus.waiting).length;
+  int waitingCount(int n) => _visits.where((v) => v.queueId == 'window_$n' && v.status == FacilityVisitStatus.waiting).length;
 
-  Future<String> callNext(int n) async {
-    if (currentFor(n) != null) return 'Finish or mark the current ticket absent first.';
-    final candidates = _visits.where((v) => v.windowNumber == n &&
-      v.status == FacilityVisitStatus.waiting).toList();
-    if (candidates.isEmpty) return 'There are no waiting tickets for this counter.';
-    final v = candidates.first;
-    await _ticket(v.ticketNumber).update({
-      'status': 'called', 'calledAt': FieldValue.serverTimestamp(),
-    });
-    await _log('Called', v.ticketNumber, FacilityScanOutcome.verified);
-    return 'Calling ticket #${v.ticketNumber} — ${v.visitorName}';
+  Future<String> callNext(int n, {int window = 0}) async {
+    final message = await QueueOperationsService.instance.callNext(_facilityId!, 'window_$n', window);
+    return message;
   }
 
-  Future<String> markAbsent(int n) async {
-    final v = currentFor(n);
+  Future<String> markAbsent(int n, {int window = 0}) => _closeCurrent(n, window, 'absent');
+  Future<String> markServed(int n, {int window = 0}) => _closeCurrent(n, window, 'served');
+  Future<String> _closeCurrent(int n, int window, String outcome) async {
+    final v = currentFor(n, window: window);
     if (v == null) return 'Call a visitor first.';
-    await _close(v, 'absent');
-    return 'Ticket #${v.ticketNumber} marked absent.';
+    await QueueOperationsService.instance.close(v.ticketNumber, _facilityId!, outcome);
+    return 'Ticket marked $outcome.';
   }
-
-  Future<String> postponeCurrent(int n) async {
-    final v = currentFor(n);
+  Future<String> postponeCurrent(int n, {int window = 0}) async {
+    final v = currentFor(n, window: window);
     if (v == null) return 'Call a visitor first.';
-    final waiting = _visits.any((v) => v.windowNumber == n &&
-        v.status == FacilityVisitStatus.waiting);
-    if (!waiting) return 'No other visitors are waiting in this counter.';
-    await _ticket(v.ticketNumber).update({
-      'status': 'waiting', 'postponements': FieldValue.increment(1),
-    });
-    await _log('Postponed', v.ticketNumber, FacilityScanOutcome.verified);
-    return 'Ticket #${v.ticketNumber} postponed.';
+    if (waitingCount(n) == 0) return 'No other visitors are waiting.';
+    await QueueOperationsService.instance.postpone(v.ticketNumber, _facilityId!, 'window_$n', window);
+    return 'Ticket postponed.';
   }
 
-  Future<String> markServed(int n) async {
-    final v = currentFor(n);
-    if (v == null) return 'Call a visitor first.';
-    if (!v.checkedIn) return 'Verify the ticket before completing service.';
-    await _close(v, 'served');
-    return 'Service completed for #${v.ticketNumber}.';
-  }
-
-  Future<void> _close(FacilityVisit v, String status) async {
-    final id = _facilityId;
-    if (id == null) throw StateError('Facility is not loaded.');
-    await CitizenAccountService.instance.completeTicket(v.ticketNumber, id, status);
-    await _log(status == 'served' ? 'Served' : 'Absent', v.ticketNumber,
-        FacilityScanOutcome.verified);
-  }
-
-  Future<FacilityScanResult> verifyDemoCode(String raw, int windowNumber) async {
+  Future<FacilityScanResult> verifyDemoCode(String raw, int queueNumber, {int window = 0}) async {
     final id = _facilityId;
     if (id == null) return const FacilityScanResult(
       FacilityScanOutcome.invalid, 'Facility is not loaded.');
@@ -207,7 +181,7 @@ class FacilityScanStore extends ChangeNotifier {
       final snap = await _ticket(ticketId).get();
       final m = snap.data();
       if (m == null || m['facilityId'] != id ||
-          m['windowNumber'] != windowNumber) {
+          m['queueId'] != 'window_$queueNumber') {
         return _invalid(raw, 'Ticket is not valid for this counter.');
       }
       if (m['status'] == 'served' || m['status'] == 'absent') {
@@ -215,7 +189,7 @@ class FacilityScanStore extends ChangeNotifier {
       }
       if (m['checkedIn'] == true) return const FacilityScanResult(
         FacilityScanOutcome.repeated, 'Ticket already checked in.');
-      await _ticket(ticketId).update({'checkedIn': true});
+      await QueueOperationsService.instance.checkIn(ticketId, id, 'window_$queueNumber', window);
       await _log('Ticket check-in', ticketId, FacilityScanOutcome.verified);
       return FacilityScanResult(FacilityScanOutcome.verified,
         'Ticket checked in: ${m['citizenName']} — #$ticketId');

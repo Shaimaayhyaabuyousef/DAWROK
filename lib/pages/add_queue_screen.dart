@@ -111,7 +111,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
                   .map(
                     (q) => ListTile(
                       title: Text(q.data()['service'] as String? ?? 'Queue'),
-                      subtitle: Text('Window ${q.data()['windowNumber']}'),
+                      subtitle: Text((q.data()['windowCount'] ?? 1) == 0 ? 'Direct service' : '${q.data()['windowCount'] ?? 1} service windows'),
                       onTap: () => Navigator.pop(sheetContext, q.id),
                     ),
                   )
@@ -134,6 +134,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
             ticketNumber: receipt.id,
             queueNumber: receipt.queuePosition,
             windowNumber: receipt.windowNumber,
+            windowCount: receipt.windowCount,
             scheduledAt: receipt.slotStart,
             facilityName: receipt.facilityName,
             idNumber: receipt.nationalId,

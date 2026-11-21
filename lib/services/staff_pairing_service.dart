@@ -46,8 +46,9 @@ class StaffPairingService {
 
   /// Creates exactly one join request for a valid invitation. The Firebase
   /// security rules verify identity, expiry and invitation ownership again.
-  Future<void> requestToJoin(String displayedCode, {
+  Future<bool> requestToJoin(String displayedCode, {
     required String facilityNumber, String? phone,
+    required Future<bool> Function(String facilityName) confirm,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -57,14 +58,16 @@ class StaffPairingService {
       throw StateError('An email-based Firebase Auth account is required.');
     }
     final hash = digest(displayedCode);
-    final invite = await _db.collection('staff_invites').doc(hash).get();
+    final invite = await _db.collection('staff_invites').doc(hash).get(
+      const GetOptions(source: Source.server));
     final data = invite.data();
     final expiry = (data?['expiresAt'] as Timestamp?)?.toDate();
     if (data == null || data['status'] != 'issued' ||
         expiry == null || !expiry.isAfter(DateTime.now())) {
       throw StateError('Invitation not found, expired or already used.');
     }
-    final facility = await _db.collection('facilities').doc(data['facilityId'] as String).get();
+    final facility = await _db.collection('facilities').doc(data['facilityId'] as String).get(
+      const GetOptions(source: Source.server));
     final number = normalizeFacilityNumber(facilityNumber);
     if (!validFacilityNumber(number) || facility.data()?['facilityNumber'] != number ||
         facility.data()?['isActive'] != true) {
@@ -73,6 +76,14 @@ class StaffPairingService {
     if (phone != null && phone.trim().isNotEmpty &&
         !RegExp(r'^\+?[0-9\s-]{8,20}$').hasMatch(phone.trim())) {
       throw StateError('Enter a valid phone number.');
+    }
+    final name = facility.data()?['name'];
+    if (name is! String || name.trim().isEmpty) {
+      throw StateError('Could not verify the facility name.');
+    }
+    if (!await confirm(name.trim())) return false;
+    if (FirebaseAuth.instance.currentUser?.uid != user.uid) {
+      throw StateError('The signed-in account changed. Please try again.');
     }
     await _db.collection('staff_join_requests').doc(hash).set({
       'facilityId': data['facilityId'],
@@ -84,6 +95,7 @@ class StaffPairingService {
       'status': 'requested',
       'createdAt': FieldValue.serverTimestamp(),
     });
+    return true;
   }
 
   Future<String> requestStatus(String displayedCode) async {

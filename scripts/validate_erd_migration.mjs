@@ -35,3 +35,17 @@ assert.equal((await db.collection('facilities/migration/counters').get()).size,2
 assert.equal((await db.collection('facilities/migration/services').get()).size,2);
 assert.equal((await db.collection('admin_audit_logs').get()).size,2);
 console.log('PASS migration: dry run, idempotent apply, zero-window queues, unchanged accounts, bookings, balances and assignments.');
+
+const numberScript = new URL('./migrate_facility_numbers.mjs', import.meta.url).pathname;
+const legacy = db.doc('facilities/migration');
+await run(process.execPath, [numberScript]);
+assert.equal((await legacy.get()).get('facilityNumber'), undefined);
+await Promise.all([run(process.execPath, [numberScript, '--apply']),
+  run(process.execPath, [numberScript, '--apply'])]);
+assert.equal((await legacy.get()).get('facilityNumber'), '100000');
+await db.doc('facilities/another').set({name: 'Another facility'});
+await run(process.execPath, [numberScript, '--apply']);
+assert.equal((await db.doc('facilities/another').get()).get('facilityNumber'), '100001');
+assert.equal((await legacy.get()).get('facilityNumber'), '100000');
+assert.deepEqual((await db.doc('bookings/migration-ticket').get()).data(), fixtures['bookings/migration-ticket']);
+console.log('PASS facility numbers: preview, concurrent backfill, stable distinct numbers, intact bookings.');

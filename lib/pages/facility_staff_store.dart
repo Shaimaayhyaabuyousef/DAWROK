@@ -36,7 +36,8 @@ class StaffInviteResult {
   final FacilityStaff member;
   final String code;
   final DateTime expiresAt;
-  const StaffInviteResult(this.member, this.code, this.expiresAt);
+  final String facilityNumber;
+  const StaffInviteResult(this.member, this.code, this.expiresAt, this.facilityNumber);
 }
 
 class FacilityStaffStore extends ChangeNotifier {
@@ -168,11 +169,21 @@ class FacilityStaffStore extends ChangeNotifier {
   Future<DocumentReference<Map<String,dynamic>>> _ref(FacilityStaff m) async =>
       _collection(await _fid()).doc('${m.id}');
 
+  String _invitationNumber(DocumentSnapshot<Map<String, dynamic>> facility) {
+    final number = facility.data()?['facilityNumber'];
+    if (number is! String || !RegExp(r'^[1-9][0-9]{5}$').hasMatch(number)) {
+      throw StateError('Ask the administrator to assign this facility a number before inviting staff.');
+    }
+    return number;
+  }
+
   Future<StaffInviteResult> add({
     required String name, required String nationalId,
     required String window, required StaffRole role,
   }) async {
-    final fid = await _fid();
+    final facility = await FacilityContext.instance.requireFacility();
+    final fid = facility.id;
+    final number = _invitationNumber(facility);
     final id = DateTime.now().microsecondsSinceEpoch;
     final code = StaffPairingService.instance.newCode();
     final hash = StaffPairingService.instance.digest(code);
@@ -220,7 +231,7 @@ class FacilityStaffStore extends ChangeNotifier {
           window: window, role: role, state: StaffState.pending,
           inviteHash: hash, joinStatus: 'invited',
           linkCode: code, codeExpiresAt: expires),
-        code, expires,
+        code, expires, number,
       );
     } on FirebaseException catch (e) {
       debugPrint('DAWROK: failed to create staff invitation: '
@@ -244,7 +255,9 @@ class FacilityStaffStore extends ChangeNotifier {
   }
 
   Future<StaffInviteResult> replaceInvite(FacilityStaff m) async {
-    final fid = await _fid();
+    final facility = await FacilityContext.instance.requireFacility();
+    final fid = facility.id;
+    final number = _invitationNumber(facility);
     final ref = _collection(fid).doc('${m.id}');
     final code = StaffPairingService.instance.newCode();
     final hash = StaffPairingService.instance.digest(code);
@@ -280,7 +293,7 @@ class FacilityStaffStore extends ChangeNotifier {
         'linkCode': code, 'codeExpiresAt': Timestamp.fromDate(expires),
       });
     });
-    return StaffInviteResult(m, code, expires);
+    return StaffInviteResult(m, code, expires, number);
   }
 
   Future<void> approve(FacilityStaff m) async {

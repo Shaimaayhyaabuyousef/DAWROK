@@ -9,6 +9,7 @@ import 'facility_nav.dart';
 Future<void> showStaffCodeDialog(
   BuildContext context, {
   required String code,
+  required String facilityNumber,
   required String staffName,
   required DateTime expiresAt,
 }) => showDialog<void>(
@@ -23,6 +24,8 @@ Future<void> showStaffCodeDialog(
     content: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        SelectableText('Facility number: $facilityNumber'),
+        const SizedBox(height: 8),
         Text('Share this code securely with $staffName. '
             'The employee uses it to request access to your facility.'),
         const SizedBox(height: 18),

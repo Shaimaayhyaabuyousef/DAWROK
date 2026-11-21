@@ -20,7 +20,8 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
   final TextEditingController address =
       TextEditingController();
 
-  String id = '';
+  bool loaded = false;
+  String? facilityNumber;
   @override
   void initState() {
     super.initState();
@@ -29,11 +30,11 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
 
   Future<void> _load() async {
     try {
-      final fid = await FacilityContext.instance.requireFacilityId();
-      final doc = await FirebaseFirestore.instance.collection('facilities').doc(fid).get();
+      final doc = await FacilityContext.instance.requireFacility();
       if (!mounted) return;
       setState(() {
-        id = fid;
+        loaded = true;
+        facilityNumber = doc.data()?['facilityNumber'] as String?;
         name.text = doc.data()?['name'] as String? ?? '';
         phone.text = doc.data()?['phone'] as String? ?? '';
         address.text = doc.data()?['address'] as String? ?? '';
@@ -53,7 +54,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
   }
 
   Future<void> _save() async {
-    if (id.isEmpty || name.text.trim().isEmpty ||
+    if (!loaded || name.text.trim().isEmpty ||
         phone.text.trim().isEmpty || address.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please complete all required fields')));
@@ -75,9 +76,9 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
   }
 
   void _copyId() {
-    Clipboard.setData(ClipboardData(text: id));
+    Clipboard.setData(ClipboardData(text: facilityNumber!));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Facility ID copied')),
+      const SnackBar(content: Text('Facility number copied')),
     );
   }
 
@@ -178,8 +179,8 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
             ),
             const SizedBox(height: 15),
             _box(
-              title: 'ID Of Facility',
-              badge: '✔ Registered',
+              title: 'Facility Number',
+              badge: facilityNumber == null ? null : '✔ Registered',
               child: Row(
                 children: [
                   const Icon(
@@ -190,7 +191,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      id,
+                      facilityNumber ?? (loaded ? 'Awaiting number from admin' : 'Loading…'),
                       style: const TextStyle(
                         fontSize: 17,
                         color: facilityDark,
@@ -198,7 +199,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: _copyId,
+                    onPressed: facilityNumber == null ? null : _copyId,
                     child: const Text('Copy'),
                   ),
                 ],

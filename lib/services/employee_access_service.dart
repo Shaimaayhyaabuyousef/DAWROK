@@ -46,7 +46,7 @@ class EmployeeAccessService {
     required String email,
     required String password,
     required String invitationCode,
-    required String facilityId,
+    required String facilityNumber,
     required String phone,
   }) async {
     final result = await _auth.signInWithEmailAndPassword(
@@ -56,7 +56,7 @@ class EmployeeAccessService {
     if (result.user == null) throw StateError('Could not sign in to request access.');
     await StaffPairingService.instance.requestToJoin(
       invitationCode,
-      facilityId: facilityId,
+      facilityNumber: facilityNumber,
       phone: phone,
     );
     return 'employee_pending_screen';
@@ -65,7 +65,7 @@ class EmployeeAccessService {
   Future<String> createAccount({
     required String email, required String password,
     required String invitationCode,
-    String? facilityId,
+    required String facilityNumber,
     String? phone,
   }) async {
     if (invitationCode.trim().isEmpty) {
@@ -78,7 +78,7 @@ class EmployeeAccessService {
       email: email.trim(), password: password);
     if (result.user == null) throw StateError('Could not create staff account.');
     await StaffPairingService.instance.requestToJoin(invitationCode,
-      facilityId: facilityId, phone: phone);
+      facilityNumber: facilityNumber, phone: phone);
     return 'employee_pending_screen';
   }
 

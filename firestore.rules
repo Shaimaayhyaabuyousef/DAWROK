@@ -775,10 +775,14 @@ service cloud.firestore {
         && !exists(memberRef(request.auth.uid))
         && hash.matches('^[a-f0-9]{64}$')
         && request.resource.data.keys().hasOnly([
-          'facilityId','staffId','employeeUid','employeeEmail','phone','status','createdAt'])
+          'facilityId','facilityNumber','staffId','employeeUid','employeeEmail','phone','status','createdAt'])
         && request.resource.data.keys().hasAll([
-          'facilityId','staffId','employeeUid','employeeEmail','phone','status','createdAt'])
+          'facilityId','facilityNumber','staffId','employeeUid','employeeEmail','phone','status','createdAt'])
         && request.resource.data.employeeUid == request.auth.uid
+        && request.resource.data.facilityNumber is string
+        && request.resource.data.facilityNumber.matches('^[1-9][0-9]{5}$')
+        && get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.facilityNumber == request.resource.data.facilityNumber
+        && get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.isActive == true
         && request.resource.data.phone is string
         && request.resource.data.phone.size() <= 20
         && request.resource.data.employeeEmail == request.auth.token.email

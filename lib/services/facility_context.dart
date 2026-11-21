@@ -9,7 +9,9 @@ class FacilityContext {
 
   final FirebaseFirestore db = FirebaseFirestore.instance;
 
-  Future<String> requireFacilityId() async {
+  Future<String> requireFacilityId() async => (await requireFacility()).id;
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> requireFacility() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw StateError('Please sign in.');
     final profile = await db.collection('users').doc(user.uid).get();
@@ -26,6 +28,6 @@ class FacilityContext {
         facility.data()?['isActive'] != true) {
       throw StateError('Your facility is not active or is not linked to this account.');
     }
-    return id;
+    return facility;
   }
 }

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import 'booking_order.dart';
+import 'queue_audit_service.dart';
 import 'citizen_account_service.dart';
 import 'queue_assignment_service.dart';
 
@@ -13,12 +14,7 @@ class QueueOperationsService {
 
   Future<void> _log(String fid, String label, String id) async {
     try {
-      await db.collection('facilities').doc(fid).collection('queue_logs').add({
-        'label': label,
-        'identifier': id.length > 25 ? id.substring(0, 25) : id,
-        'outcome': 'verified',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await QueueAuditService.record(fid, label, id);
     } catch (e) {
       debugPrint('Queue action saved; log unavailable: $e');
     }

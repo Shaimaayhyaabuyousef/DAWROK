@@ -172,7 +172,7 @@ class BookingService {
           tx.set(bookingRef, {
             'reward': reward,
             'citizenId': user.uid,
-            'citizenName': me.data()?['displayName'] ?? user.displayName ?? '',
+            'citizenName': me.data()?['displayName'] ?? '',
             'facilityId': facilityId,
             'facilityName': facility.data()?['name'] ?? '',
             'queueId': queueId,
@@ -181,6 +181,7 @@ class BookingService {
             'routingVersion': 2,
             'queuePosition': reserved + 1,
             'service': q['service'],
+            'serviceId': q['serviceId'] ?? '',
             'dayKey': dayKey,
             'slot': slotKey,
             'slotStart': Timestamp.fromDate(slot),
@@ -190,6 +191,10 @@ class BookingService {
             'createdAt': FieldValue.serverTimestamp(),
           });
           if (reward != 'none') {
+            tx.set(accountRef.collection('point_transactions').doc('book_${bookingRef.id}'), {
+              'bookingId':bookingRef.id, 'points':-100, 'reason':'redeem',
+              'createdAt':FieldValue.serverTimestamp(),
+            });
             tx.set(accountRef, {
               'points': account.points - 100,
               'streak': account.streak,

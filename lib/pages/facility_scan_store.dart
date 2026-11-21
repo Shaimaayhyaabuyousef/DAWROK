@@ -1,4 +1,5 @@
 import '../services/queue_operations_service.dart';
+import '../services/queue_audit_service.dart';
 import '../services/booking_order.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -128,11 +129,7 @@ class FacilityScanStore extends ChangeNotifier {
   Future<void> _log(String label, String identifier, FacilityScanOutcome result) async {
     final id = _facilityId;
     if (id == null) return;
-    await _db.collection('facilities').doc(id).collection('queue_logs').add({
-      'label': label, 'identifier': identifier.length > 25
-          ? identifier.substring(0, 25) : identifier,
-      'outcome': result.name, 'createdAt': FieldValue.serverTimestamp(),
-    });
+    await QueueAuditService.record(id, label, identifier, outcome: result.name);
   }
 
   FacilityVisit? currentFor(int n, {int window = 0}) {

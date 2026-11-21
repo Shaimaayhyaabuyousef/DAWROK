@@ -42,10 +42,11 @@ try {
   await assertSucceeds(facility.runTransaction(async (transaction) => {
     const existing = await transaction.get(facilityRef);
     const number = (existing.data()?.nextWindowNumber ?? 0) + 1;
+    transaction.set(facilityRef.collection('services').doc('general'),{name:'General Service',isActive:true,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
     transaction.update(facilityRef, { nextWindowNumber: number });
     transaction.set(queueRef, {
       windowNumber: number,
-      service: 'General Service',
+      service: 'General Service', serviceId:'general', schemaVersion:3,
       counter: 'A',
       capacity: 50,
       waitingCount: 0,

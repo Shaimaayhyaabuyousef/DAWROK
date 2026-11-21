@@ -19,23 +19,27 @@ async function complete(actor,id,q,w,outcome='served') {
  return db.runTransaction(async tx=>{await tx.get(r);await tx.get(l);const old=(await tx.get(a)).data()??{points:0,streak:0,suspendedAt:null,reviewRequired:false};
  tx.update(r,{status:outcome,closedAt:stamp()});tx.set(l,{ticketId:'',updatedAt:stamp()});
  tx.set(a,{points:old.points+(outcome==='served'?5:-5),streak:outcome==='served'?0:old.streak+1,suspendedAt:old.suspendedAt,reviewRequired:false,lastBookingId:id,lastAction:outcome,updatedAt:stamp()});
+ tx.set(a.collection('point_transactions').doc(`result_${id}`),{bookingId:id,points:outcome==='served'?5:-5,reason:outcome,createdAt:stamp()});
  tx.set(a.collection('events').doc(`result_${id}`),{type:outcome,bookingId:id,delta:outcome==='served'?5:-5,read:false,createdAt:stamp()});});
 }
 try{
  await seed('users/windowOwner',{role:'facility',status:'active',facilityId:'windows'});
  await seed('facilities/windows',{ownerUid:'windowOwner',isActive:true,isOnline:true,name:'Windows'});
- for(const [q,count] of [['multi',2],['direct',0]])await seed(`facilities/windows/queues/${q}`,{windowNumber:1,windowCount:count,isActive:true,archived:false});
+ for(const [q,count] of [['multi',2],['direct',0]])await seed(`facilities/windows/queues/${q}`,{windowNumber:1,windowCount:count,schemaVersion:3,isActive:true,archived:false});
+ for(let w=1;w<=2;w++)await seed(`facilities/windows/counters/multi_${w}`,{queueId:'multi',windowNumber:w,isActive:true});
  for(const uid of ['one','two','unassigned']){await seed(`staff_memberships/${uid}`,{facilityId:'windows',role:'windowOfficer',state:'active'});await seed(`staff_profiles/${uid}`,{profileCompleted:true});}
  const config=client('windowOwner').doc('facilities/windows/operations/assignments');
  await assertSucceeds(config.set({assignments:{one:{queueId:'multi',windowNumber:1},two:{queueId:'multi',windowNumber:2}},updatedAt:stamp()}));
  await assertFails(client('one').doc(config.path).update({assignments:{one:{queueId:'multi',windowNumber:2}},updatedAt:stamp()}));
- const configurable=client('windowOwner').doc('facilities/windows/queues/window_7');
- await assertSucceeds(configurable.set({windowNumber:7,windowCount:0,service:'General',counter:'A',capacity:50,waitingCount:0,waitingMinutes:15,shift:'morning',startsAtMinutes:480,endsAtMinutes:1020,isActive:false,archived:false,createdAt:stamp()}));
+ const schemaDb=client('windowOwner');await schemaDb.doc('facilities/windows/services/general').set({name:'General',isActive:true,createdAt:stamp()});
+ const configurable=schemaDb.doc('facilities/windows/queues/window_7');
+ await assertSucceeds(configurable.set({windowNumber:7,windowCount:0,service:'General',serviceId:'general',schemaVersion:3,counter:'A',capacity:50,waitingCount:0,waitingMinutes:15,shift:'morning',startsAtMinutes:480,endsAtMinutes:1020,isActive:false,archived:false,createdAt:stamp()}));
  await assertSucceeds(configurable.update({windowCount:3}));
  await assertFails(configurable.update({windowCount:21}));
  await assertFails(configurable.update({windowCount:-1}));
  await ticket('race');
  const race=await Promise.allSettled([call('one','race','multi',1),call('two','race','multi',2)]);
+ if(race.every(r=>r.status==='rejected'))console.error(race);
  assert.equal(race.filter(r=>r.status==='fulfilled').length,1,'one ticket can be claimed only once');
  const b=(await client('windowOwner').doc('bookings/race').get()).data();
  const winner=b.windowNumber===1?'one':'two',other=b.windowNumber===1?'two':'one';

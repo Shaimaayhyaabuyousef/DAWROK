@@ -79,6 +79,10 @@ class CitizenAccountService {
         'lastAction': outcome,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      tx.set(account(uid).collection('point_transactions').doc('result_$ticketId'), {
+        'bookingId':ticketId, 'points':outcome == 'served' ? 5 : -5,
+        'reason':outcome, 'createdAt':FieldValue.serverTimestamp(),
+      });
       tx.set(events(uid).doc('result_$ticketId'), {
         'type': outcome,
         'bookingId': ticketId,

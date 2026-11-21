@@ -18,7 +18,8 @@ async function reserve(uid,q,reward='none',{skipDebit=false,debit=100,position}=
  await db.runTransaction(async tx=>{const a=(await tx.get(acc)).data()??defaults,g=(await tx.get(guard)).data()??{},c=(await tx.get(cap)).data()??{reserved:0};observed=c.reserved;
  tx.set(guard,{uid,queues:{...g.queues,[`reliability_${q}`]:ticket.id},slots:{...g.slots,[slot]:ticket.id},updatedAt:stamp()});
  tx.set(cap,{reserved:c.reserved+1,lastSlotStart:firebase.firestore.Timestamp.fromDate(time),rewardReserved:(c.rewardReserved??0)+(reward==='extra'?1:0),lastBookingId:ticket.id,updatedAt:stamp()});
- tx.set(ticket,{citizenId:uid,citizenName:uid,facilityId:'reliability',facilityName:'Test',queueId:q,windowNumber:0,windowCount:1,routingVersion:2,service:'General',queuePosition:position??c.reserved+1,dayKey:day,slot,slotStart:firebase.firestore.Timestamp.fromDate(time),status:'waiting',checkedIn:false,postponements:0,createdAt:stamp(),reward});
+ tx.set(ticket,{citizenId:uid,citizenName:uid,facilityId:'reliability',facilityName:'Test',queueId:q,windowNumber:0,windowCount:1,routingVersion:2,service:'General',serviceId:'',queuePosition:position??c.reserved+1,dayKey:day,slot,slotStart:firebase.firestore.Timestamp.fromDate(time),status:'waiting',checkedIn:false,postponements:0,createdAt:stamp(),reward});
+ if(reward!=='none'&&!skipDebit)tx.set(acc.collection('point_transactions').doc(`book_${ticket.id}`),{bookingId:ticket.id,points:-100,reason:'redeem',createdAt:stamp()});
  if(reward!=='none'&&!skipDebit)tx.set(acc,{...a,points:a.points-debit,lastBookingId:ticket.id,lastAction:'redeem',updatedAt:stamp()});
  tx.set(acc.collection('events').doc(`book_${ticket.id}`),{type:'booking',bookingId:ticket.id,delta:reward==='none'?0:-100,read:false,createdAt:stamp()});});return ticket.id;
  }catch(e){if(e.code!=='permission-denied'||attempt>=2||(await cap.get({source:'server'})).data()?.reserved===observed)throw e;}}
@@ -31,6 +32,7 @@ async function close(id,outcome='served',actor='owner'){
  const absent=outcome==='absent',ban=absent&&!a.suspendedAt&&a.streak+1>=3,review=a.reviewRequired||(absent&&a.suspendedAt&&Date.now()>=a.suspendedAt.toMillis()+604800000);
  if(lane)tx.set(lane,{ticketId:'',updatedAt:stamp()});
  tx.update(ticket,{status:outcome,closedAt:stamp()});tx.set(acc,{points:a.points+(absent?-5:5),streak:!absent||ban?0:a.streak+1,suspendedAt:ban?stamp():a.suspendedAt,reviewRequired:!!review,lastBookingId:id,lastAction:outcome,updatedAt:stamp()});
+ tx.set(acc.collection('point_transactions').doc(`result_${id}`),{bookingId:id,points:absent?-5:5,reason:outcome,createdAt:stamp()});
  tx.set(acc.collection('events').doc(`result_${id}`),{type:outcome,bookingId:id,delta:absent?-5:5,read:false,createdAt:stamp()});});
 }
 try{

@@ -1,4 +1,5 @@
 import 'queue_operations_service.dart';
+import 'queue_audit_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -42,14 +43,7 @@ class EmployeeWorkService {
   Stream<QuerySnapshot<Map<String,dynamic>>> tickets(String fid) =>
       _db.collection('bookings').where('facilityId', isEqualTo: fid).snapshots();
 
-  Future<void> _log(String fid, String label, String ticketId) async {
-    await _db.collection('facilities').doc(fid).collection('queue_logs').add({
-      'label': label, 'identifier': ticketId.length > 25
-        ? ticketId.substring(0, 25) : ticketId,
-      'outcome': 'verified',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
+  Future<void> _log(String fid, String label, String ticketId) => QueueAuditService.record(fid, label, ticketId);
 
   Future<String> checkIn(String input, String qid, int window) async {
     await _canOperate();

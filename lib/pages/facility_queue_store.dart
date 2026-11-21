@@ -1,5 +1,6 @@
 import 'dart:async';
 import '../services/queue_assignment_service.dart';
+import '../services/queue_catalog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/facility_context.dart';
@@ -226,12 +227,15 @@ class FacilityQueueStore extends ChangeNotifier {
     await _db.runTransaction((tx) async {
       final snap = await tx.get(fac);
       final n = ((snap.data()?['nextWindowNumber'] as num?)?.toInt() ?? 0) + 1;
+      final catalog = await QueueCatalog.prepare(tx, fac, 'window_$n', draft.service, draft.windowCount, 0);
+      catalog.write(tx);
       tx.update(fac, {'nextWindowNumber': n});
       createdQueue = fac.collection('queues').doc('window_$n');
       tx.set(createdQueue, {
         'windowNumber': n,
         'windowCount': draft.windowCount,
-        'service': draft.service.trim(),
+        'service': catalog.name,
+        'serviceId': catalog.serviceId, 'schemaVersion': 3,
         'counter': 'A',
         'capacity': draft.capacity,
     'rewardCapacity': draft.rewardCapacity,
@@ -287,8 +291,10 @@ class FacilityQueueStore extends ChangeNotifier {
           }
         }
       }
+      final catalog = await QueueCatalog.prepare(tx, ref.parent.parent!, ref.id, draft.service, draft.windowCount, oldCount);
+      catalog.write(tx);
       tx.update(ref, {
-        'service': draft.service.trim(), 'windowCount': draft.windowCount,
+        'service': catalog.name, 'serviceId': catalog.serviceId, 'schemaVersion': 3, 'windowCount': draft.windowCount,
         'capacity': draft.capacity, 'rewardCapacity': draft.rewardCapacity,
         'waitingMinutes': draft.waitingMinutes, 'shift': draft.shift.name,
         'startsAtMinutes': facilityTimeInMinutes(draft.startsAt),

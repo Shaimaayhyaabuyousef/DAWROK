@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/facility_number.dart';
 import 'employee_login_screen.dart';
 import 'employee_register_screen.dart';
 
@@ -42,7 +43,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => EmployeeRegisterScreen(
-          facilityId: _facility.text.trim(),
+          facilityNumber: normalizeFacilityNumber(_facility.text),
           invitationCode: _code.text.trim(),
           contactPhone: _phone.text.trim(),
         ),
@@ -120,12 +121,13 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
                 SizedBox(height: constraints.maxHeight > 700 ? 77 : 34),
                 _panel(
                   icon: Icons.apartment_outlined,
-                  title: 'Facility ID',
+                  title: 'Facility Number',
                   child: TextFormField(
                     controller: _facility,
-                    decoration: _decoration('Enter the facility ID'),
-                    validator: (v) => (v ?? '').trim().isEmpty
-                      ? 'Facility ID is required' : null,
+                    keyboardType: TextInputType.number,
+                    decoration: _decoration('Enter the 6-digit facility number'),
+                    validator: (v) => validFacilityNumber(v ?? '')
+                      ? null : 'Enter a six-digit facility number',
                   ),
                 ),
                 const SizedBox(height: 15),

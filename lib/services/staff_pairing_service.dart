@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'facility_number.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -44,8 +46,9 @@ class StaffPairingService {
 
   /// Creates exactly one join request for a valid invitation. The Firebase
   /// security rules verify identity, expiry and invitation ownership again.
-  Future<void> requestToJoin(String displayedCode, {
-    String? facilityId, String? phone,
+  Future<bool> requestToJoin(String displayedCode, {
+    required String facilityNumber, String? phone,
+    required Future<bool> Function(String facilityName) confirm,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -55,30 +58,44 @@ class StaffPairingService {
       throw StateError('An email-based Firebase Auth account is required.');
     }
     final hash = digest(displayedCode);
-    final invite = await _db.collection('staff_invites').doc(hash).get();
+    final invite = await _db.collection('staff_invites').doc(hash).get(
+      const GetOptions(source: Source.server));
     final data = invite.data();
     final expiry = (data?['expiresAt'] as Timestamp?)?.toDate();
     if (data == null || data['status'] != 'issued' ||
         expiry == null || !expiry.isAfter(DateTime.now())) {
       throw StateError('Invitation not found, expired or already used.');
     }
-    if (facilityId != null && facilityId.trim().isNotEmpty &&
-        facilityId.trim() != data['facilityId']) {
-      throw StateError('Facility ID does not match the invitation.');
+    final facility = await _db.collection('facilities').doc(data['facilityId'] as String).get(
+      const GetOptions(source: Source.server));
+    final number = normalizeFacilityNumber(facilityNumber);
+    if (!validFacilityNumber(number) || facility.data()?['facilityNumber'] != number ||
+        facility.data()?['isActive'] != true) {
+      throw StateError('The facility number does not match this active invitation.');
     }
     if (phone != null && phone.trim().isNotEmpty &&
         !RegExp(r'^\+?[0-9\s-]{8,20}$').hasMatch(phone.trim())) {
       throw StateError('Enter a valid phone number.');
     }
+    final name = facility.data()?['name'];
+    if (name is! String || name.trim().isEmpty) {
+      throw StateError('Could not verify the facility name.');
+    }
+    if (!await confirm(name.trim())) return false;
+    if (FirebaseAuth.instance.currentUser?.uid != user.uid) {
+      throw StateError('The signed-in account changed. Please try again.');
+    }
     await _db.collection('staff_join_requests').doc(hash).set({
       'facilityId': data['facilityId'],
       'staffId': data['staffId'],
+      'facilityNumber': number,
       'employeeUid': user.uid,
       'employeeEmail': user.email!,
       'phone': (phone ?? '').trim(),
       'status': 'requested',
       'createdAt': FieldValue.serverTimestamp(),
     });
+    return true;
   }
 
   Future<String> requestStatus(String displayedCode) async {

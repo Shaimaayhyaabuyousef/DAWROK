@@ -32,7 +32,7 @@ try {
       facilityId: 'example-facility',
     });
     await admin.doc('facilities/example-facility').set({
-      ownerUid: 'facility-owner', name: 'Example Facility',
+      ownerUid: 'facility-owner', name: 'Example Facility', facilityNumber: '100001',
       isActive: true, isOnline: false, nextWindowNumber: 0,
     });
   });
@@ -98,12 +98,15 @@ try {
   }
   await assertFails(employee.doc('facilities/example-facility/staff/101').get());
   await assertSucceeds(employee.doc('staff_invites/' + hash).get());
-  await assertSucceeds(join.set({
+  const application = {
     facilityId: 'example-facility', staffId: '101',
-    employeeUid: 'employee-test', employeeEmail: 'employee@example.com',
+    facilityNumber: '100001', employeeUid: 'employee-test', employeeEmail: 'employee@example.com',
     phone: '+970 59 111 2222',
     status: 'requested', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-  }));
+  };
+  await assertFails(join.set({...application, facilityNumber: '100002'}));
+  await assertFails(facilityRef.update({facilityNumber: '100002'}));
+  await assertSucceeds(join.set(application));
   const membership = facility.doc('staff_memberships/employee-test');
   const employeeMember = employee.doc('staff_memberships/employee-test');
   await assertFails(employee.doc('facilities/example-facility/queues/window_1').get());
@@ -164,21 +167,19 @@ try {
       role: 'windowOfficer', state: 'pending', description: '',
       joinStatus: 'invited', inviteHash: deniedHash,
       linkCode: 'WXYZ-2345-6789-ABCD-EFGH',
-      codeExpiresAt: firebase.firestore.Timestamp.fromDate(
-        new Date(Date.now() + 24 * 60 * 60 * 1000)),
+      codeExpiresAt: expires,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     tx.set(deniedInvite, {
       facilityId: 'example-facility', staffId: '102', status: 'issued',
       issuedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      expiresAt: firebase.firestore.Timestamp.fromDate(
-        new Date(Date.now() + 24 * 60 * 60 * 1000)),
+      expiresAt: expires,
     });
   }));
   const rejectedEmployee = testEnv.authenticatedContext('rejected-user',
     {email: 'rejected@example.com'}).firestore();
   await assertSucceeds(rejectedEmployee.doc('staff_join_requests/' + deniedHash).set({
-    facilityId: 'example-facility', staffId: '102',
+    facilityId: 'example-facility', facilityNumber: '100001', staffId: '102',
     employeeUid: 'rejected-user', employeeEmail: 'rejected@example.com',
     phone: '+970 59 333 4444',
     status: 'requested', createdAt: firebase.firestore.FieldValue.serverTimestamp(),

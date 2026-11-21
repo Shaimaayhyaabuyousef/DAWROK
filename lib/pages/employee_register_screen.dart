@@ -2,11 +2,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/employee_access_service.dart';
+import '../services/staff_pairing_service.dart';
 
 const _blue = Color(0xFF03A9F4);
 const _ink = Color(0xFF22334D);
 
-/// An employee reaches this screen only after entering a facility ID,
+/// An employee reaches this screen only after entering a facility number,
 /// single-use link code and phone number on EmployeeJoinScreen.
 ///
 /// Creating (or signing in to) a Firebase Auth account here is one step of
@@ -14,12 +15,12 @@ const _ink = Color(0xFF22334D);
 class EmployeeRegisterScreen extends StatefulWidget {
   const EmployeeRegisterScreen({
     super.key,
-    required this.facilityId,
+    required this.facilityNumber,
     required this.invitationCode,
     required this.contactPhone,
   });
 
-  final String facilityId;
+  final String facilityNumber;
   final String invitationCode;
   final String contactPhone;
 
@@ -47,23 +48,22 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
     if (_busy || !_form.currentState!.validate()) return;
     setState(() { _busy = true; _error = null; });
     try {
-      final destination = _existingAccount
-          ? await EmployeeAccessService.instance.requestWithExistingAccount(
-              email: _email.text,
-              password: _password.text,
-              invitationCode: widget.invitationCode,
-              facilityId: widget.facilityId,
-              phone: widget.contactPhone,
-            )
-          : await EmployeeAccessService.instance.createAccount(
-              email: _email.text,
-              password: _password.text,
-              invitationCode: widget.invitationCode,
-              facilityId: widget.facilityId,
-              phone: widget.contactPhone,
-            );
-      if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(context, destination, (_) => false);
+      await EmployeeAccessService.instance.authenticateForJoin(
+        email: _email.text,
+        password: _password.text,
+        existingAccount: _existingAccount,
+      );
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      // A newly created account can retry after a cancelled or failed request.
+      setState(() => _existingAccount = true);
+      final sent = await StaffPairingService.instance.requestToJoin(
+        widget.invitationCode,
+        facilityNumber: widget.facilityNumber,
+        phone: widget.contactPhone,
+        confirm: _confirmFacility,
+      );
+      if (!mounted || !sent) return;
+      Navigator.pushNamedAndRemoveUntil(context, 'employee_pending_screen', (_) => false);
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() => _error = switch (e.code) {
@@ -81,6 +81,27 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<bool> _confirmFacility(String name) async {
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return false;
+    return await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirm facility'),
+        content: Text('Send your join request to $name?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Send request'),
+          ),
+        ],
+      ),
+    ) ?? false;
   }
 
   InputDecoration _decoration(String label, IconData icon) => InputDecoration(
@@ -133,7 +154,7 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
                     fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
                 const Text(
-                  'Your facility ID and link code were entered in the previous step. '
+                  'Your facility number and link code were entered in the previous step. '
                   'Provide your account details to submit the request for approval.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Color(0xFF7C8DA7),
@@ -190,7 +211,7 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
                     ),
                     child: _busy
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Send Join Request',
+                      : const Text('Verify invitation',
                         style: TextStyle(fontSize: 16,
                           fontWeight: FontWeight.bold)),
                   ),

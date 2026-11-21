@@ -68,6 +68,7 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
       await showStaffCodeDialog(
         context,
         code: issued.code,
+        facilityNumber: issued.facilityNumber,
         staffName: staff.name,
         expiresAt: issued.expiresAt,
       );

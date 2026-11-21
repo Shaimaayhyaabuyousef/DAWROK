@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'facility_number.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -45,7 +47,7 @@ class StaffPairingService {
   /// Creates exactly one join request for a valid invitation. The Firebase
   /// security rules verify identity, expiry and invitation ownership again.
   Future<void> requestToJoin(String displayedCode, {
-    String? facilityId, String? phone,
+    required String facilityNumber, String? phone,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -62,9 +64,11 @@ class StaffPairingService {
         expiry == null || !expiry.isAfter(DateTime.now())) {
       throw StateError('Invitation not found, expired or already used.');
     }
-    if (facilityId != null && facilityId.trim().isNotEmpty &&
-        facilityId.trim() != data['facilityId']) {
-      throw StateError('Facility ID does not match the invitation.');
+    final facility = await _db.collection('facilities').doc(data['facilityId'] as String).get();
+    final number = normalizeFacilityNumber(facilityNumber);
+    if (!validFacilityNumber(number) || facility.data()?['facilityNumber'] != number ||
+        facility.data()?['isActive'] != true) {
+      throw StateError('The facility number does not match this active invitation.');
     }
     if (phone != null && phone.trim().isNotEmpty &&
         !RegExp(r'^\+?[0-9\s-]{8,20}$').hasMatch(phone.trim())) {
@@ -73,6 +77,7 @@ class StaffPairingService {
     await _db.collection('staff_join_requests').doc(hash).set({
       'facilityId': data['facilityId'],
       'staffId': data['staffId'],
+      'facilityNumber': number,
       'employeeUid': user.uid,
       'employeeEmail': user.email!,
       'phone': (phone ?? '').trim(),

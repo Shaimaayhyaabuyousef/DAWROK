@@ -6,7 +6,7 @@ import '../services/employee_access_service.dart';
 const _blue = Color(0xFF03A9F4);
 const _ink = Color(0xFF22334D);
 
-/// An employee reaches this screen only after entering a facility ID,
+/// An employee reaches this screen only after entering a facility number,
 /// single-use link code and phone number on EmployeeJoinScreen.
 ///
 /// Creating (or signing in to) a Firebase Auth account here is one step of
@@ -14,12 +14,12 @@ const _ink = Color(0xFF22334D);
 class EmployeeRegisterScreen extends StatefulWidget {
   const EmployeeRegisterScreen({
     super.key,
-    required this.facilityId,
+    required this.facilityNumber,
     required this.invitationCode,
     required this.contactPhone,
   });
 
-  final String facilityId;
+  final String facilityNumber;
   final String invitationCode;
   final String contactPhone;
 
@@ -52,14 +52,14 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
               email: _email.text,
               password: _password.text,
               invitationCode: widget.invitationCode,
-              facilityId: widget.facilityId,
+              facilityNumber: widget.facilityNumber,
               phone: widget.contactPhone,
             )
           : await EmployeeAccessService.instance.createAccount(
               email: _email.text,
               password: _password.text,
               invitationCode: widget.invitationCode,
-              facilityId: widget.facilityId,
+              facilityNumber: widget.facilityNumber,
               phone: widget.contactPhone,
             );
       if (!mounted) return;
@@ -133,7 +133,7 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
                     fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
                 const Text(
-                  'Your facility ID and link code were entered in the previous step. '
+                  'Your facility number and link code were entered in the previous step. '
                   'Provide your account details to submit the request for approval.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Color(0xFF7C8DA7),

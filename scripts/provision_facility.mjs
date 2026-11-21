@@ -1,4 +1,5 @@
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
+import { allocateFacilityNumber } from './facility_numbers.mjs';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
@@ -22,20 +23,22 @@ const user = await getAuth().createUser({
   email: email.trim().toLowerCase(), password, displayName: name.trim(),
 });
 try {
-  const facility = db.collection('facilities').doc();
-  const batch = db.batch();
-  batch.create(facility, {
-    ownerUid: user.uid, name: name.trim(), categoryId,
-    phone: '', address: '', isActive: true, isOnline: false,
-    nextWindowNumber: 0, createdAt: FieldValue.serverTimestamp(),
+  const facilityNumber = await db.runTransaction(async tx => {
+    const number = await allocateFacilityNumber(db, tx);
+    const facility = db.collection('facilities').doc(number);
+    tx.create(facility, {
+      facilityNumber: number, ownerUid: user.uid, name: name.trim(), categoryId,
+      phone: '', address: '', isActive: true, isOnline: false,
+      nextWindowNumber: 0, createdAt: FieldValue.serverTimestamp(),
+    });
+    tx.create(db.collection('users').doc(user.uid), {
+      uid: user.uid, email: email.trim().toLowerCase(), role: 'facility',
+      status: 'active', facilityId: facility.id, displayName: name.trim(),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return number;
   });
-  batch.create(db.collection('users').doc(user.uid), {
-    uid: user.uid, email: email.trim().toLowerCase(), role: 'facility',
-    status: 'active', facilityId: facility.id, displayName: name.trim(),
-    createdAt: FieldValue.serverTimestamp(),
-  });
-  await batch.commit();
-  console.log('Created facility:', facility.id, '(queues: 0, staff: 0)');
+  console.log('Created facility number:', facilityNumber);
 } catch (e) {
   await getAuth().deleteUser(user.uid);
   throw e;

@@ -1,8 +1,12 @@
+import '../services/queue_operations_service.dart';
+import '../services/queue_audit_service.dart';
+import '../services/booking_order.dart';
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'facility_queue_store.dart';
+import '../services/facility_context.dart';
 
-/// Local-only sample data for prototyping the facility's counter operations.
-/// It is deliberately NOT an authentication or QR verification service.
 enum FacilityVisitStatus { waiting, called, served, absent }
 enum FacilityScanOutcome { verified, repeated, invalid }
 
@@ -11,6 +15,7 @@ class FacilityVisit {
   final String visitorName;
   final String maskedId;
   final int windowNumber;
+  final String queueId;
   final int estimatedMinutes;
   FacilityVisitStatus status;
   bool checkedIn;
@@ -21,6 +26,7 @@ class FacilityVisit {
     required this.visitorName,
     required this.maskedId,
     required this.windowNumber,
+    required this.queueId,
     required this.estimatedMinutes,
     this.status = FacilityVisitStatus.waiting,
     this.checkedIn = false,
@@ -48,137 +54,149 @@ class FacilityScanResult {
   const FacilityScanResult(this.outcome, this.message);
 }
 
-/// The facility owner can use this store directly; it does not depend on
-/// FacilityStaffStore or on the number of employee accounts.
 class FacilityScanStore extends ChangeNotifier {
-  FacilityScanStore._();
-  static final FacilityScanStore instance = FacilityScanStore._();
-
-  final List<FacilityVisit> _visits = [
-    FacilityVisit(ticketNumber: 'A-104', visitorName: 'Khalid Abdullah Al-Omari', maskedId: 'SA-49102', windowNumber: 2, estimatedMinutes: 8),
-    FacilityVisit(ticketNumber: 'A-105', visitorName: 'Fatima Salem Al-Dawsari', maskedId: 'SA-38291', windowNumber: 2, estimatedMinutes: 15),
-    FacilityVisit(ticketNumber: 'A-106', visitorName: 'Mohammad Tariq Hassan', maskedId: 'SA-58190', windowNumber: 2, estimatedMinutes: 22),
-    FacilityVisit(ticketNumber: 'A-108', visitorName: 'Nour El-Din Mansoor', maskedId: 'SA-58191', windowNumber: 2, estimatedMinutes: 30),
-    FacilityVisit(ticketNumber: 'B-201', visitorName: 'Hana Ali', maskedId: 'SA-10001', windowNumber: 1, estimatedMinutes: 10),
-  ];
-
-  final List<FacilityScanLog> _logs = [
-    FacilityScanLog(label: 'Visitor card', identifier: '8492-X', outcome: FacilityScanOutcome.verified, createdAt: DateTime.now()),
-    FacilityScanLog(label: 'Visitor card', identifier: '1104-V', outcome: FacilityScanOutcome.verified, createdAt: DateTime.now()),
-    FacilityScanLog(label: 'Invalid code', identifier: '9921-E', outcome: FacilityScanOutcome.invalid, createdAt: DateTime.now()),
-  ];
-
+  FacilityScanStore._() {
+    FirebaseAuth.instance.authStateChanges().listen((_) {
+      _bookingsSub?.cancel();
+      _logsSub?.cancel();
+      _facilityId = null;
+      _visits.clear(); _logs.clear();
+      notifyListeners();
+      _listen();
+    });
+  }
+  static final instance = FacilityScanStore._();
+  final _db = FirebaseFirestore.instance;
+  String? _facilityId;
+  StreamSubscription<QuerySnapshot<Map<String,dynamic>>>? _bookingsSub, _logsSub;
+  final List<FacilityVisit> _visits = [];
+  final List<FacilityScanLog> _logs = [];
   List<FacilityVisit> get visits => List.unmodifiable(_visits);
   List<FacilityScanLog> get logs => List.unmodifiable(_logs);
 
-  FacilityVisit? currentFor(int windowNumber) {
-    for (final visit in _visits) {
-      if (visit.windowNumber == windowNumber && visit.status == FacilityVisitStatus.called) return visit;
+  Future<void> _listen() async {
+    try {
+      final id = await FacilityContext.instance.requireFacilityId();
+      _facilityId = id;
+      _bookingsSub = _db.collection('bookings')
+          .where('facilityId', isEqualTo: id)
+          .snapshots().listen((snap) {
+        _visits
+          ..clear()
+          ..addAll((snap.docs.toList()..sort((a,b) => compareBookingRows(a.data(),a.id,b.data(),b.id))).map((d) {
+            final m = d.data();
+            final status = FacilityVisitStatus.values.firstWhere(
+              (v) => v.name == m['status'], orElse: () => FacilityVisitStatus.waiting);
+            return FacilityVisit(
+              ticketNumber: d.id,
+              visitorName: m['citizenName'] as String? ?? '',
+              maskedId: '••••',
+              windowNumber: m['routingVersion'] == 2 ? (m['windowNumber'] as num?)?.toInt() ?? 0 : 1,
+              queueId: m['queueId'] as String? ?? '',
+              estimatedMinutes: 30,
+              status: status, checkedIn: m['checkedIn'] == true,
+              postponements: (m['postponements'] as num?)?.toInt() ?? 0,
+            );
+          }));
+        notifyListeners();
+      });
+      _logsSub = _db.collection('facilities').doc(id).collection('queue_logs')
+          .orderBy('createdAt', descending: true).limit(20)
+          .snapshots().listen((snap) {
+        _logs
+          ..clear()
+          ..addAll(snap.docs.map((d) {
+            final m = d.data();
+            return FacilityScanLog(
+              label: m['label'] as String? ?? '',
+              identifier: m['identifier'] as String? ?? '',
+              outcome: FacilityScanOutcome.values.firstWhere(
+                (v) => v.name == m['outcome'], orElse: () => FacilityScanOutcome.invalid),
+              createdAt: (m['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            );
+          }));
+        notifyListeners();
+      });
+    } catch (e) {
+      debugPrint('Facility scans not available: ${e.toString()}');
+      notifyListeners();
+    }
+  }
+
+  DocumentReference<Map<String,dynamic>> _ticket(String id) =>
+      _db.collection('bookings').doc(id);
+
+  Future<void> _log(String label, String identifier, FacilityScanOutcome result) async {
+    final id = _facilityId;
+    if (id == null) return;
+    await QueueAuditService.record(id, label, identifier, outcome: result.name);
+  }
+
+  FacilityVisit? currentFor(int n, {int window = 0}) {
+    for (final v in _visits) {
+      if (v.queueId == 'window_$n' && v.windowNumber == window && v.status == FacilityVisitStatus.called) return v;
     }
     return null;
   }
 
-  int waitingCount(int windowNumber) => _visits.where((v) => v.windowNumber == windowNumber && v.status == FacilityVisitStatus.waiting).length;
+  int waitingCount(int n) => _visits.where((v) => v.queueId == 'window_$n' && v.status == FacilityVisitStatus.waiting).length;
 
-  String callNext(int windowNumber) {
-    if (currentFor(windowNumber) != null) return 'Finish or mark the current ticket absent first.';
-    for (final visit in _visits) {
-      if (visit.windowNumber == windowNumber && visit.status == FacilityVisitStatus.waiting) {
-        visit.status = FacilityVisitStatus.called;
-        notifyListeners();
-        return 'Calling ticket #${visit.ticketNumber} — ${visit.visitorName}';
+  Future<String> callNext(int n, {int window = 0}) async {
+    final message = await QueueOperationsService.instance.callNext(_facilityId!, 'window_$n', window);
+    return message;
+  }
+
+  Future<String> markAbsent(int n, {int window = 0}) => _closeCurrent(n, window, 'absent');
+  Future<String> markServed(int n, {int window = 0}) => _closeCurrent(n, window, 'served');
+  Future<String> _closeCurrent(int n, int window, String outcome) async {
+    final v = currentFor(n, window: window);
+    if (v == null) return 'Call a visitor first.';
+    await QueueOperationsService.instance.close(v.ticketNumber, _facilityId!, outcome);
+    return 'Ticket marked $outcome.';
+  }
+  Future<String> postponeCurrent(int n, {int window = 0}) async {
+    final v = currentFor(n, window: window);
+    if (v == null) return 'Call a visitor first.';
+    if (waitingCount(n) == 0) return 'No other visitors are waiting.';
+    await QueueOperationsService.instance.postpone(v.ticketNumber, _facilityId!, 'window_$n', window);
+    return 'Ticket postponed.';
+  }
+
+  Future<FacilityScanResult> verifyDemoCode(String raw, int queueNumber, {int window = 0}) async {
+    final id = _facilityId;
+    if (id == null) return const FacilityScanResult(
+      FacilityScanOutcome.invalid, 'Facility is not loaded.');
+    var ticketId = raw.trim();
+    if (ticketId.startsWith('DAWROK|')) {
+      final parts = ticketId.split('|');
+      final tickets = parts.where((x) => x.startsWith('ticket=')).toList();
+      if (tickets.length != 1) return _invalid(raw, 'Malformed ticket QR.');
+      ticketId = tickets.single.substring('ticket='.length);
+    }
+    if (ticketId.isEmpty) return _invalid(raw, 'Empty ticket.');
+    try {
+      final snap = await _ticket(ticketId).get();
+      final m = snap.data();
+      if (m == null || m['facilityId'] != id ||
+          m['queueId'] != 'window_$queueNumber') {
+        return _invalid(raw, 'Ticket is not valid for this counter.');
       }
-    }
-    return 'There are no waiting tickets for this counter.';
-  }
-
-  String markAbsent(int windowNumber) {
-    final current = currentFor(windowNumber);
-    if (current == null) return 'Call a visitor first.';
-    current.status = FacilityVisitStatus.absent;
-    FacilityQueueStore.instance.recordHandled(windowNumber);
-    notifyListeners();
-    return 'Ticket #${current.ticketNumber} marked absent.';
-  }
-
-  /// Moves the currently called ticket to the end of THIS counter's waiting
-  /// line. The booking stays active and the total number of visitors does not
-  /// change. Call Next afterward to call the next waiting visitor.
-  String postponeCurrent(int windowNumber) {
-    final current = currentFor(windowNumber);
-    if (current == null) return 'Call a visitor first.';
-
-    final someoneElseWaiting = _visits.any((visit) =>
-        visit.windowNumber == windowNumber &&
-        visit.status == FacilityVisitStatus.waiting);
-    if (!someoneElseWaiting) {
-      return 'No other visitors are waiting in this counter.';
-    }
-
-    current.status = FacilityVisitStatus.waiting;
-    current.postponements++;
-    // Preserve checkedIn: postponing does not invalidate a verified check-in.
-    // Reorder the shared list: callNext scans it from the beginning.
-    _visits.remove(current);
-    _visits.add(current);
-    notifyListeners();
-    return 'Ticket #${current.ticketNumber} postponed to the end of the queue. Tap Next to call the next visitor.';
-  }
-
-  String markServed(int windowNumber) {
-    final current = currentFor(windowNumber);
-    if (current == null) return 'Call a visitor first.';
-    if (!current.checkedIn) return 'Verify the ticket QR or enter the ticket number before completing service.';
-    current.status = FacilityVisitStatus.served;
-    FacilityQueueStore.instance.recordHandled(windowNumber);
-    notifyListeners();
-    return 'Service completed for #${current.ticketNumber}.';
-  }
-
-  /// Accepts either a bare ticket number (A-104) or a demo citizen ticket
-  /// payload, e.g. DAWROK|ticket=A-104|facility=...|queue=...
-  /// Never treats a client-provided QR string as trustworthy authentication.
-  FacilityScanResult verifyDemoCode(String rawValue, int windowNumber) {
-    final raw = rawValue.trim();
-    String ticket = raw;
-    if (raw.startsWith('DAWROK|')) {
-      final parts = raw.split('|');
-      final matches = parts.skip(1).where((part) => part.startsWith('ticket=')).toList();
-      if (matches.length != 1) {
-        return _invalid(raw, 'Invalid ticket format.');
+      if (m['status'] == 'served' || m['status'] == 'absent') {
+        return _invalid(raw, 'Ticket is already closed.');
       }
-      ticket = matches.single.substring('ticket='.length).trim();
+      if (m['checkedIn'] == true) return const FacilityScanResult(
+        FacilityScanOutcome.repeated, 'Ticket already checked in.');
+      await QueueOperationsService.instance.checkIn(ticketId, id, 'window_$queueNumber', window);
+      await _log('Ticket check-in', ticketId, FacilityScanOutcome.verified);
+      return FacilityScanResult(FacilityScanOutcome.verified,
+        'Ticket checked in: ${m['citizenName']} — #$ticketId');
+    } catch (e) {
+      return _invalid(raw, 'Unable to validate ticket: ${e.toString()}');
     }
-    final candidate = ticket.toUpperCase();
-    FacilityVisit? found;
-    for (final visit in _visits) {
-      if (visit.ticketNumber.toUpperCase() == candidate) {
-        found = visit;
-        break;
-      }
-    }
-    if (found == null) return _invalid(raw, 'Ticket not found in the local demo data.');
-    if (found.windowNumber != windowNumber) return _invalid(raw, 'Ticket belongs to another counter.');
-    if (found.status == FacilityVisitStatus.served || found.status == FacilityVisitStatus.absent) {
-      return _invalid(raw, 'This ticket is already closed.');
-    }
-    if (found.checkedIn) return const FacilityScanResult(FacilityScanOutcome.repeated, 'Ticket already checked in.');
-
-    found.checkedIn = true;
-    _addLog('Visitor card', found.maskedId, FacilityScanOutcome.verified);
-    notifyListeners();
-    return FacilityScanResult(FacilityScanOutcome.verified, 'Verified (demo): ${found.visitorName} — #${found.ticketNumber}');
   }
 
   FacilityScanResult _invalid(String raw, String reason) {
-    final compact = raw.isEmpty ? 'empty' : (raw.length > 12 ? raw.substring(0, 12) : raw);
-    _addLog('Invalid code', compact, FacilityScanOutcome.invalid);
-    notifyListeners();
+    _log('Invalid ticket', raw, FacilityScanOutcome.invalid);
     return FacilityScanResult(FacilityScanOutcome.invalid, reason);
-  }
-
-  void _addLog(String label, String id, FacilityScanOutcome outcome) {
-    _logs.insert(0, FacilityScanLog(label: label, identifier: id, outcome: outcome, createdAt: DateTime.now()));
-    if (_logs.length > 20) _logs.removeLast();
   }
 }

@@ -1,0 +1,889 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+    function citizen() {
+      return signedIn() && userDoc(request.auth.uid).role == 'citizen';
+    }
+    function facilityOwner(fid) {
+      let u = userDoc(request.auth.uid);
+      let f = get(/databases/$(database)/documents/facilities/$(fid)).data;
+      return signedIn() && u.role == 'facility' && u.status == 'active'
+        && u.facilityId == fid && f.ownerUid == request.auth.uid && f.isActive == true;
+    }
+    function facilityPublished(fid) {
+      return get(/databases/$(database)/documents/facilities/$(fid)).data.isActive == true
+        && get(/databases/$(database)/documents/facilities/$(fid)).data.isOnline == true;
+    }
+    function pad2(n) { return n < 10 ? '0' + string(n) : string(n); }
+    function dayKey(t) {
+      return string(t.year()) + pad2(t.month()) + pad2(t.day());
+    }
+    function slotKey(t) { return pad2(t.hours()) + pad2(t.minutes()); }
+    function guardPath(uid, day) {
+      return /databases/$(database)/documents/users/$(uid)/booking_days/$(day);
+    }
+    function queuePath(fid, qid) {
+      return /databases/$(database)/documents/facilities/$(fid)/queues/$(qid);
+    }
+    function capPath(fid, qid, day) {
+      return /databases/$(database)/documents/facilities/$(fid)/queues/$(qid)/days/$(day);
+    }
+    function bookingPath(id) {
+      return /databases/$(database)/documents/bookings/$(id);
+    }
+
+
+    function memberRef(uid) {
+      return /databases/$(database)/documents/staff_memberships/$(uid);
+    }
+    function employeeRef(fid, sid) {
+      return /databases/$(database)/documents/facilities/$(fid)/staff/$(sid);
+    }
+    function inviteRef(hash) {
+      return /databases/$(database)/documents/staff_invites/$(hash);
+    }
+    function claimRef(hash) {
+      return /databases/$(database)/documents/staff_join_requests/$(hash);
+    }
+    function staffActive(fid) {
+      let m = get(memberRef(request.auth.uid)).data;
+      let p = get(/databases/$(database)/documents/staff_profiles/$(request.auth.uid)).data;
+      return signedIn() && m.facilityId == fid && m.state == 'active'
+        && p.profileCompleted == true;
+    }
+    function staffOperator(fid) {
+      return staffActive(fid)
+        && get(memberRef(request.auth.uid)).data.role in ['windowOfficer', 'supervisor'];
+    }
+
+    function servicePath(fid,sid) {
+      return /databases/$(database)/documents/facilities/$(fid)/services/$(sid);
+    }
+    function counterPath(fid,qid,w) {
+      return /databases/$(database)/documents/facilities/$(fid)/counters/$(qid + '_' + string(w));
+    }
+    function validQueueService(fid,q) {
+      return q.schemaVersion == 3 && q.serviceId is string && q.serviceId.size() > 0
+        && getAfter(servicePath(fid,q.serviceId)).data.name == q['service']
+        && getAfter(servicePath(fid,q.serviceId)).data.isActive == true;
+    }
+    function validCounter(fid,cid,c) {
+      let q = getAfter(queuePath(fid,c.queueId)).data;
+      return existsAfter(queuePath(fid,c.queueId)) && c.keys().hasOnly(['queueId','windowNumber','name','floor','isActive','createdAt','updatedAt'])
+        && c.windowNumber is int && c.windowNumber >= 1 && c.windowNumber <= 20
+        && cid == c.queueId + '_' + string(c.windowNumber)
+        && c.name is string && c.name.size() > 0 && c.name.size() <= 120
+        && c.floor is string && c.floor.size() <= 80 && c.isActive is bool
+        && (!c.isActive || (c.windowNumber <= q.get('windowCount',1) && q.archived == false))
+        && c.updatedAt == request.time;
+    }
+    function bookingServiceMatches(b) {
+      let q = get(queuePath(b.facilityId,b.queueId)).data;
+      return b['service'] == q['service'] && b.serviceId == q.get('serviceId','')
+        && (q.get('schemaVersion',0) != 3 || get(servicePath(b.facilityId,q.serviceId)).data.isActive == true);
+    }
+    function adminNotification(uid,n) {
+      return admin() && n.keys().hasOnly(['type','bookingId','delta','message','senderId','read','createdAt'])
+        && n.type == 'notice' && n.delta == 0 && n.read == false && n.createdAt == request.time
+        && n.senderId == request.auth.uid && n.message is string && n.message.size() > 0 && n.message.size() <= 2000
+        && n.bookingId is string && (n.bookingId == '' || get(bookingPath(n.bookingId)).data.citizenId == uid)
+        && (exists(/databases/$(database)/documents/users/$(uid)) || exists(memberRef(uid)));
+    }
+    function validScanLog(fid,l) {
+      return l.keys().hasOnly(['actorUid','actorRole','staffId','bookingId','label','identifier','outcome','createdAt'])
+        && l.actorUid == request.auth.uid && l.createdAt == request.time
+        && ((l.actorRole == 'facility' && l.staffId == '' && facilityOwner(fid)) || (l.actorRole == 'employee' && staffOperator(fid) && l.staffId == get(memberRef(request.auth.uid)).data.staffId))
+        && l.label is string && l.label.size() > 0 && l.label.size() <= 100
+        && l.identifier is string && l.identifier.size() <= 25
+        && l.bookingId is string && l.outcome in ['verified','repeated','invalid']
+        && ((l.outcome == 'invalid' && l.bookingId == '')
+          || (l.outcome in ['verified','repeated'] && get(bookingPath(l.bookingId)).data.facilityId == fid
+            && (l.actorRole == 'facility' || assignedQueue(fid,get(bookingPath(l.bookingId)).data.queueId))));
+    }
+    function pointPath(uid,id) {
+      return /databases/$(database)/documents/citizen_accounts/$(uid)/point_transactions/$(id);
+    }
+    function hasPointEntry(uid,bid,prefix,points,reason) {
+      let entry = getAfter(pointPath(uid,prefix + bid)).data;
+      return entry.bookingId == bid && entry.points == points && entry.reason == reason && entry.createdAt == request.time;
+    }
+
+    function lanePath(fid,qid,w) {
+      return /databases/$(database)/documents/facilities/$(fid)/queues/$(qid)/lanes/$(w);
+    }
+    function assignedQueue(fid,qid) {
+      let p = /databases/$(database)/documents/facilities/$(fid)/operations/assignments;
+      return staffOperator(fid) && exists(p)
+        && get(p).data.assignments.get(request.auth.uid,{}).get('queueId','') == qid;
+    }
+    function assignedLane(fid,qid,w) {
+      let p = /databases/$(database)/documents/facilities/$(fid)/operations/assignments;
+      return assignedQueue(fid,qid)
+        && get(p).data.assignments[request.auth.uid].windowNumber == w;
+    }
+    function activeCounter(fid,qid,w) {
+      let c = get(counterPath(fid,qid,w)).data;
+      return c.queueId == qid && c.windowNumber == w && c.isActive == true;
+    }
+    function validWindow(fid,qid,w) {
+      let q = get(queuePath(fid,qid)).data;
+      let count = q.get('windowCount',1);
+      return w is int && !q.archived && (count == 0 ? w == 0 : w >= 1 && w <= count)
+        && (count == 0 || q.get('schemaVersion',0) != 3 ||
+          activeCounter(fid,qid,w));
+    }
+    function laneOperator(b,w) {
+      return facilityOwner(b.facilityId) || assignedLane(b.facilityId,b.queueId,w);
+    }
+    function releasedLane(b,bid) {
+      let p = lanePath(b.facilityId,b.queueId,string(b.windowNumber));
+      return b.get('routingVersion',0) != 2 ||
+        (get(p).data.ticketId == bid && getAfter(p).data.ticketId == '' && getAfter(p).data.updatedAt == request.time);
+    }
+    function validLaneWrite(fid,qid,w) {
+      let next = request.resource.data.ticketId;
+      let old = resource == null ? '' : resource.data.ticketId;
+      let id = next == '' ? old : next;
+      let b = getAfter(bookingPath(id)).data;
+      return b.facilityId == fid && b.queueId == qid && (
+        (next != '' && old == '' && b.status == 'called' && string(b.windowNumber) == w
+          && b.calledAt == request.time && laneOperator(b,b.windowNumber) && validWindow(fid,qid,b.windowNumber))
+        || (next == '' && old != '' && b.status in ['waiting','served','absent']
+          && get(bookingPath(id)).data.status == 'called'
+          && string(get(bookingPath(id)).data.windowNumber) == w
+          && laneOperator(b,get(bookingPath(id)).data.windowNumber))
+      );
+    }
+    function ticketUpdate(bid,b,a) {
+      let changed = a.diff(b).affectedKeys();
+      let lane = lanePath(b.facilityId,b.queueId,string(a.windowNumber));
+      return (
+        b.status == 'waiting' && a.status == 'called'
+        && changed.hasOnly(['status','calledAt','windowNumber','routingVersion'])
+        && a.routingVersion == 2 && a.calledAt == request.time
+        && b.slotStart <= request.time
+        && validWindow(b.facilityId,b.queueId,a.windowNumber) && laneOperator(b,a.windowNumber)
+        && (!exists(lane) || get(lane).data.ticketId == '')
+        && getAfter(lane).data.ticketId == bid && getAfter(lane).data.updatedAt == request.time
+      ) || (
+        b.status == 'called' && a.status == 'waiting'
+        && changed.hasOnly(['status','postponements','postponedAt','windowNumber'])
+        && a.postponements == b.postponements + 1 && a.postponedAt == request.time && a.windowNumber == 0
+        && (laneOperator(b,b.windowNumber) || (b.get('routingVersion',0) != 2 && assignedQueue(b.facilityId,b.queueId))) && releasedLane(b,bid)
+      ) || (
+        b.status == 'called' && a.status in ['served','absent']
+        && changed.hasOnly(['status','closedAt']) && a.closedAt == request.time
+        && (laneOperator(b,b.windowNumber) || (b.get('routingVersion',0) != 2 && assignedQueue(b.facilityId,b.queueId)))
+        && releasedLane(b,bid) && scoredClose(bid)
+        && (a.status != 'served' || b.checkedIn == true)
+      ) || (
+        a.status == b.status && b.status in ['waiting','called']
+        && changed.hasOnly(['checkedIn']) && b.checkedIn == false && a.checkedIn == true
+        && (facilityOwner(b.facilityId) || (b.status == 'waiting' || b.get('routingVersion',0) != 2 ? assignedQueue(b.facilityId,b.queueId) : assignedLane(b.facilityId,b.queueId,b.windowNumber)))
+      );
+    }
+
+    function accountPath(uid) { return /databases/$(database)/documents/citizen_accounts/$(uid); }
+    function accountData(uid) { return exists(accountPath(uid)) ? get(accountPath(uid)).data : {'points':0,'streak':0,'suspendedAt':null,'reviewRequired':false}; }
+    function admin() { return signedIn() && request.auth.token.get('admin',false) == true; }
+    function canBook(uid) {
+      let a = accountData(uid);
+      return !a.reviewRequired && (a.suspendedAt == null || request.time >= a.suspendedAt + duration.value(7,'d'));
+    }
+    function accountShape(a) {
+      return a.keys().hasOnly(['points','streak','suspendedAt','reviewRequired','lastBookingId','lastAction','updatedAt'])
+        && a.points is int && a.streak is int && a.streak >= 0
+        && (a.suspendedAt == null || a.suspendedAt is timestamp)
+        && a.reviewRequired is bool && a.lastBookingId is string && a.updatedAt == request.time;
+    }
+    function scoreResult(uid,a) {
+      let old = accountData(uid);
+      let before = get(bookingPath(a.lastBookingId)).data;
+      let after = getAfter(bookingPath(a.lastBookingId)).data;
+      let absent = after.status == 'absent';
+      let firstBan = absent && old.suspendedAt == null && old.streak + 1 >= 3;
+      let review = old.reviewRequired || (absent && old.suspendedAt != null && request.time >= old.suspendedAt + duration.value(7,'d'));
+      return before.citizenId == uid && before.status == 'called'
+        && (facilityOwner(before.facilityId) || staffOperator(before.facilityId))
+        && after.status in ['served','absent'] && after.closedAt == request.time
+        && a.lastAction == after.status && a.points == old.points + (absent ? -5 : 5)
+        && a.streak == (!absent || firstBan ? 0 : old.streak + 1)
+        && a.suspendedAt == (firstBan ? request.time : old.suspendedAt) && a.reviewRequired == review
+        && hasPointEntry(uid,a.lastBookingId,'result_',absent ? -5 : 5,after.status);
+    }
+    function redeemPoints(uid,a) {
+      let old = accountData(uid);
+      let ticket = getAfter(bookingPath(a.lastBookingId)).data;
+      return isSelf(uid) && canBook(uid) && old.points >= 100 && !exists(bookingPath(a.lastBookingId))
+        && ticket.citizenId == uid && ticket.createdAt == request.time
+        && ticket.get('reward','none') in ['extra','priority'] && a.points == old.points - 100
+        && a.streak == old.streak && a.suspendedAt == old.suspendedAt && a.reviewRequired == old.reviewRequired && a.lastAction == 'redeem'
+        && hasPointEntry(uid,a.lastBookingId,'book_',-100,'redeem');
+    }
+    function paidReward(uid,bid,reward) {
+      let after = getAfter(accountPath(uid)).data;
+      return reward == 'none' || (reward in ['extra','priority'] && after.lastBookingId == bid && after.lastAction == 'redeem'
+        && after.updatedAt == request.time && after.points == accountData(uid).points - 100);
+    }
+    function validCapacity(b) {
+      let q = get(queuePath(b.facilityId,b.queueId)).data;
+      let path = capPath(b.facilityId,b.queueId,b.dayKey);
+      let old = exists(path) ? get(path).data : {'reserved':0};
+      let after = getAfter(path).data;
+      let extra = b.get('reward','none') == 'extra';
+      return b.queuePosition is int && b.queuePosition == old.reserved + 1
+        && after.lastSlotStart == b.slotStart
+        && (!('lastSlotStart' in old) || b.slotStart >= old.lastSlotStart)
+        && after.reserved == old.reserved + 1
+        && after.get('rewardReserved',0) == old.get('rewardReserved',0) + (extra ? 1 : 0)
+        && (extra ? (old.reserved - old.get('rewardReserved',0) >= q.capacity && after.get('rewardReserved',0) <= q.get('rewardCapacity',0))
+          : (old.reserved - old.get('rewardReserved',0) < q.capacity));
+    }
+    function scoredClose(bid) {
+      let a = getAfter(accountPath(resource.data.citizenId)).data;
+      return a.lastBookingId == bid && a.lastAction == request.resource.data.status && a.updatedAt == request.time && request.resource.data.closedAt == request.time;
+    }
+    match /citizen_accounts/{uid} {
+      allow get: if isSelf(uid) || admin() || (signedIn() &&
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && userDoc(request.auth.uid).role == 'facility' && userDoc(request.auth.uid).status == 'active')
+        || (exists(memberRef(request.auth.uid)) && staffOperator(get(memberRef(request.auth.uid)).data.facilityId))));
+      allow list, delete: if false;
+      allow create, update: if accountShape(request.resource.data) && (scoreResult(uid,request.resource.data) || redeemPoints(uid,request.resource.data));
+      allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['streak','suspendedAt','reviewRequired','updatedAt'])
+        && request.resource.data.streak == 0 && request.resource.data.suspendedAt == null && request.resource.data.reviewRequired == false && request.resource.data.updatedAt == request.time;
+      match /point_transactions/{pid} {
+        allow read: if isSelf(uid) || admin();
+        allow update, delete: if false;
+        allow create: if signedIn() && validPointEntry(uid,pid,request.resource.data);
+      }
+      match /events/{eid} {
+        allow create: if adminNotification(uid,request.resource.data);
+        allow read: if isSelf(uid);
+        allow delete: if false;
+        allow update: if isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read == true;
+        allow create: if request.resource.data.keys().hasOnly(['type','bookingId','delta','read','createdAt'])
+          && request.resource.data.read == false && request.resource.data.createdAt == request.time
+          && ((eid == 'welcome' && isSelf(uid) && citizen() && request.resource.data.type == 'welcome'
+              && request.resource.data.bookingId == '' && request.resource.data.delta == 0)
+            || validAccountEvent(uid,eid,request.resource.data));
+      }
+    }
+    function validPointEntry(uid,pid,e) {
+      let b = getAfter(bookingPath(e.bookingId)).data;
+      let a = getAfter(accountPath(uid)).data;
+      return e.keys().hasOnly(['bookingId','points','reason','createdAt'])
+        && e.createdAt == request.time && b.citizenId == uid
+        && a.lastBookingId == e.bookingId && a.updatedAt == request.time
+        && ((pid == 'book_' + e.bookingId && isSelf(uid) && e.reason == 'redeem'
+            && e.points == -100 && a.lastAction == 'redeem' && b.createdAt == request.time && b.reward in ['extra','priority'])
+          || (pid == 'result_' + e.bookingId && (facilityOwner(b.facilityId) || staffOperator(b.facilityId))
+            && b.closedAt == request.time && b.status in ['served','absent'] && a.lastAction == b.status
+            && e.reason == b.status && e.points == (b.status == 'served' ? 5 : -5)));
+    }
+
+    function validAccountEvent(uid,eid,e) {
+      let b = getAfter(bookingPath(e.bookingId)).data;
+      return b.citizenId == uid && ((eid == 'book_' + e.bookingId && isSelf(uid) && b.createdAt == request.time
+          && e.type == 'booking' && e.delta == (b.get('reward','none') == 'none' ? 0 : -100))
+        || (eid == 'result_' + e.bookingId && (facilityOwner(b.facilityId) || staffOperator(b.facilityId))
+          && b.closedAt == request.time && e.type == b.status && b.status in ['served','absent'] && e.delta == (b.status == 'served' ? 5 : -5)));
+    }
+    function validReporter(r) {
+      let profile = exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? userDoc(request.auth.uid) : {};
+      return (r.reporterRole == 'citizen' && profile.get('role','') == 'citizen' && r.reporterFacilityId == '')
+        || (r.reporterRole == 'facility' && profile.get('role','') == 'facility'
+          && facilityOwner(r.reporterFacilityId))
+        || (r.reporterRole == 'employee' && profile.get('role','') != 'citizen'
+          && profile.get('role','') != 'facility' && exists(memberRef(request.auth.uid))
+          && get(memberRef(request.auth.uid)).data.state == 'active'
+          && get(memberRef(request.auth.uid)).data.facilityId == r.reporterFacilityId);
+    }
+    function validReportPhoto(p) {
+      return p.keys().hasOnly(['bytes','contentType','createdAt'])
+        && p.bytes is bytes && p.bytes.size() > 0 && p.bytes.size() <= 200000
+        && p.contentType == 'image/jpeg' && p.createdAt == request.time;
+    }
+    match /reports/{rid} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid','reporterRole','reporterFacilityId','type',
+          'facilityId','facilityName','message','anonymous','hasPhoto','status','createdAt'])
+        && request.resource.data.uid == request.auth.uid && validReporter(request.resource.data)
+        && request.resource.data.status == 'open' && request.resource.data.createdAt == request.time
+        && request.resource.data.message is string && request.resource.data.message.size() >= 10
+        && request.resource.data.message.size() <= 500 && request.resource.data.anonymous is bool
+        && request.resource.data.hasPhoto is bool
+        && ((request.resource.data.type == 'app' && request.resource.data.facilityId == '' && request.resource.data.facilityName == '')
+          || (request.resource.data.type == 'facility' && request.resource.data.reporterRole == 'citizen'
+            && get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.isActive == true
+            && get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.name == request.resource.data.facilityName))
+        && (!request.resource.data.hasPhoto || validReportPhoto(getAfter(/databases/$(database)/documents/reports/$(rid)/attachments/photo).data));
+      // Allows an idempotent transaction to check a new random report ID.
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/reports/$(rid)) || admin() || resource.data.uid == request.auth.uid);
+      allow list: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','response'])
+        && request.resource.data.status in ['open','resolved']
+        && request.resource.data.get('response','') is string && request.resource.data.get('response','').size() <= 2000;
+      allow delete: if false;
+      match /attachments/{aid} {
+        allow read: if admin() || (signedIn() && get(/databases/$(database)/documents/reports/$(rid)).data.uid == request.auth.uid);
+        allow create: if signedIn() && aid == 'photo' && validReportPhoto(request.resource.data)
+          && !exists(/databases/$(database)/documents/reports/$(rid))
+          && getAfter(/databases/$(database)/documents/reports/$(rid)).data.uid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/reports/$(rid)).data.hasPhoto == true
+          && getAfter(/databases/$(database)/documents/reports/$(rid)).data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    match /users/{uid} {
+      allow get: if isSelf(uid);
+      allow list: if false;
+      allow create: if isSelf(uid)
+        && (!('role' in request.auth.token) || request.auth.token.role == 'citizen')
+        && request.resource.data.keys().hasOnly([
+          'uid','role','displayName','email','phone','address',
+          'photoUrl','providers','createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'uid','role','displayName','email','photoUrl','providers','createdAt'
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.role == 'citizen'
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 120
+        && request.resource.data.email is string
+        && request.resource.data.get('phone','') is string
+        && request.resource.data.get('phone','').size() <= 24
+        && request.resource.data.get('address','') is string
+        && request.resource.data.get('address','').size() <= 200
+        && request.resource.data.photoUrl is string
+        && request.resource.data.providers is list
+        && request.resource.data.createdAt == request.time;
+      allow update: if isSelf(uid)
+        && resource.data.role == 'citizen'
+        && request.resource.data.role == 'citizen'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName','phone','address'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 120
+        && request.resource.data.get('phone','') is string
+        && request.resource.data.get('phone','').size() <= 24
+        && request.resource.data.get('address','') is string
+        && request.resource.data.get('address','').size() <= 200;
+      allow delete: if false;
+
+      match /notifications/{nid} {
+        allow create: if adminNotification(uid,request.resource.data);
+        allow read: if isSelf(uid);
+        allow update: if isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read == true;
+        allow create, delete: if false;
+      }
+      match /booking_days/{day} {
+        allow get: if isSelf(uid);
+        allow list, delete: if false;
+        allow create: if isSelf(uid) && citizen()
+          && day.matches('^[0-9]{8}$')
+          && request.resource.data.keys().hasOnly(['uid','queues','slots','updatedAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.queues is map
+          && request.resource.data.slots is map
+          && request.resource.data.queues.keys().size() == 1
+          && request.resource.data.slots.keys().size() == 1
+          && request.resource.data.updatedAt == request.time;
+        allow update: if isSelf(uid) && citizen()
+          && request.resource.data.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['queues','slots','updatedAt'])
+          && request.resource.data.queues is map
+          && request.resource.data.slots is map
+          && request.resource.data.queues.diff(resource.data.queues).addedKeys().size() == 1
+          && request.resource.data.queues.diff(resource.data.queues).removedKeys().size() == 0
+          && request.resource.data.queues.diff(resource.data.queues).changedKeys().size() == 0
+          && request.resource.data.slots.diff(resource.data.slots).addedKeys().size() == 1
+          && request.resource.data.slots.diff(resource.data.slots).removedKeys().size() == 0
+          && request.resource.data.slots.diff(resource.data.slots).changedKeys().size() == 0
+          && request.resource.data.updatedAt == request.time;
+      }
+    }
+
+    match /citizen_identity/{uid} {
+      allow get: if isSelf(uid);
+      allow list, update, delete: if false;
+      allow create: if isSelf(uid)
+        && getAfter(/databases/$(database)/documents/users/$(uid)).data.role == 'citizen'
+        && request.resource.data.keys().hasOnly(['userId','nationalId','status','createdAt'])
+        && request.resource.data.userId == uid
+        && request.resource.data.nationalId is string
+        && request.resource.data.nationalId.matches('^[0-9]{9}$')
+        && request.resource.data.status == 'self_reported'
+        && request.resource.data.createdAt == request.time;
+    }
+    match /demo_identity_checks/{uid} {
+      allow get: if isSelf(uid);
+      allow list, update, delete: if false;
+      allow create: if isSelf(uid)
+        && getAfter(/databases/$(database)/documents/users/$(uid)).data.role == 'citizen'
+        && request.resource.data.keys().hasOnly(['userId','mode','status','submittedAt'])
+        && request.resource.data.userId == uid
+        && request.resource.data.mode == 'demo_only'
+        && request.resource.data.status == 'demo_ready'
+        && request.resource.data.submittedAt == request.time;
+    }
+    match /identity_verifications/{uid} {
+      allow get: if isSelf(uid);
+      allow list, create, update, delete: if false;
+    }
+
+    // Admin SDK creates categories and facility accounts. There is NO
+    // client-side admin elevation or facility self-registration.
+    match /facility_categories/{categoryId} {
+      allow get, list: if resource.data.isActive == true;
+      allow create, update, delete: if false;
+    }
+
+    match /facilities/{fid} {
+      allow get, list: if resource.data.isActive == true
+        || (signedIn() && facilityOwner(fid)) || staffActive(fid);
+      allow create, delete: if false;
+      allow update: if facilityOwner(fid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name','phone','address','isOnline','nextWindowNumber'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.get('phone','') is string
+        && request.resource.data.get('phone','').size() <= 24
+        && request.resource.data.get('address','') is string
+        && request.resource.data.get('address','').size() <= 200
+        && request.resource.data.get('isOnline',false) is bool
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['nextWindowNumber'])
+          || request.resource.data.nextWindowNumber ==
+            resource.data.get('nextWindowNumber',0) + 1
+        );
+
+      match /services/{sid} {
+        allow get, list: if facilityOwner(fid) || staffActive(fid) || admin()
+          || (facilityPublished(fid) && resource.data.isActive == true);
+        allow create: if facilityOwner(fid)
+          && request.resource.data.keys().hasOnly(['name','isActive','createdAt'])
+          && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 120
+          && request.resource.data.isActive == true && request.resource.data.createdAt == request.time;
+        allow update: if facilityOwner(fid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isActive'])
+          && request.resource.data.isActive is bool;
+        allow delete: if false;
+      }
+      match /counters/{cid} {
+        allow get, list: if facilityOwner(fid) || staffActive(fid) || admin();
+        allow create, update: if facilityOwner(fid) && validCounter(fid,cid,request.resource.data)
+          && (resource == null ? request.resource.data.createdAt == request.time
+            : request.resource.data.createdAt == resource.data.createdAt
+              && request.resource.data.queueId == resource.data.queueId && request.resource.data.windowNumber == resource.data.windowNumber);
+        allow delete: if false;
+      }
+
+      match /queues/{qid} {
+        allow get, list: if facilityOwner(fid) || staffActive(fid)
+          || (resource.data.isActive == true && resource.data.archived == false
+            && facilityPublished(fid));
+        allow create: if facilityOwner(fid)
+          && request.resource.data.keys().hasOnly([
+            'windowNumber','service','counter','capacity','waitingCount',
+            'waitingMinutes','shift','startsAtMinutes','endsAtMinutes',
+            'isActive','archived','createdAt','rewardCapacity','windowCount','serviceId','schemaVersion'
+          ])
+          && validQueueService(fid,request.resource.data)
+          && qid == 'window_' + string(request.resource.data.windowNumber)
+          && request.resource.data.windowNumber is int
+          && request.resource.data['service'] is string
+          && request.resource.data['service'].size() > 0
+          && request.resource.data.get('windowCount',1) is int
+          && request.resource.data.get('windowCount',1) >= 0
+          && request.resource.data.get('windowCount',1) <= 20
+          && request.resource.data.capacity is int
+          && request.resource.data.get('rewardCapacity',0) is int
+          && request.resource.data.get('rewardCapacity',0) >= 0
+          && request.resource.data.get('rewardCapacity',0) <= 1000
+          && request.resource.data.capacity > 0
+          && request.resource.data.capacity <= 10000
+          && request.resource.data.waitingCount == 0
+          && request.resource.data.waitingMinutes is int
+          && request.resource.data.shift in ['morning','evening']
+          && request.resource.data.startsAtMinutes is int
+          && request.resource.data.endsAtMinutes is int
+          && request.resource.data.startsAtMinutes >= 0
+          && request.resource.data.endsAtMinutes <= 1440
+          && request.resource.data.endsAtMinutes > request.resource.data.startsAtMinutes
+          && request.resource.data.isActive == false
+          && request.resource.data.archived == false
+          && request.resource.data.createdAt == request.time;
+        allow update: if facilityOwner(fid)
+          && resource.data.archived == false
+          && (validQueueService(fid,request.resource.data) || (resource.data.get('schemaVersion',0) != 3
+            && request.resource.data.get('schemaVersion',0) == resource.data.get('schemaVersion',0)
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['service','serviceId','windowCount'])))
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['service','capacity','rewardCapacity','waitingMinutes','shift','windowCount','serviceId','schemaVersion',
+              'startsAtMinutes','endsAtMinutes','isActive','archived'])
+          && request.resource.data['service'] is string
+          && request.resource.data['service'].size() > 0
+          && request.resource.data.get('windowCount',1) is int
+          && request.resource.data.get('windowCount',1) >= 0
+          && request.resource.data.get('windowCount',1) <= 20
+          && request.resource.data.capacity is int
+          && request.resource.data.get('rewardCapacity',0) is int
+          && request.resource.data.get('rewardCapacity',0) >= 0
+          && request.resource.data.get('rewardCapacity',0) <= 1000
+          && request.resource.data.capacity > 0
+          && request.resource.data.waitingMinutes is int
+          && request.resource.data.startsAtMinutes is int
+          && request.resource.data.endsAtMinutes is int
+          && request.resource.data.startsAtMinutes >= 0
+          && request.resource.data.endsAtMinutes <= 1440
+          && request.resource.data.endsAtMinutes > request.resource.data.startsAtMinutes
+          && request.resource.data.isActive is bool
+          && request.resource.data.archived is bool
+          && (!request.resource.data.archived || !request.resource.data.isActive);
+        allow delete: if false;
+
+        match /lanes/{w} {
+          allow get, list: if facilityOwner(fid) || staffActive(fid);
+          allow delete: if false;
+          allow create, update: if request.resource.data.keys().hasOnly(['ticketId','updatedAt'])
+            && request.resource.data.ticketId is string && request.resource.data.updatedAt == request.time
+            && validLaneWrite(fid,qid,w);
+        }
+
+        match /days/{day} {
+          allow get: if facilityOwner(fid) || citizen();
+          allow list, delete: if false;
+          allow create: if citizen()
+            && day.matches('^[0-9]{8}$')
+            && request.resource.data.keys().hasOnly(
+              ['reserved','rewardReserved','lastBookingId','lastSlotStart','updatedAt'])
+            && request.resource.data.reserved == 1
+            && request.resource.data.updatedAt == request.time
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.createdAt == request.time
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.dayKey == day
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.facilityId == fid
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.queueId == qid
+            && validCapacity(getAfter(bookingPath(request.resource.data.lastBookingId)).data);
+          allow update: if citizen()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['reserved','rewardReserved','lastBookingId','lastSlotStart','updatedAt'])
+            && request.resource.data.reserved == resource.data.reserved + 1
+            && request.resource.data.lastBookingId != resource.data.lastBookingId
+            && request.resource.data.updatedAt == request.time
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.createdAt == request.time
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.dayKey == day
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.facilityId == fid
+            && getAfter(bookingPath(request.resource.data.lastBookingId)).data.queueId == qid
+            && validCapacity(getAfter(bookingPath(request.resource.data.lastBookingId)).data);
+        }
+      }
+
+      match /operations/{key} {
+        allow get: if facilityOwner(fid) || staffActive(fid);
+        allow list, delete: if false;
+        allow create, update: if key == 'assignments' && facilityOwner(fid)
+          && request.resource.data.keys().hasOnly(['assignments','updatedAt'])
+          && request.resource.data.assignments is map && request.resource.data.updatedAt == request.time;
+      }
+
+      match /staff/{sid} {
+        allow get, list: if facilityOwner(fid);
+        allow create: if facilityOwner(fid)
+          && request.resource.data.keys().hasOnly([
+            'name','employeeId','window','role','state','description',
+            'joinStatus','inviteHash','linkCode','codeExpiresAt','createdAt'])
+          && request.resource.data.keys().hasAll([
+            'name','employeeId','window','role','state','description',
+            'joinStatus','inviteHash','linkCode','codeExpiresAt','createdAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.employeeId is string
+          && request.resource.data.window is string
+          && request.resource.data.role in ['windowOfficer','supervisor','logistics']
+          && request.resource.data.state == 'pending'
+          && request.resource.data.joinStatus == 'invited'
+          && request.resource.data.inviteHash is string
+          && request.resource.data.inviteHash.matches('^[a-f0-9]{64}$')
+          && request.resource.data.linkCode is string
+          && request.resource.data.linkCode.size() == 24
+          && request.resource.data.codeExpiresAt == getAfter(
+               inviteRef(request.resource.data.inviteHash)).data.expiresAt
+          && request.resource.data.description is string
+          && request.resource.data.createdAt == request.time
+          && getAfter(inviteRef(request.resource.data.inviteHash)).data.staffId == sid
+          && getAfter(inviteRef(request.resource.data.inviteHash)).data.facilityId == fid
+          && getAfter(inviteRef(request.resource.data.inviteHash)).data.status == 'issued';
+        allow update: if facilityOwner(fid)
+          && (
+            (request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['name','employeeId','window','role'])
+              && request.resource.data.name is string
+              && request.resource.data.employeeId is string
+              && request.resource.data.window is string
+              && request.resource.data.role in ['windowOfficer','supervisor','logistics']
+              && (resource.data.get('joinStatus','legacy') != 'approved'
+                || (request.resource.data.window == resource.data.window
+                  && getAfter(memberRef(resource.data.linkedUid)).data.role == request.resource.data.role)))
+            || (request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['inviteHash','joinStatus','state','linkCode','codeExpiresAt'])
+              && resource.data.get('joinStatus','legacy') != 'approved'
+              && request.resource.data.joinStatus == 'invited'
+              && request.resource.data.state == 'pending'
+              && request.resource.data.linkCode is string
+              && request.resource.data.linkCode.size() == 24
+              && request.resource.data.codeExpiresAt == getAfter(
+                   inviteRef(request.resource.data.inviteHash)).data.expiresAt
+              && getAfter(inviteRef(request.resource.data.inviteHash)).data.staffId == sid
+              && getAfter(inviteRef(request.resource.data.inviteHash)).data.status == 'issued')
+            || (request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['state','joinStatus','linkedUid','linkCode','codeExpiresAt'])
+              && !request.resource.data.keys().hasAny(['linkCode','codeExpiresAt'])
+              && resource.data.joinStatus == 'invited'
+              && resource.data.state == 'pending'
+              && request.resource.data.joinStatus == 'approved'
+              && request.resource.data.state == 'active'
+              && getAfter(claimRef(resource.data.inviteHash)).data.status == 'approved'
+              && getAfter(claimRef(resource.data.inviteHash)).data.employeeUid ==
+                  request.resource.data.linkedUid
+              && getAfter(memberRef(request.resource.data.linkedUid)).data.staffId == sid
+              && getAfter(memberRef(request.resource.data.linkedUid)).data.facilityId == fid)
+            || (request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['state','joinStatus','linkCode','codeExpiresAt'])
+              && !request.resource.data.keys().hasAny(['linkCode','codeExpiresAt'])
+              && resource.data.joinStatus == 'invited'
+              && resource.data.state == 'pending'
+              && request.resource.data.joinStatus == 'rejected'
+              && request.resource.data.state == 'suspended'
+              && getAfter(claimRef(resource.data.inviteHash)).data.status == 'rejected')
+            || (request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['state'])
+              && resource.data.joinStatus == 'approved'
+              && request.resource.data.state in ['active','suspended']
+              && getAfter(memberRef(resource.data.linkedUid)).data.state ==
+                  request.resource.data.state)
+          );
+        allow delete: if facilityOwner(fid)
+          && resource.data.get('joinStatus','legacy') != 'approved';
+      }
+
+      match /queue_logs/{logId} {
+        allow get, list: if facilityOwner(fid) || staffActive(fid) || admin();
+        allow create: if signedIn() && validScanLog(fid,request.resource.data);
+        allow update, delete: if false;
+      }
+    }
+
+
+    match /bookings/{bid} {
+      allow get, list: if signedIn()
+        && (resource.data.citizenId == request.auth.uid
+          || facilityOwner(resource.data.facilityId)
+          || staffActive(resource.data.facilityId));
+      allow create: if citizen()
+        && canBook(request.auth.uid)
+        && request.resource.data.get('reward','none') in ['none','extra','priority']
+        && paidReward(request.auth.uid,bid,request.resource.data.get('reward','none'))
+        && request.resource.data.keys().hasOnly([
+          'citizenId','citizenName','facilityId','facilityName',
+          'queueId','windowNumber','service','serviceId','dayKey','slot',
+          'slotStart','queuePosition','status','checkedIn','postponements','createdAt','reward','routingVersion','windowCount'
+        ])
+        && request.resource.data.citizenId == request.auth.uid
+        && request.resource.data.citizenName == userDoc(request.auth.uid).get('displayName','')
+        && bookingServiceMatches(request.resource.data)
+        && request.resource.data.status == 'waiting'
+        && request.resource.data.checkedIn == false
+        && request.resource.data.postponements == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.slotStart is timestamp
+        && request.resource.data.slotStart >= request.time
+        && request.resource.data.slotStart < request.time + duration.value(1,'d')
+        && request.resource.data.slotStart.minutes() % 30 == 0
+        && request.resource.data.slotStart.seconds() == 0
+        && request.resource.data.dayKey == dayKey(request.resource.data.slotStart)
+        && request.resource.data.slot == slotKey(request.resource.data.slotStart)
+        && facilityPublished(request.resource.data.facilityId)
+        && get(queuePath(request.resource.data.facilityId,
+            request.resource.data.queueId)).data.isActive == true
+        && get(queuePath(request.resource.data.facilityId,
+            request.resource.data.queueId)).data.archived == false
+        && request.resource.data.windowNumber == 0
+        && request.resource.data.routingVersion == 2
+        && request.resource.data.windowCount == get(queuePath(request.resource.data.facilityId,request.resource.data.queueId)).data.get('windowCount',1)
+        && request.resource.data.facilityName ==
+            get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.name
+        && getAfter(guardPath(request.auth.uid,
+            request.resource.data.dayKey)).data.queues[
+            request.resource.data.facilityId + '_' + request.resource.data.queueId] == bid
+        && getAfter(guardPath(request.auth.uid,
+            request.resource.data.dayKey)).data.slots[
+            request.resource.data.slot] == bid
+        && getAfter(capPath(request.resource.data.facilityId,
+            request.resource.data.queueId,
+            request.resource.data.dayKey)).data.lastBookingId == bid
+        && validCapacity(request.resource.data);
+      allow update: if signedIn() && ticketUpdate(bid,resource.data,request.resource.data);
+      allow delete: if false;
+    }
+
+    match /staff_invites/{hash} {
+      allow get: if signedIn();
+      allow list, delete: if false;
+      allow create: if hash.matches('^[a-f0-9]{64}$')
+        && facilityOwner(request.resource.data.facilityId)
+        && request.resource.data.keys().hasOnly(
+          ['facilityId','staffId','status','issuedAt','expiresAt'])
+        && request.resource.data.keys().hasAll(
+          ['facilityId','staffId','status','issuedAt','expiresAt'])
+        && request.resource.data.status == 'issued'
+        && request.resource.data.issuedAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(25,'h')
+        && getAfter(employeeRef(request.resource.data.facilityId,
+          request.resource.data.staffId)).data.inviteHash == hash;
+      allow update: if facilityOwner(resource.data.facilityId)
+        && resource.data.status == 'issued'
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status','updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && (request.resource.data.status == 'revoked'
+          || (request.resource.data.status == 'redeemed'
+            && getAfter(claimRef(hash)).data.status == 'approved'));
+    }
+
+    match /staff_join_requests/{hash} {
+      allow get, list: if signedIn()
+        && (resource.data.employeeUid == request.auth.uid
+          || facilityOwner(resource.data.facilityId));
+      allow create: if signedIn()
+        && !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && !exists(memberRef(request.auth.uid))
+        && hash.matches('^[a-f0-9]{64}$')
+        && request.resource.data.keys().hasOnly([
+          'facilityId','staffId','employeeUid','employeeEmail','phone','status','createdAt'])
+        && request.resource.data.keys().hasAll([
+          'facilityId','staffId','employeeUid','employeeEmail','phone','status','createdAt'])
+        && request.resource.data.employeeUid == request.auth.uid
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() <= 20
+        && request.resource.data.employeeEmail == request.auth.token.email
+        && request.resource.data.status == 'requested'
+        && request.resource.data.createdAt == request.time
+        && get(inviteRef(hash)).data.facilityId == request.resource.data.facilityId
+        && get(inviteRef(hash)).data.staffId == request.resource.data.staffId
+        && get(inviteRef(hash)).data.status == 'issued'
+        && get(inviteRef(hash)).data.expiresAt > request.time;
+      allow update: if facilityOwner(resource.data.facilityId)
+        && resource.data.status == 'requested'
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status','reviewedAt'])
+        && request.resource.data.reviewedAt == request.time
+        && ((request.resource.data.status == 'approved'
+            && getAfter(memberRef(resource.data.employeeUid)).data.inviteHash == hash
+            && getAfter(memberRef(resource.data.employeeUid)).data.state == 'active')
+          || (request.resource.data.status == 'rejected'
+            && getAfter(inviteRef(hash)).data.status == 'revoked'));
+      allow delete: if false;
+    }
+
+    match /staff_memberships/{uid} {
+      allow get: if isSelf(uid);
+      allow list, delete: if false;
+      allow create: if facilityOwner(request.resource.data.facilityId)
+        && request.resource.data.keys().hasOnly([
+          'facilityId','staffId','role','window','inviteHash','state','approvedAt'])
+        && request.resource.data.keys().hasAll([
+          'facilityId','staffId','role','window','inviteHash','state','approvedAt'])
+        && request.resource.data.state == 'active'
+        && request.resource.data.approvedAt == request.time
+        && getAfter(claimRef(request.resource.data.inviteHash)).data.employeeUid == uid
+        && getAfter(claimRef(request.resource.data.inviteHash)).data.status == 'approved'
+        && getAfter(employeeRef(request.resource.data.facilityId,
+          request.resource.data.staffId)).data.linkedUid == uid
+        && getAfter(employeeRef(request.resource.data.facilityId,
+          request.resource.data.staffId)).data.state == 'active'
+        && getAfter(employeeRef(request.resource.data.facilityId,
+          request.resource.data.staffId)).data.role == request.resource.data.role
+        && getAfter(employeeRef(request.resource.data.facilityId,
+          request.resource.data.staffId)).data.window == request.resource.data.window;
+      allow update: if facilityOwner(resource.data.facilityId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['state','role'])
+        && request.resource.data.role in ['windowOfficer','supervisor','logistics']
+        && getAfter(employeeRef(resource.data.facilityId,resource.data.staffId)).data.role == request.resource.data.role
+        && request.resource.data.state in ['active','suspended']
+        && getAfter(employeeRef(resource.data.facilityId,
+          resource.data.staffId)).data.state == request.resource.data.state;
+    }
+
+    match /staff_profiles/{uid} {
+      allow get: if isSelf(uid);
+      allow list, delete: if false;
+      allow create: if isSelf(uid)
+        && exists(memberRef(uid))
+        && get(memberRef(uid)).data.state == 'active'
+        && request.resource.data.keys().hasOnly([
+          'uid','fullName','phone','address','emergencyPhone',
+          'profileCompleted','createdAt','updatedAt'])
+        && request.resource.data.keys().hasAll([
+          'uid','fullName','phone','address','emergencyPhone',
+          'profileCompleted','createdAt','updatedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.profileCompleted == true
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() >= 3
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() >= 8
+        && request.resource.data.address is string
+        && request.resource.data.address.size() >= 3
+        && request.resource.data.emergencyPhone is string
+        && request.resource.data.emergencyPhone.size() >= 8
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isSelf(uid)
+        && exists(memberRef(uid))
+        && get(memberRef(uid)).data.state == 'active'
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['fullName','phone','address','emergencyPhone','updatedAt'])
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() >= 3
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() >= 8
+        && request.resource.data.address is string
+        && request.resource.data.address.size() >= 3
+        && request.resource.data.emergencyPhone is string
+        && request.resource.data.emergencyPhone.size() >= 8
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    match /admin_audit_logs/{id} {
+      allow read: if admin();
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly(['adminId','action','targetType','targetId','createdAt'])
+        && request.resource.data.adminId == request.auth.uid
+        && request.resource.data.action is string && request.resource.data.action.size() > 0 && request.resource.data.action.size() <= 80
+        && request.resource.data.targetType in ['user','facility','queue','staff','report','citizen_account']
+        && request.resource.data.targetId is string && request.resource.data.targetId.size() > 0
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Everything else is inaccessible from untrusted clients.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

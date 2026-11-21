@@ -12,23 +12,56 @@ const _muted = Color(0xFF92A4BE);
 const _border = Color(0xFFD9EEFC);
 
 /// Facility-side queue management. Navigation index 1 in the facility tab bar.
-class FacilityQueuesScreen extends StatelessWidget {
+class FacilityQueuesScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigationTap;
   const FacilityQueuesScreen({super.key, this.onNavigationTap});
+
+  @override
+  State<FacilityQueuesScreen> createState() => _FacilityQueuesScreenState();
+}
+
+class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the real server list when the screen is opened. The existing
+    // AnimatedBuilder will rebuild all cards as soon as it is received.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await FacilityQueueStore.instance.refresh();
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to load queues: $e')),
+        );
+      }
+    });
+  }
 
   Future<void> _openAdd(BuildContext context) async {
     final draft = await showFacilityAddQueueSheet(context);
     if (draft == null || !context.mounted) return;
-    FacilityQueueStore.instance.create(draft);
+    try { await FacilityQueueStore.instance.create(draft); } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      return;
+    }
+    if (!context.mounted) return;
+    final warning = FacilityQueueStore.instance.error;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Queue created successfully')),
+      SnackBar(content: Text(warning == null
+          ? 'Queue created and verified in Firestore.'
+          : 'Queue saved, but the list did not refresh: $warning')),
     );
   }
 
   Future<void> _edit(BuildContext context, FacilityQueue queue) async {
     final draft = await showFacilityAddQueueSheet(context, editing: queue);
     if (draft == null || !context.mounted) return;
-    FacilityQueueStore.instance.update(queue.windowNumber, draft);
+    try { await FacilityQueueStore.instance.update(queue.windowNumber, draft); } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      return;
+    }
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Queue updated')),
     );
@@ -39,7 +72,7 @@ class FacilityQueuesScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete queue?'),
-        content: Text('Remove Window #${queue.windowNumber.toString().padLeft(2, '0')}? This cannot be undone.'),
+        content: Text('Remove Queue #${queue.windowNumber.toString().padLeft(2, '0')}? This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           TextButton(
@@ -50,7 +83,11 @@ class FacilityQueuesScreen extends StatelessWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    FacilityQueueStore.instance.delete(queue.windowNumber);
+    try { await FacilityQueueStore.instance.delete(queue.windowNumber); } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      return;
+    }
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Queue deleted')),
     );
@@ -58,8 +95,8 @@ class FacilityQueuesScreen extends StatelessWidget {
 
   void _tab(BuildContext context, int index) {
     if (index == 1) return;
-    if (onNavigationTap != null) {
-      onNavigationTap!(index);
+    if (widget.onNavigationTap != null) {
+      widget.onNavigationTap!(index);
       return;
     }
     if (index == 0) {
@@ -94,6 +131,14 @@ class FacilityQueuesScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             _statistics(store),
+                            if (store.error != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                store.error!,
+                                style: const TextStyle(
+                                  color: Color(0xFFB42318), fontSize: 12),
+                              ),
+                            ],
                             const SizedBox(height: 16),
                             for (final queue in store.queues) ...[
                               _queueCard(context, queue),
@@ -192,7 +237,7 @@ class FacilityQueuesScreen extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      Text('Window #${queue.windowNumber.toString().padLeft(2, '0')}',
+                      Text('Queue #${queue.windowNumber.toString().padLeft(2, '0')}',
                         style: const TextStyle(color: _muted, fontSize: 12)),
                       const SizedBox(height: 10),
                     ],
@@ -211,8 +256,8 @@ class FacilityQueuesScreen extends StatelessWidget {
                     children: [
                       const Icon(Icons.card_giftcard_rounded, color: Color(0xFF008EDE), size: 15),
                       const SizedBox(height: 5),
-                      const Text('COUNTER', style: TextStyle(color: Color(0xFF006FAE), fontSize: 10, fontWeight: FontWeight.w700)),
-                      Text(queue.counter, style: const TextStyle(color: Color(0xFF006FAE), fontSize: 11, fontWeight: FontWeight.bold)),
+                      Text(queue.windowCount == 0 ? 'SERVICE' : 'WINDOWS', style: TextStyle(color: Color(0xFF006FAE), fontSize: 10, fontWeight: FontWeight.w700)),
+                      Text(queue.windowCount == 0 ? 'Direct' : '${queue.windowCount}', style: const TextStyle(color: Color(0xFF006FAE), fontSize: 11, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -246,7 +291,9 @@ class FacilityQueuesScreen extends StatelessWidget {
               Expanded(child: _actionButton('Edit', Icons.edit_square, Colors.white, const Color(0xFF354258), () => _edit(context, queue))),
               const SizedBox(width: 6),
               Expanded(child: _actionButton(active ? 'Deactivate' : 'activation', null, const Color(0xFFFF9000), const Color(0xFFFFDEAF), () {
-                FacilityQueueStore.instance.setActive(queue.windowNumber, !active);
+                FacilityQueueStore.instance.setActive(queue.windowNumber, !active).catchError((Object e) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+                });
               })),
             ],
           ),

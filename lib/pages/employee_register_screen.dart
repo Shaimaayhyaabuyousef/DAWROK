@@ -1,0 +1,238 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../services/employee_access_service.dart';
+
+const _blue = Color(0xFF03A9F4);
+const _ink = Color(0xFF22334D);
+
+/// An employee reaches this screen only after entering a facility ID,
+/// single-use link code and phone number on EmployeeJoinScreen.
+///
+/// Creating (or signing in to) a Firebase Auth account here is one step of
+/// submitting a join request. It is NOT the recurring staff login screen.
+class EmployeeRegisterScreen extends StatefulWidget {
+  const EmployeeRegisterScreen({
+    super.key,
+    required this.facilityId,
+    required this.invitationCode,
+    required this.contactPhone,
+  });
+
+  final String facilityId;
+  final String invitationCode;
+  final String contactPhone;
+
+  @override
+  State<EmployeeRegisterScreen> createState() => _EmployeeRegisterScreenState();
+}
+
+class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
+  final _form = GlobalKey<FormState>();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _existingAccount = false;
+  bool _busy = false;
+  bool _showPassword = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_busy || !_form.currentState!.validate()) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      final destination = _existingAccount
+          ? await EmployeeAccessService.instance.requestWithExistingAccount(
+              email: _email.text,
+              password: _password.text,
+              invitationCode: widget.invitationCode,
+              facilityId: widget.facilityId,
+              phone: widget.contactPhone,
+            )
+          : await EmployeeAccessService.instance.createAccount(
+              email: _email.text,
+              password: _password.text,
+              invitationCode: widget.invitationCode,
+              facilityId: widget.facilityId,
+              phone: widget.contactPhone,
+            );
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, destination, (_) => false);
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        setState(() => _error = switch (e.code) {
+          'email-already-in-use' =>
+            'This email already has an account. Select "I already have an account".',
+          'weak-password' => 'Choose a password with at least 6 characters.',
+          'invalid-credential' || 'wrong-password' || 'user-not-found' =>
+            'Incorrect account email or password.',
+          _ => e.message ?? e.code,
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() =>
+          _error = e.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  InputDecoration _decoration(String label, IconData icon) => InputDecoration(
+    labelText: label,
+    prefixIcon: Icon(icon, color: _blue),
+    filled: true,
+    fillColor: const Color(0xFFF9FCFF),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 17),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(15),
+      borderSide: const BorderSide(color: Color(0xFFD6E8F4)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(15),
+      borderSide: const BorderSide(color: Color(0xFFD6E8F4)),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(25, 15, 25, 40),
+        child: Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Form(
+            key: _form,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_ios_new, color: _ink),
+                  ),
+                ),
+                const SizedBox(height: 36),
+                const CircleAvatar(
+                  radius: 41,
+                  backgroundColor: Color(0xFFE8F7FF),
+                  child: Icon(Icons.person_add_alt_1_outlined,
+                    color: _blue, size: 43),
+                ),
+                const SizedBox(height: 20),
+                const Text('Request to Join Facility',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: _ink, fontSize: 26,
+                    fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                const Text(
+                  'Your facility ID and link code were entered in the previous step. '
+                  'Provide your account details to submit the request for approval.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF7C8DA7),
+                    fontSize: 13, height: 1.5),
+                ),
+                const SizedBox(height: 25),
+                Row(children: [
+                  Expanded(child: _mode('Create account', false)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _mode('Existing account', true)),
+                ]),
+                const SizedBox(height: 22),
+                TextFormField(
+                  controller: _email,
+                  enabled: !_busy,
+                  textInputAction: TextInputAction.next,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: _decoration('Email Address', Icons.email_outlined),
+                  validator: (v) => (v ?? '').trim().contains('@')
+                    ? null : 'Enter your email',
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _password,
+                  enabled: !_busy,
+                  obscureText: !_showPassword,
+                  decoration: _decoration('Password', Icons.lock_outline).copyWith(
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(
+                        () => _showPassword = !_showPassword),
+                      icon: Icon(_showPassword
+                        ? Icons.visibility_off : Icons.visibility),
+                    ),
+                  ),
+                  validator: (v) => (v ?? '').length >= 6
+                    ? null : 'Enter at least 6 characters',
+                  onFieldSubmitted: (_) => _submit(),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 14),
+                  SelectableText(_error!,
+                    style: const TextStyle(color: Colors.redAccent)),
+                ],
+                const SizedBox(height: 28),
+                SizedBox(
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: _busy ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _blue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: _busy
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Send Join Request',
+                        style: TextStyle(fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Your request stays saved in Firebase. After approval, '
+                  'future sign-ins require email and password only.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF8C9CB4),
+                    fontSize: 12, height: 1.5),
+                ),
+              ],
+            ),
+          ),
+        )),
+      ),
+    ),
+  );
+
+  Widget _mode(String label, bool existing) => InkWell(
+    onTap: _busy ? null : () => setState(() {
+      _existingAccount = existing;
+      _error = null;
+    }),
+    borderRadius: BorderRadius.circular(12),
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _existingAccount == existing
+          ? const Color(0xFFE8F7FF) : Colors.white,
+        border: Border.all(
+          color: _existingAccount == existing
+            ? _blue : const Color(0xFFDDE9F2)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(label, style: TextStyle(
+        color: _existingAccount == existing
+          ? _blue : const Color(0xFF7C8DA7),
+        fontWeight: FontWeight.w600,
+      )),
+    ),
+  );
+}

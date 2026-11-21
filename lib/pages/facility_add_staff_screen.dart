@@ -1,7 +1,8 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'facility_nav.dart';
+import 'facility_staff_code_dialog.dart';
 import 'facility_staff_store.dart';
 
 class FacilityAddStaffScreen extends StatefulWidget {
@@ -14,8 +15,9 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController name, id, station;
   StaffRole role = StaffRole.windowOfficer;
-  String? passcode;
-  DateTime? expiresAt;
+  bool _working = false;
+  String? _saveError;
+
   @override void initState() {
     super.initState();
     name = TextEditingController(text: widget.editing?.name ?? '');
@@ -24,15 +26,91 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
     role = widget.editing?.role ?? StaffRole.windowOfficer;
   }
   @override void dispose() { name.dispose(); id.dispose(); station.dispose(); super.dispose(); }
-  void _generate() {
-    if (!_formKey.currentState!.validate()) return;
-    if (widget.editing == null) {
-      FacilityStaffStore.instance.add(name: name.text.trim(), nationalId: id.text.trim(), window: station.text.trim(), role: role);
-    } else {
-      FacilityStaffStore.instance.update(widget.editing!, name: name.text.trim(), nationalId: id.text.trim(), window: station.text.trim(), role: role);
+  Future<void> _generate() async {
+    if (_working) return;
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _saveError = 'Complete all required fields first.');
+      return;
     }
-    final random = Random.secure();
-    setState(() { passcode = '${100 + random.nextInt(900)}-${100 + random.nextInt(900)}'; expiresAt = DateTime.now().add(const Duration(hours: 24)); });
+    setState(() { _working = true; _saveError = null; });
+    try {
+      final currentMember = widget.editing;
+      StaffInviteResult? issued;
+      if (currentMember == null) {
+        issued = await FacilityStaffStore.instance.add(
+          name: name.text.trim(),
+          nationalId: id.text.trim(),
+          window: 'Automatic',
+          role: role,
+        );
+      } else {
+        await FacilityStaffStore.instance.update(
+          currentMember,
+          name: name.text.trim(),
+          nationalId: id.text.trim(),
+          window: 'Automatic',
+          role: role,
+        );
+        if (currentMember.joinStatus != 'approved') {
+          issued = await FacilityStaffStore.instance.replaceInvite(currentMember);
+        }
+      }
+      if (!mounted) return;
+      if (issued != null) {
+        await showStaffCodeDialog(
+          context,
+          code: issued.code,
+          staffName: name.text.trim(),
+          expiresAt: issued.expiresAt,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Employee details saved.')),
+        );
+      }
+      // Return to the existing Staff cards; the new code is read from
+      // the owner-only Firestore staff document by the real-time listener.
+      if (mounted) Navigator.of(context).pop();
+    } catch (e, stack) {
+      debugPrint('DAWROK: Generate Link Code failed: $e');
+      debugPrintStack(stackTrace: stack);
+      String message;
+      if (e is FirebaseException) {
+        if (e.code == 'permission-denied') {
+          message = 'Firebase denied saving this employee. Check that you '
+              'signed in as the active facility owner, and that the latest '
+              'firestore.rules were deployed to project dawrok-f908e. '
+              'Error: [${e.code}] ${e.message ?? ''}';
+        } else if (e.code == 'unavailable') {
+          message = 'Cannot reach Firestore right now. Check the connection '
+              'and retry. [${e.code}] ${e.message ?? ''}';
+        } else {
+          message = 'Firebase [${e.code}]: ${e.message ?? e.toString()}';
+        }
+      } else if (FirebaseAuth.instance.currentUser == null) {
+        message = 'The facility session has expired. Sign in again.';
+      } else {
+        message = e.toString();
+      }
+      if (mounted) {
+        setState(() => _saveError = message);
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Employee was not added'),
+            content: SelectableText(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
   }
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.white,
@@ -55,11 +133,15 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
             _role(StaffRole.logistics, Icons.local_shipping_outlined, 'Logistics'),
           ]),
           const SizedBox(height: 16),
-          Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('National / Emp ID'), _entry(id, Icons.badge_outlined, 'ID number')])), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Station / Window'), _entry(station, Icons.dns_outlined, 'Window B')]))]),
+          const Text('Assigned automatically to a vacant service position after approval.', style: TextStyle(color: Color(0xFF60738E))),
           const SizedBox(height: 15),
-          SizedBox(width: double.infinity, height: 48, child: ElevatedButton.icon(onPressed: _generate, style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: const Icon(Icons.key_outlined), label: const Text('Generate Link Code', style: TextStyle(fontSize: 16)))),
+          if (_saveError != null) ...[
+            Text(_saveError!, style: const TextStyle(
+              color: Color(0xFFC62828), fontSize: 12)),
+            const SizedBox(height: 12),
+          ],
+          SizedBox(width: double.infinity, height: 48, child: ElevatedButton.icon(onPressed: _working ? null : _generate, style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: const Icon(Icons.key_outlined), label: Text(_working ? 'Saving...' : 'Generate Link Code', style: const TextStyle(fontSize: 16)))),
         ])),
-        if (passcode != null) ...[const SizedBox(height: 18), _passcodeCard()],
       ]),
     ))),
   );
@@ -69,12 +151,4 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   );
   Widget _role(StaffRole value, IconData icon, String label) => Expanded(child: InkWell(
     onTap: () => setState(() => role = value), child: Container(height: 76, decoration: BoxDecoration(color: role == value ? const Color(0xFFEDF8FF) : const Color(0xFFF7F9FC), border: Border.all(color: role == value ? const Color(0xFF00A6EE) : facilityBorder, width: role == value ? 2 : 1), borderRadius: BorderRadius.circular(13)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 20, color: role == value ? const Color(0xFF007BBD) : facilityMuted), const SizedBox(height: 5), Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: role == value ? const Color(0xFF007BBD) : facilityDark))]))));
-  Widget _passcodeCard() => Container(width: double.infinity, padding: const EdgeInsets.all(17), decoration: BoxDecoration(border: Border.all(color: const Color(0xFFB6E6FF)), borderRadius: BorderRadius.circular(24)), child: Column(children: [
-    const Row(children: [Icon(Icons.circle, color: Color(0xFF00A5EE), size: 11), SizedBox(width: 9), Expanded(child: Text('Active Pairing Code', style: TextStyle(fontSize: 16, color: facilityDark))), Text('24h validity', style: TextStyle(color: Color(0xFF007EB7)))]),
-    const Divider(height: 27),
-    const Text('Scan QR or enter alphanumeric code on device', textAlign: TextAlign.center, style: TextStyle(color: facilityMuted, fontSize: 13)),
-    const SizedBox(height: 10),
-    Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFF101728), borderRadius: BorderRadius.circular(16)), child: Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('STAFF LINK PASSCODE', style: TextStyle(color: Color(0xFF34C1FF), fontSize: 12)), Text(passcode!, style: const TextStyle(color: Colors.white, fontSize: 21))])), IconButton(onPressed: () {Clipboard.setData(ClipboardData(text: passcode!)); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied')));}, icon: const Icon(Icons.copy, color: Colors.white)), IconButton(onPressed: () {Clipboard.setData(ClipboardData(text: passcode!)); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Share via copied code')));}, icon: const Icon(Icons.share, color: Color(0xFF00AAEF)))])),
-    const SizedBox(height: 12), const Text('Valid for 24 hours. Provide this code to the employee to complete registration.', textAlign: TextAlign.center, style: TextStyle(color: facilityMuted, fontSize: 12)),
-  ]));
 }

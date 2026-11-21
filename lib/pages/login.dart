@@ -180,6 +180,20 @@ class _LoginState extends State<Login> {
                         : const Text('Sign In', style: TextStyle(fontSize: 18)),
                   ),
                 ),
+                const SizedBox(height: 15),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => Navigator.pushNamed(
+                    context, 'employee_login_screen'),
+                  icon: const Icon(Icons.badge_outlined, color: _primary),
+                  label: const Text('Employee Sign In',
+                    style: TextStyle(color: _primary, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    side: const BorderSide(color: Color(0xFFA8DDF9)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 const Row(
                   children: [

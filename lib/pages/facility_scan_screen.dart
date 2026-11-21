@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'facility_queue_store.dart';
+import '../services/queue_assignment_service.dart';
+import '../services/facility_context.dart';
 import 'facility_scan_store.dart';
 
 const _blue = Color(0xFF4AAAF3);
@@ -29,21 +31,23 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
 
-  int _windowNumber = 2;
+  int _queueNumber = 0;
+  int _serviceWindow = 0;
   bool _processing = false;
 
   FacilityQueue? get _selectedQueue {
     for (final queue in _queues.queues) {
-      if (queue.windowNumber == _windowNumber) return queue;
+      if (queue.windowNumber == _queueNumber) return queue;
     }
-    return null;
+    return _queues.queues.isEmpty ? null : _queues.queues.first;
   }
 
   @override
   void initState() {
     super.initState();
-    if (_queues.queues.isNotEmpty && !_queues.queues.any((q) => q.windowNumber == _windowNumber)) {
-      _windowNumber = _queues.queues.first.windowNumber;
+    FacilityContext.instance.requireFacilityId().then((fid) => QueueAssignmentService.instance.rebalance(fid)).catchError((Object e) { if (mounted) _message('Unable to refresh staff assignments: $e', invalid: true); });
+    if (_queues.queues.isNotEmpty && !_queues.queues.any((q) => q.windowNumber == _queueNumber)) {
+      _queueNumber = _queues.queues.first.windowNumber;
     }
   }
 
@@ -62,59 +66,60 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
     ));
   }
 
-  void _perform(String Function(int) operation) {
+  Future<void> _perform(Future<String> Function(int) operation) async {
     final queue = _selectedQueue;
-    if (queue == null || !queue.isActive) {
+    if (queue == null) {
       _message('Select an active counter first.', invalid: true);
       return;
     }
-    _message(operation(_windowNumber));
+    try { _message(await operation(_selectedQueue!.windowNumber)); }
+    catch (e) { _message(e.toString(), invalid: true); }
   }
 
   Future<void> _changeCounter() async {
     try { await _camera.stop(); } catch (_) {}
     if (!mounted) return;
-    final choice = await showModalBottomSheet<int>(
+    final choice = await showModalBottomSheet<(int, int)>(
       context: context,
       backgroundColor: Colors.white,
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: ListView(
+            shrinkWrap: true,
             children: [
-              const Text('Choose a counter', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _ink)),
+              const Text('Choose a queue / window', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _ink)),
               const SizedBox(height: 14),
               if (_queues.queues.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('Create a queue first.')),
               for (final queue in _queues.queues)
-                ListTile(
-                  title: Text('Counter ${queue.windowNumber.toString().padLeft(2, '0')} • ${queue.service}'),
-                  subtitle: Text(queue.isActive ? 'Active' : 'Stopped'),
-                  trailing: queue.windowNumber == _windowNumber ? const Icon(Icons.check, color: _bright) : null,
-                  onTap: () => Navigator.pop(sheetContext, queue.windowNumber),
-                ),
+                for (final w in serviceWindows(queue.windowCount))
+                  ListTile(
+                    title: Text('${queue.service} • ${w == 0 ? 'Direct service' : 'Window $w'}'),
+                    subtitle: Text(queue.isActive ? 'Bookings open' : 'Bookings stopped'),
+                    onTap: () => Navigator.pop(sheetContext, (queue.windowNumber, w)),
+                  ),
             ],
           ),
         ),
       ),
     );
     if (!mounted) return;
-    if (choice != null) setState(() => _windowNumber = choice);
+    if (choice != null) setState(() { _queueNumber = choice.$1; _serviceWindow = choice.$2; });
     try { await _camera.start(); } catch (_) {}
   }
 
   Future<void> _handleCode(String raw) async {
     if (_processing) return;
     final queue = _selectedQueue;
-    if (queue == null || !queue.isActive) {
+    if (queue == null) {
       _message('Counter is stopped or unavailable.', invalid: true);
       return;
     }
     _processing = true;
     try { await _camera.stop(); } catch (_) {}
     if (!mounted) return;
-    final result = _visits.verifyDemoCode(raw, _windowNumber);
+    final result = await _visits.verifyDemoCode(raw, _selectedQueue!.windowNumber, window: _serviceWindow);
     _message(result.message, invalid: result.outcome == FacilityScanOutcome.invalid);
     await Future<void>.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
@@ -140,7 +145,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
           onChanged: (value) => typed = value,
           textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(
-            hintText: 'Example: A-104',
+            hintText: 'Ticket ID or QR content',
             labelText: 'Ticket number / QR content',
             border: OutlineInputBorder(),
           ),
@@ -155,10 +160,10 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
     if (!mounted) return;
     if (raw != null && raw.trim().isNotEmpty) {
       final queue = _selectedQueue;
-      if (queue == null || !queue.isActive) {
+      if (queue == null) {
         _message('Select an active counter first.', invalid: true);
       } else {
-        final result = _visits.verifyDemoCode(raw, _windowNumber);
+        final result = await _visits.verifyDemoCode(raw, _selectedQueue!.windowNumber, window: _serviceWindow);
         _message(result.message, invalid: result.outcome == FacilityScanOutcome.invalid);
       }
     }
@@ -170,7 +175,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
       _message('Select an active counter first.', invalid: true);
       return;
     }
-    final current = _visits.currentFor(_windowNumber);
+    final current = _visits.currentFor(_selectedQueue?.windowNumber ?? 0, window: _serviceWindow);
     if (current == null) { _message('Call a visitor first.'); return; }
     final confirmed = await showDialog<bool>(
       context: context,
@@ -183,7 +188,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
         ],
       ),
     );
-    if (confirmed == true) _perform(_visits.markAbsent);
+    if (confirmed == true) _perform((n) => _visits.markAbsent(n, window: _serviceWindow));
   }
 
   Future<void> _postponeCurrent() async {
@@ -191,7 +196,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
       _message('Select an active counter first.', invalid: true);
       return;
     }
-    final current = _visits.currentFor(_windowNumber);
+    final current = _visits.currentFor(_selectedQueue?.windowNumber ?? 0, window: _serviceWindow);
     if (current == null) {
       _message('Call a visitor first.');
       return;
@@ -215,7 +220,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
       ),
     );
     if (!mounted) return;
-    if (confirmed == true) _perform(_visits.postponeCurrent);
+    if (confirmed == true) _perform((n) => _visits.postponeCurrent(n, window: _serviceWindow));
   }
 
   @override
@@ -229,8 +234,11 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
             animation: Listenable.merge([_visits, _queues]),
             builder: (context, _) {
               final queue = _selectedQueue;
-              final current = _visits.currentFor(_windowNumber);
-              final active = queue?.isActive ?? false;
+              if (queue != null && !serviceWindows(queue.windowCount).contains(_serviceWindow)) {
+                _serviceWindow = serviceWindows(queue.windowCount).first;
+              }
+              final current = _visits.currentFor(_selectedQueue?.windowNumber ?? 0, window: _serviceWindow);
+              final active = queue != null;
               return ListView(
                 padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
                 children: [
@@ -259,7 +267,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
                   )),
                   const SizedBox(height: 38),
                   Row(children: [
-                    Expanded(child: _actionButton('Next', Icons.chevron_right_rounded, _blue, () => _perform(_visits.callNext))),
+                    Expanded(child: _actionButton('Next', Icons.chevron_right_rounded, _blue, () => _perform((n) => _visits.callNext(n, window: _serviceWindow)))),
                     const SizedBox(width: 14),
                     Expanded(child: _actionButton('Absent', null, const Color(0xFF133F64), _markAbsent)),
                     const SizedBox(width: 14),
@@ -277,7 +285,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
                   if (current != null && current.checkedIn) ...[
                     const SizedBox(height: 10),
                     Center(child: TextButton.icon(
-                      onPressed: () => _perform(_visits.markServed),
+                      onPressed: () => _perform((n) => _visits.markServed(n, window: _serviceWindow)),
                       icon: const Icon(Icons.check_circle_outline, size: 19),
                       label: const Text('Complete service'),
                       style: TextButton.styleFrom(
@@ -319,7 +327,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
         child: const Icon(Icons.apartment_rounded, color: _bright, size: 21)),
       const SizedBox(width: 12),
       Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-        child: Text('Counter ${_windowNumber.toString().padLeft(2, '0')} • Floor 1',
+        child: Text('${_selectedQueue?.service ?? 'Choose queue'} • ${_serviceWindow == 0 ? 'Direct service' : 'Window $_serviceWindow'}',
           style: const TextStyle(color: _ink, fontSize: 16)))),
       const SizedBox(width: 6),
       Icon(Icons.circle, size: 8, color: active ? const Color(0xFF0AB97B) : Colors.orange),

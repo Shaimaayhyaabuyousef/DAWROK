@@ -1,3 +1,4 @@
+import 'workspace_style.dart';
 import 'package:flutter/material.dart';
 
 const facilityBlue = Color(0xFF4FAAF4);
@@ -16,19 +17,22 @@ void goToFacilityTab(BuildContext context, int index, int current) {
 
 class FacilityBottomNav extends StatelessWidget {
   final int selected;
-  const FacilityBottomNav({super.key, required this.selected});
+  final ValueChanged<int>? onTap;
+  const FacilityBottomNav({super.key, required this.selected, this.onTap});
   @override
   Widget build(BuildContext context) {
-    const icons = [Icons.bar_chart_rounded, Icons.receipt_long_outlined,
-      Icons.groups_outlined, Icons.search_rounded, Icons.account_circle_outlined];
+    final icons = [
+      'queues_home', selected == 1 ? 'queues_active' : 'queues', 'staff',
+      selected == 3 ? 'search_active' : 'search', 'profile',
+    ];
     const labels = ['Home', 'Queues', 'Staff', 'Search', 'Profile'];
     return SafeArea(top: false, child: Container(
-      height: 65, color: Colors.white,
+      height: 54, color: Colors.white,
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(5, (i) => IconButton(
           tooltip: labels[i],
-          onPressed: () => goToFacilityTab(context, i, selected),
-          icon: Icon(icons[i], size: 29, color: i == selected ? const Color(0xFF2195E9) : const Color(0xFF6AB9FA)),
+          onPressed: () => onTap == null ? goToFacilityTab(context, i, selected) : onTap!(i),
+          icon: WorkspaceIcon(icons[i], color: i == selected ? const Color(0xFF2195E9) : const Color(0xFF6AB9FA)),
         )),
       ),
     ));

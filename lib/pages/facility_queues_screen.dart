@@ -1,3 +1,4 @@
+import 'workspace_style.dart';
 import '../services/facility_context.dart';
 import '../services/booking_cancellation.dart';
 import 'package:flutter/material.dart';
@@ -117,7 +118,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
     final store = FacilityQueueStore.instance;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
+      child: WorkspaceStyle(child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
           bottom: false,
@@ -162,8 +163,8 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
             ),
           ),
         ),
-        bottomNavigationBar: _bottomNav(context),
-      ),
+        bottomNavigationBar: FacilityBottomNav(selected: 1, onTap: (index) => _tab(context, index)),
+      )),
     );
   }
 
@@ -198,11 +199,26 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
             child: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _muted)),
           ),
           const SizedBox(height: 5),
-          Text(value, style: TextStyle(color: valueColor, fontSize: 15.5, fontWeight: FontWeight.w800)),
+          Text(value, style: TextStyle(color: valueColor, fontSize: 14, fontWeight: FontWeight.w700)),
         ],
       ),
     );
   }
+
+  Future<void> _cancelToday(BuildContext context, FacilityQueue queue) async {
+            final yes = await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+              title:const Text('Cancel service for today?'),
+              content:const Text('Waiting and called tickets will be cancelled. Citizens will be notified and reward points returned.'),
+              actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Keep service')),
+                TextButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Cancel today’s service'))]));
+            if (yes != true) return;
+            try {
+              await BookingCancellation.stopDay('window_${queue.windowNumber}');
+              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Service cancelled and affected tickets updated.')));
+            } catch(e) {
+              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not finish. Retry to continue: $e')));
+            }
+            }
 
   Widget _queueCard(BuildContext context, FacilityQueue queue) {
     final active = queue.isActive;
@@ -216,8 +232,8 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
       ),
       child: Column(
         children: [
-          SizedBox(
-            height: 85,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -226,6 +242,8 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(children: [
+                        Expanded(child: Align(alignment: Alignment.centerLeft, child:
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
@@ -237,12 +255,23 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                           children: [
                             CircleAvatar(radius: 3, backgroundColor: active ? const Color(0xFF0EBC85) : const Color(0xFFFFAE32)),
                             const SizedBox(width: 7),
-                            Text(active ? 'Active' : 'Stopped',
-                              style: TextStyle(color: active ? const Color(0xFF008A68) : const Color(0xFFFF9917), fontWeight: FontWeight.w600, fontSize: 11)),
+                            Flexible(child: Text(active ? 'Active' : 'Stopped',
+                              style: TextStyle(color: active ? const Color(0xFF008A68) : const Color(0xFFFF9917), fontWeight: FontWeight.w600, fontSize: 11))),
                           ],
                         ),
-                      ),
-                      const Spacer(),
+                      ))),
+                        PopupMenuButton<String>(
+                          tooltip: 'Queue options',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 160),
+                          iconSize: 18,
+                          onSelected: (_) => _cancelToday(context, queue),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'cancel', child: Text('Cancel today’s service')),
+                          ],
+                        ),
+                      ]),
+                      const SizedBox(height: 6),
                       Text('Queue #${queue.windowNumber.toString().padLeft(2, '0')}',
                         style: const TextStyle(color: _muted, fontSize: 12)),
                       const SizedBox(height: 10),
@@ -250,7 +279,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                   ),
                 ),
                 Container(
-                  height: 72,
+                  constraints: const BoxConstraints(minHeight: 72),
                   width: 109,
                   decoration: BoxDecoration(
                     color: const Color(0xFFE5F5FF),
@@ -260,7 +289,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.card_giftcard_rounded, color: Color(0xFF008EDE), size: 15),
+                      const WorkspaceIcon('windows', color: Color(0xFF008EDE)),
                       const SizedBox(height: 5),
                       Text(queue.windowCount == 0 ? 'SERVICE' : 'WINDOWS', style: TextStyle(color: Color(0xFF006FAE), fontSize: 10, fontWeight: FontWeight.w700)),
                       Text(queue.windowCount == 0 ? 'Direct' : '${queue.windowCount}', style: const TextStyle(color: Color(0xFF006FAE), fontSize: 11, fontWeight: FontWeight.bold)),
@@ -275,11 +304,11 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
               children: [
-                const Icon(Icons.groups_outlined, size: 14, color: _brightBlue),
+                const WorkspaceIcon('beneficiaries', color: _brightBlue),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text('${queue.beneficiaries} Beneficiaries in queue',
-                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
                     style: const TextStyle(color: Color(0xFF35445C), fontSize: 11.5)),
                 ),
                 const SizedBox(width: 5),
@@ -288,20 +317,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
               ],
             ),
           ),
-          TextButton(onPressed: () async {
-            final yes = await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
-              title:const Text('Cancel service for today?'),
-              content:const Text('Waiting and called tickets will be cancelled. Citizens will be notified and reward points returned.'),
-              actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Keep service')),
-                TextButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Cancel today’s service'))]));
-            if (yes != true) return;
-            try {
-              await BookingCancellation.stopDay('window_${queue.windowNumber}');
-              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Service cancelled and affected tickets updated.')));
-            } catch(e) {
-              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not finish. Retry to continue: $e')));
-            }
-          },child:const Text('Cancel today’s service')),
+
           const Divider(color: Color(0xFFEBF0F5), height: 1),
           const SizedBox(height: 6),
           Row(
@@ -362,7 +378,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
           decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0x556DBEFF)),
           child: const Icon(Icons.add, size: 22),
         ),
-        label: const Text('Add Queue', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        label: const Text('Add Queue', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         style: ElevatedButton.styleFrom(
           backgroundColor: _primary,
           foregroundColor: Colors.white,
@@ -374,54 +390,4 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
     );
   }
 
-  Widget _bottomNav(BuildContext context) {
-    const icons = <IconData>[
-      Icons.bar_chart_rounded,
-      Icons.receipt_long_outlined,
-      Icons.groups_outlined,
-      Icons.search_rounded,
-      Icons.account_circle_outlined,
-    ];
-    const labels = ['Home', 'Queues', 'Customers', 'Search', 'Profile'];
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: 65,
-        color: Colors.white,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(icons.length, (index) {
-            final selected = index == 1;
-            return Semantics(
-              button: true,
-              label: labels[index],
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => _tab(context, index),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Center(
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: selected ? const Color(0xFF65B8F8) : null,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Icon(
-                        icons[index],
-                        color: selected ? Colors.white : const Color(0xFF68B8F8),
-                        size: 27,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
-    );
-  }
 }

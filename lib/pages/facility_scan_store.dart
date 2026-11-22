@@ -12,6 +12,7 @@ enum FacilityScanOutcome { verified, repeated, invalid }
 
 class FacilityVisit {
   final String ticketNumber;
+  final int? queuePosition;
   final String visitorName;
   final String maskedId;
   final int windowNumber;
@@ -24,6 +25,7 @@ class FacilityVisit {
 
   FacilityVisit({
     required this.ticketNumber,
+    this.queuePosition,
     required this.visitorName,
     required this.maskedId,
     required this.windowNumber,
@@ -92,6 +94,7 @@ class FacilityScanStore extends ChangeNotifier {
               (v) => v.name == m['status'], orElse: () => FacilityVisitStatus.waiting);
             return FacilityVisit(
               ticketNumber: d.id,
+              queuePosition: (m['queuePosition'] as num?)?.toInt(),
               visitorName: m['citizenName'] as String? ?? '',
               maskedId: '••••',
               windowNumber: m['routingVersion'] == 2 ? (m['windowNumber'] as num?)?.toInt() ?? 0 : 1,

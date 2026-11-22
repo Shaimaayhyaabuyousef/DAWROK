@@ -1,3 +1,4 @@
+import 'workspace_style.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +12,8 @@ const _dark = Color(0xFF22334D);
 /// First approval forces this page; its completion is enforced by Firestore
 /// rules before employee work/queue data becomes available.
 class EmployeeProfileScreen extends StatefulWidget {
-  const EmployeeProfileScreen({super.key});
+  final bool embedded;
+  const EmployeeProfileScreen({super.key, this.embedded = false});
   @override State<EmployeeProfileScreen> createState() => _EmployeeProfileScreenState();
 }
 class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
@@ -125,7 +127,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
   }) => Container(
     margin: const EdgeInsets.only(bottom: 16),
     width: double.infinity,
-    padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+    padding: const EdgeInsets.all(15),
     decoration: BoxDecoration(
       color: Colors.white,
       border: Border.all(color: const Color(0xFFD2EDFD)),
@@ -150,7 +152,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
               color: badgeColor, fontSize: 12, fontWeight: FontWeight.w600)),
           ),
       ]),
-      const SizedBox(height: 12),
+      const SizedBox(height: 6),
       child,
     ]),
   );
@@ -165,7 +167,10 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     controller: controller,
     keyboardType: keyboard,
     decoration: InputDecoration(
-      prefixIcon: icon == null ? null : Icon(icon, color: _blue, size: 21),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(vertical: 6),
+      prefixIconConstraints: const BoxConstraints(minWidth: 30),
+      prefixIcon: icon == null ? null : Icon(icon, color: _blue, size: 18),
       hintText: placeholder,
       hintStyle: const TextStyle(color: Color(0xFF9EACC0)),
       border: const UnderlineInputBorder(
@@ -189,8 +194,8 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    return PopScope(
-      canPop: false,
+    return WorkspaceStyle(child: PopScope(
+      canPop: widget.embedded,
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
@@ -210,10 +215,10 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                 const SizedBox(height: 32),
                 Align(alignment: Alignment.center, child: Stack(children: [
                   CircleAvatar(
-                    radius: 71,
+                    radius: 76,
                     backgroundColor: const Color(0xFFB3E8FD),
                     child: const CircleAvatar(
-                      radius: 68,
+                      radius: 73,
                       backgroundColor: Color(0xFFF0FAFF),
                       child: Icon(Icons.person_outline,
                         size: 81, color: _blue))),
@@ -276,7 +281,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                     keyboard: TextInputType.phone),
                 ),
                 const SizedBox(height: 3),
-                SizedBox(height: 54, child: ElevatedButton(
+                SizedBox(height: 48, child: ElevatedButton(
                   onPressed: _saving ? null : _save,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _blue,
@@ -287,7 +292,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                   child: _saving
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Save Changes', style: TextStyle(
-                      fontSize: 19, fontWeight: FontWeight.w700)),
+                      fontSize: 16, fontWeight: FontWeight.w600)),
                 )),
                 const SizedBox(height: 23),
               ],
@@ -295,6 +300,6 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }

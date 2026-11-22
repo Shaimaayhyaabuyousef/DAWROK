@@ -1,9 +1,11 @@
+import 'workspace_style.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/employee_access_service.dart';
 import 'employee_scanner_screen.dart';
+import 'employee_profile_screen.dart';
 
 const _blue = Color(0xFF03A9F4);
 const _ink = Color(0xFF27344D);
@@ -46,12 +48,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _ensureAccess());
   }
 
-  Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-    if (mounted) Navigator.pushNamedAndRemoveUntil(
-      context, 'employee_login_screen', (_) => false);
-  }
-
   Widget _card(Widget child) => Container(
     padding: const EdgeInsets.all(17),
     decoration: BoxDecoration(
@@ -92,37 +88,35 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         if (fid.isEmpty) return const Scaffold(body: Center(
           child: Text('Employee is not linked to a facility.')));
 
-        return Scaffold(
+        return WorkspaceStyle(child: Scaffold(
           backgroundColor: Colors.white,
-          body: SafeArea(child: _tab == 1
-            ? _profileTab(m)
-            : _homeTab(fid, m)),
+          body: _tab == 1 ? const EmployeeProfileScreen(embedded: true) : SafeArea(child: _homeTab(fid, m)),
           bottomNavigationBar: SafeArea(top: false, child: Container(
-            height: 69,
+            height: 54,
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(top: BorderSide(color: _outline)),
               borderRadius: BorderRadius.vertical(top: Radius.circular(17))),
             child: Row(children: [
-              _nav(0, Icons.home_outlined, 'Home'),
-              _nav(1, Icons.person_outline, 'Profile'),
+              _nav(0, 'Home'),
+              _nav(1, 'Profile'),
             ]),
           )),
-        );
+        ));
       },
     );
   }
 
-  Widget _nav(int index, IconData icon, String label) => Expanded(
+  Widget _nav(int index, String label) => Expanded(
     child: InkWell(
       onTap: () => setState(() => _tab = index),
       child: Center(child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: _tab == index ? const Color(0xFFE6F7FF) : Colors.white,
           borderRadius: BorderRadius.circular(35)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: _blue, size: 24),
+          WorkspaceIcon(index == 0 ? 'staff_home' : 'staff_profile', color: _blue),
           if (_tab == index) ...[
             const SizedBox(width: 6),
             Text(label, style: const TextStyle(
@@ -190,23 +184,23 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                     _card(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(children: [
                         Container(
-                          width: 53, height: 53,
+                          width: 48, height: 48,
                           decoration: BoxDecoration(
                             color: const Color(0xFFEDF9FF),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: const Color(0xFFCCECFF))),
-                          child: const Icon(Icons.storefront_outlined, color: _blue, size: 29)),
+                          child: const Center(child: WorkspaceIcon('facility', color: _blue))),
                         const SizedBox(width: 13),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Active Facility',
-                            style: TextStyle(color: _muted, fontSize: 13)),
+                          const Row(children: [
+                            Flexible(child: Text('Active Facility', style: TextStyle(color: _muted, fontSize: 12))),
+                            SizedBox(width: 7), WorkspaceIcon('verified', color: Color(0xFF00A97F)),
+                          ]),
                           const SizedBox(height: 5),
                           Text(facilityData['name'] as String? ?? 'Facility',
                             style: const TextStyle(color: _ink,
-                              fontWeight: FontWeight.w700, fontSize: 21)),
+                              fontWeight: FontWeight.w700, fontSize: 16)),
                         ])),
-                        const Icon(Icons.verified_outlined,
-                          color: Color(0xFF00A97F)),
                       ]),
                       const Divider(height: 27, color: _outline),
                       Row(children: [
@@ -223,21 +217,25 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                       padding: EdgeInsets.only(left: 9, bottom: 22),
                       child: Text('Select the teller',
                         style: TextStyle(color: Color(0xFF384962),
-                          fontSize: 18, fontWeight: FontWeight.w600))),
+                          fontSize: 14, fontWeight: FontWeight.w600))),
                     _card(Row(children: [
                       Container(
-                        width: 40, height: 40,
+                        width: 36, height: 36,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(13),
                           color: const Color(0xFFF0F4F8)),
-                        child: const Icon(Icons.support_agent_outlined,
-                          color: _blue, size: 24)),
+                        child: const Center(child: WorkspaceIcon('teller', color: _blue))),
                       const SizedBox(width: 9),
-                      Expanded(child: DropdownButtonHideUnderline(
+                      Expanded(child: available.isEmpty
+                        ? const Text('Awaiting a vacant service position', style: TextStyle(fontSize: 12, color: _muted))
+                        : DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           isExpanded: true,
+                          itemHeight: null,
+                          isDense: true,
+                          style: const TextStyle(fontFamily: 'Inter', color: _ink, fontSize: 12),
                           value: q?.id,
-                          hint: const Text('Awaiting a vacant service position'),
+                          hint: const Text('Awaiting a vacant service position', style: TextStyle(fontSize: 12)),
                           items: [
                             for (final doc in available)
                               DropdownMenuItem(
@@ -249,15 +247,15 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                         ),
                       )),
                     ])),
-                    const SizedBox(height: 55),
-                    Row(children: [
-                      Expanded(child: _stat(Icons.people_outline,
+                    const SizedBox(height: 50),
+                    IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      Expanded(child: _stat('served',
                         'Served Today', served.toString(), 'beneficiaries')),
                       const SizedBox(width: 12),
-                      Expanded(child: _stat(Icons.access_time,
+                      Expanded(child: _stat('waiting',
                         'In Waiting Queue', waiting.toString(), 'waiting')),
-                    ]),
-                    const SizedBox(height: 26),
+                    ])),
+                    const SizedBox(height: 24),
                     Container(
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
                       decoration: BoxDecoration(
@@ -267,20 +265,20 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 7),
+                            horizontal: 12, vertical: 5),
                           decoration: BoxDecoration(
                             color: const Color(0x2FFFFFFF),
                             borderRadius: BorderRadius.circular(25)),
-                          child: const Text('● Ready to Serve',
-                            style: TextStyle(color: Colors.white, fontSize: 13)),
+                          child: Text(q == null ? 'Awaiting assignment' : '● Ready to Serve',
+                            style: TextStyle(color: Colors.white, fontSize: 11)),
                         ),
                         const SizedBox(height: 22),
                         const Text('Scan Beneficiary Card or Code',
                           style: TextStyle(color: Colors.white,
-                            fontWeight: FontWeight.w700, fontSize: 20)),
+                            fontWeight: FontWeight.w700, fontSize: 16)),
                         const SizedBox(height: 21),
                         SizedBox(
-                          width: double.infinity, height: 52,
+                          width: double.infinity, height: 42,
                           child: ElevatedButton.icon(
                             onPressed: q == null ||
                               !{'windowOfficer','supervisor'}.contains(membership['role'])
@@ -290,12 +288,14 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                                   queueId: q.id,
                                   windowNumber: (assignment!['windowNumber'] as num).toInt(),
                                 ))),
-                            icon: const Icon(Icons.crop_free_rounded, size: 22),
+                            icon: const WorkspaceIcon('scanner', color: _blue),
                             label: const Text('Open Instant Scanner',
-                              style: TextStyle(fontSize: 16)),
+                              style: TextStyle(fontSize: 12)),
                             style: ElevatedButton.styleFrom(
                               foregroundColor: const Color(0xFF0084CA),
                               backgroundColor: Colors.white,
+                              disabledBackgroundColor: const Color(0xFFE4EEF3),
+                              disabledForegroundColor: const Color(0xFF5C7080),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(13))),
                           ),
@@ -312,7 +312,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       },
     );
 
-  Widget _stat(IconData icon, String title, String count, String suffix) =>
+  Widget _stat(String asset, String title, String count, String suffix) =>
     Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
       decoration: BoxDecoration(
@@ -321,7 +321,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         border: Border.all(color: const Color(0xFFEDF1F6))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(icon, color: _blue, size: 17),
+          WorkspaceIcon(asset, color: asset == 'waiting' ? Colors.orange : _blue),
           const SizedBox(width: 7),
           Expanded(child: Text(title,
             style: const TextStyle(color: Color(0xFF7789A1), fontSize: 12))),
@@ -329,43 +329,10 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         const SizedBox(height: 11),
         Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: 4, children: [
           Text(count, style: const TextStyle(color: _ink,
-            fontWeight: FontWeight.w700, fontSize: 24)),
+            fontWeight: FontWeight.w700, fontSize: 20)),
           Text(suffix, style: const TextStyle(color: _muted, fontSize: 12)),
         ]),
       ]),
     );
 
-  Widget _profileTab(Map<String, dynamic> membership) =>
-    SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 45, 24, 28),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Icon(Icons.account_circle_outlined, size: 105, color: _blue),
-        const SizedBox(height: 20),
-        const Text('Employee Profile', textAlign: TextAlign.center,
-          style: TextStyle(color: _ink, fontSize: 24, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 27),
-        _card(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(FirebaseAuth.instance.currentUser?.displayName ?? 'Employee',
-            style: const TextStyle(color: _ink,
-              fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 7),
-          Text(FirebaseAuth.instance.currentUser?.email ?? '',
-            style: const TextStyle(color: _muted)),
-          const Divider(height: 24),
-          Text('Role: ${membership['role']}', style: const TextStyle(color: _muted)),
-          Text('Status: ${membership['state']}', style: const TextStyle(color: _blue)),
-        ])),
-        const SizedBox(height: 20),
-        SizedBox(height: 52, child: ElevatedButton(
-          onPressed: () => Navigator.pushNamed(context, 'employee_profile_screen'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _blue, foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
-          child: const Text('Edit My Profile'))),
-        const SizedBox(height: 12),
-        TextButton.icon(onPressed: _logout,
-          icon: const Icon(Icons.logout),
-          label: const Text('Log Out')),
-      ]),
-    );
 }

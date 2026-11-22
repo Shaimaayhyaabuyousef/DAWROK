@@ -53,11 +53,12 @@ class CenterDetailsScreen extends StatelessWidget {
           .doc(id)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError)
+        if (snapshot.hasError) {
           return _layout(
             context,
             message: 'Unable to load facility details. Please try again.',
           );
+        }
         if (!snapshot.hasData) return _layout(context, loading: true);
         final facility = snapshot.data!.data();
         if (facility == null || facility['isActive'] != true) {
@@ -80,16 +81,18 @@ class CenterDetailsScreen extends StatelessWidget {
               .where('archived', isEqualTo: false)
               .snapshots(),
           builder: (context, queues) {
-            if (queues.hasError)
+            if (queues.hasError) {
               return _layout(
                 context,
                 facility: facility,
                 message: 'Unable to load queue statistics. Please try again.',
               );
-            if (!queues.hasData)
+            }
+            if (!queues.hasData) {
               return _layout(context, facility: facility, loading: true);
+            }
             final docs = queues.data!.docs;
-            if (docs.isEmpty)
+            if (docs.isEmpty) {
               return _layout(
                 context,
                 facility: facility,
@@ -97,6 +100,7 @@ class CenterDetailsScreen extends StatelessWidget {
                 occupancy: 0,
                 message: 'No active queues are available.',
               );
+            }
             return _dailyTotals(context, facility, docs, 0, 0, const []);
           },
         );
@@ -117,7 +121,7 @@ class CenterDetailsScreen extends StatelessWidget {
     if (index == queues.length) {
       final capacity = queues.fold<int>(
         0,
-        (sum, q) => sum + ((q.data()['capacity'] as num?)?.toInt() ?? 0),
+        (totalCapacity, q) => totalCapacity + ((q.data()['capacity'] as num?)?.toInt() ?? 0),
       );
       return _layout(
         context,
@@ -154,20 +158,22 @@ class CenterDetailsScreen extends StatelessWidget {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: queue.reference.collection('days').doc(day).snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError)
+        if (snapshot.hasError) {
           return _layout(
             context,
             facility: facility,
             queues: queues,
             message: 'Unable to load queue statistics. Please try again.',
           );
-        if (!snapshot.hasData)
+        }
+        if (!snapshot.hasData) {
           return _layout(
             context,
             facility: facility,
             queues: queues,
             loading: true,
           );
+        }
         final reserved =
             ((snapshot.data!.data()?['reserved'] as num?)?.toInt() ?? 0) - ((snapshot.data!.data()?['cancelled'] as num?)?.toInt() ?? 0);
         final capacity = (row['capacity'] as num?)?.toInt() ?? 0;
@@ -189,6 +195,46 @@ class CenterDetailsScreen extends StatelessWidget {
       },
     );
       },
+    );
+  }
+
+  Future<void> _openBooking(
+    BuildContext context,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> queues,
+    List<String> eligible,
+    String facilityName,
+  ) async {
+    final choices = queues.where((queue) => eligible.contains(queue.id)).toList();
+    if (choices.isEmpty) return;
+    final queueId = choices.length == 1
+        ? choices.single.id
+        : await showModalBottomSheet<String>(
+            context: context,
+            builder: (sheetContext) => SafeArea(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final queue in choices)
+                    ListTile(
+                      title: Text(queue.data()['service'] as String? ?? 'Queue'),
+                      subtitle: Text((queue.data()['windowCount'] ?? 1) == 0
+                          ? 'Direct service'
+                          : "${queue.data()['windowCount'] ?? 1} service windows"),
+                      onTap: () => Navigator.pop(sheetContext, queue.id),
+                    ),
+                ],
+              ),
+            ),
+          );
+    if (queueId == null || !context.mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => AddQueueScreen(
+        facilityName: facilityName,
+        facilityId: facilityId,
+        queueId: queueId,
+        reward: reward,
+      )),
     );
   }
 
@@ -621,19 +667,8 @@ class CenterDetailsScreen extends StatelessWidget {
                                 : [],
                           ),
                           child: ElevatedButton.icon(
-                            onPressed: canBook
-                                ? () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => AddQueueScreen(
-                                        reward: reward,
-                                        availableQueueIds: eligible,
-                                        facilityName: title,
-                                        facilityId: facilityId,
-                                        isOpen: open,
-                                      ),
-                                    ),
-                                  )
+                            onPressed: canBook && open && eligible != null
+                                ? () => _openBooking(context, queues, eligible, title)
                                 : null,
                             icon: const Icon(
                               Icons.calendar_month_outlined,

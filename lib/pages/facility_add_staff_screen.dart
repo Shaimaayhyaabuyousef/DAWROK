@@ -119,17 +119,17 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   }
   @override Widget build(BuildContext context) => WorkspaceStyle(child: Scaffold(
     backgroundColor: Colors.white,
-    body: SafeArea(child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(26, 16, 26, 30), child: Form(
+    body: SafeArea(child: SingleChildScrollView(padding: EdgeInsets.fromLTRB(26, (61.0 - MediaQuery.paddingOf(context).top).clamp(0.0, 61.0), 26, 30), child: Form(
       key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back_ios_new, size: 23)),
-        const SizedBox(height: 16),
-        AbsorbPointer(absorbing: _issued != null, child: Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFEDF3F9)), borderRadius: BorderRadius.circular(24), boxShadow: const [BoxShadow(color: Color(0x090B2439), blurRadius: 5, offset: Offset(0, 2))]), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        IconButton(tooltip: 'Back', alignment: Alignment.centerLeft, padding: EdgeInsets.zero,
+          onPressed: () => Navigator.pop(context), icon: const WorkspaceIcon('back')),
+        AbsorbPointer(absorbing: _issued != null, child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFEDF3F9)), borderRadius: BorderRadius.circular(24), boxShadow: const [BoxShadow(color: Color(0x090B2439), blurRadius: 5, offset: Offset(0, 2))]), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Staff Full Name', style: TextStyle(fontSize: 20, color: facilityDark)),
           const SizedBox(height: 6),
           _entry(name, 'name', 'Staff full name'),
-          const SizedBox(height: 17),
+          const SizedBox(height: 14),
           const Text('Assigned Role', style: TextStyle(fontSize: 20, color: facilityDark)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Row(children: [
             _role(StaffRole.windowOfficer, 'officer', 'Window\nOfficer'),
             const SizedBox(width: 8),
@@ -145,23 +145,23 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
               _entry(id, 'id', 'Employee ID', optional: true),
             ])),
             const SizedBox(width: 12),
-            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Station / Window', style: TextStyle(fontSize: 11)),
-              SizedBox(height: 4),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Station / Window', style: TextStyle(fontSize: 11)),
+              const SizedBox(height: 4),
               InputDecorator(
-                decoration: InputDecoration(isDense: true, border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
-                child: Text('Automatic', style: TextStyle(fontSize: 12)),
+                decoration: InputDecoration(isDense: true, enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: facilityBorder)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
+                child: const Row(children: [WorkspaceIcon('station'), SizedBox(width: 6), Expanded(child: Text('Automatic', style: TextStyle(fontSize: 12)))]),
               ),
             ])),
           ]),
-          const SizedBox(height: 15),
+          const SizedBox(height: 12),
           if (_saveError != null) ...[
             Text(_saveError!, style: const TextStyle(
               color: Color(0xFFC62828), fontSize: 12)),
             const SizedBox(height: 12),
           ],
-          SizedBox(width: double.infinity, height: 42, child: ElevatedButton.icon(onPressed: _working || _issued != null ? null : _generate, style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: const WorkspaceIcon('key', color: Colors.white), label: Text(_working ? 'Saving...' : _issued != null ? 'Link Code Generated' : 'Generate Link Code', style: const TextStyle(fontSize: 12)))),
+          SizedBox(width: double.infinity, height: 42, child: ElevatedButton.icon(onPressed: _working || _issued != null ? null : _generate, style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, side: BorderSide.none, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: const WorkspaceIcon('key', color: Colors.white), label: Text(_working ? 'Saving...' : _issued != null ? 'Link Code Generated' : 'Generate Link Code', style: const TextStyle(fontSize: 12)))),
         ]))),
         if (_issued case final issued?) ...[
           const SizedBox(height: 16),
@@ -217,7 +217,7 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
 
   Widget _entry(TextEditingController controller, String asset, String hint, {bool optional = false}) => TextFormField(
     controller: controller, style: const TextStyle(fontSize: 12), validator: (v) => !optional && (v == null || v.trim().isEmpty) ? 'Required' : null,
-    decoration: InputDecoration(prefixIconConstraints: const BoxConstraints(minWidth: 36), prefixIcon: Center(widthFactor: 1, child: WorkspaceIcon(asset, color: facilityMuted)), hintText: hint, isDense: true, filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10), border: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: facilityBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: facilityBorder))),
+    decoration: InputDecoration(prefixIconConstraints: const BoxConstraints(minWidth: 36), prefixIcon: Center(widthFactor: 1, child: WorkspaceIcon(asset, color: facilityMuted)), hintText: hint, isDense: true, filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10), border: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: facilityBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: facilityBorder))),
   );
   Widget _role(StaffRole value, String asset, String label) => Expanded(child: InkWell(
     onTap: () => setState(() => role = value), child: Container(constraints: const BoxConstraints(minHeight: 76), padding: const EdgeInsets.symmetric(vertical: 5), decoration: BoxDecoration(color: role == value ? const Color(0xFFEDF8FF) : const Color(0xFFF7F9FC), border: Border.all(color: role == value ? const Color(0xFF00A6EE) : facilityBorder, width: role == value ? 2 : 1), borderRadius: BorderRadius.circular(13)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [WorkspaceIcon(asset, color: role == value ? const Color(0xFF007BBD) : facilityMuted), const SizedBox(height: 5), Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: role == value ? const Color(0xFF007BBD) : facilityDark))]))));

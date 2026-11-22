@@ -15,16 +15,16 @@ BoxDecoration citizenPanel({Color color = Colors.white, double radius = 18}) =>
     );
 String citizenTime(DateTime date) =>
     '${date.hour % 12 == 0 ? 12 : date.hour % 12}:${date.minute.toString().padLeft(2, '0')} ${date.hour < 12 ? 'AM' : 'PM'}';
-Future<void> openCitizenTicket(
+Future<bool> openCitizenTicket(
   BuildContext context,
   String id,
   Map<String, dynamic> data,
 ) async {
   try {
     final nationalId = await CitizenIdentityService.instance.savedNationalId();
-    if (!context.mounted) return;
+    if (!context.mounted) return false;
     final time = (data['slotStart'] as Timestamp?)?.toDate();
-    Navigator.push(
+    Navigator.push<void>(
       context,
       MaterialPageRoute(
         builder: (_) => QueueTicketScreen(
@@ -45,10 +45,12 @@ Future<void> openCitizenTicket(
         ),
       ),
     );
+    return true;
   } catch (e) {
     if (context.mounted)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))),
       );
+    return false;
   }
 }

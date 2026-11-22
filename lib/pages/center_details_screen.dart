@@ -4,13 +4,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../services/queue_schedule.dart';
-import 'add_queue_screen.dart';
+import '../services/booking_service.dart';
+import 'citizen_booking_controls.dart';
+import 'citizen_ui.dart';
+import 'queue_ticket_screen.dart';
 
 const _blue = Color(0xFF008DD2);
 const _ink = Color(0xFF141C2F);
 const _muted = Color(0xFF687B96);
 
-class CenterDetailsScreen extends StatelessWidget {
+class CenterDetailsScreen extends StatefulWidget {
   final String name, address, rating, openingFrom, openingTo;
   final String? facilityId, status;
   final String reward;
@@ -38,8 +41,65 @@ class CenterDetailsScreen extends StatelessWidget {
   });
 
   @override
+  State<CenterDetailsScreen> createState() => _CenterDetailsScreenState();
+}
+
+class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
+  final _busy = ValueNotifier(false);
+  final _selection = ValueNotifier<String?>(null);
+  StreamSubscription<QueryDocumentSnapshot<Map<String, dynamic>>>? _recovery;
+  String? _requestQueue;
+
+  String get reward => widget.reward;
+
+  @override
+  void initState() {
+    super.initState();
+    _watchRecovery();
+  }
+
+  void _watchRecovery() {
+    final fid = widget.facilityId;
+    if (fid == null || fid.isEmpty) return;
+    _recovery = BookingService.instance.recoveredTickets(fid, reward).listen((doc) async {
+      final qid = doc.data()['queueId'] as String;
+      if (!mounted || _busy.value || ModalRoute.of(context)?.isCurrent != true ||
+          (_requestQueue != null && _requestQueue != qid)) {
+        return;
+      }
+      _busy.value = true;
+      try {
+        if (await openCitizenTicket(context, doc.id, doc.data())) {
+          await BookingService.instance.acknowledge(fid, qid, reward, doc.id);
+        }
+      } catch (error) {
+        _showError(error);
+      } finally {
+        if (mounted) _busy.value = false;
+      }
+    }, onError: (Object error) {
+      if (_requestQueue != null) _showError(error);
+    });
+  }
+
+  void _showError(Object error) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))));
+    }
+  }
+
+  @override
+  void dispose() {
+    _recovery?.cancel();
+    _busy.dispose();
+    _selection.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final id = facilityId;
+    final id = widget.facilityId;
     if (id == null || id.isEmpty) {
       return _layout(context, message: 'Choose a facility from the directory.');
     }
@@ -198,44 +258,39 @@ class CenterDetailsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _openBooking(
-    BuildContext context,
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> queues,
-    List<String> eligible,
-    String facilityName,
-  ) async {
-    final choices = queues.where((queue) => eligible.contains(queue.id)).toList();
-    if (choices.isEmpty) return;
-    final queueId = choices.length == 1
-        ? choices.single.id
-        : await showModalBottomSheet<String>(
-            context: context,
-            builder: (sheetContext) => SafeArea(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  for (final queue in choices)
-                    ListTile(
-                      title: Text(queue.data()['service'] as String? ?? 'Queue'),
-                      subtitle: Text((queue.data()['windowCount'] ?? 1) == 0
-                          ? 'Direct service'
-                          : "${queue.data()['windowCount'] ?? 1} service windows"),
-                      onTap: () => Navigator.pop(sheetContext, queue.id),
-                    ),
-                ],
-              ),
-            ),
-          );
-    if (queueId == null || !context.mounted) return;
-    await Navigator.push<void>(
-      context,
-      MaterialPageRoute(builder: (_) => AddQueueScreen(
-        facilityName: facilityName,
-        facilityId: facilityId,
-        queueId: queueId,
-        reward: reward,
-      )),
-    );
+  Future<void> _confirmBooking(String queueId) async {
+    final fid = widget.facilityId;
+    if (_busy.value || fid == null) return;
+    _busy.value = true;
+    _requestQueue = queueId;
+    try {
+      final receipt = await BookingService.instance.reserve(
+        facilityId: fid, queueId: queueId, reward: reward,
+      );
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      final now = DateTime.now();
+      final page = Navigator.push<void>(context, MaterialPageRoute(
+        builder: (_) => QueueTicketScreen(
+          ticketNumber: receipt.id, queueNumber: receipt.queuePosition,
+          windowNumber: receipt.windowNumber, windowCount: receipt.windowCount,
+          scheduledAt: receipt.slotStart, facilityName: receipt.facilityName,
+          idNumber: receipt.nationalId, createdAt: now,
+          estimatedWaiting: '~${receipt.slotStart.difference(now).inMinutes.clamp(0, 1440)} min',
+          qrPayload: 'DAWROK|ticket=${receipt.id}|facility=$fid|queue=$queueId',
+        ),
+      ));
+      await BookingService.instance.acknowledge(fid, queueId, reward, receipt.id);
+      await page;
+    } catch (error) {
+      _showError(error);
+      if (error is TimeoutException || error is FirebaseException ||
+          error.toString().contains('Checking your booking')) {
+        await _recovery?.cancel();
+        if (mounted) _watchRecovery();
+      }
+    } finally {
+      if (mounted) _busy.value = false;
+    }
   }
 
   String _clock(int minutes) {
@@ -254,8 +309,8 @@ class CenterDetailsScreen extends StatelessWidget {
     bool loading = false,
     String? message,
   }) {
-    final title = facility?['name'] as String? ?? name;
-    final location = facility?['address'] as String? ?? address;
+    final title = facility?['name'] as String? ?? widget.name;
+    final location = facility?['address'] as String? ?? widget.address;
     final open = facility?['isOnline'] == true;
     final starts =
         queues
@@ -653,45 +708,19 @@ class CenterDetailsScreen extends StatelessWidget {
                             ),
                           ),
                         const SizedBox(height: 38),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(17),
-                            boxShadow: canBook
-                                ? [
-                                    const BoxShadow(
-                                      color: Color(0x3500ACEB),
-                                      offset: Offset(0, 7),
-                                      blurRadius: 10,
-                                    ),
-                                  ]
-                                : [],
-                          ),
-                          child: ElevatedButton.icon(
-                            onPressed: canBook && open && eligible != null
-                                ? () => _openBooking(context, queues, eligible, title)
-                                : null,
-                            icon: const Icon(
-                              Icons.calendar_month_outlined,
-                              size: 22,
-                            ),
-                            label: const Text(
-                              'Book Appointment',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(56),
-                              backgroundColor: const Color(0xFF49AAF2),
-                              foregroundColor: Colors.white,
-                              disabledBackgroundColor: const Color(0xFFADD8F7),
-                              disabledForegroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(17),
-                              ),
-                            ),
+                        ListenableBuilder(
+                          listenable: Listenable.merge([_busy, _selection]),
+                          builder: (_, _) => CitizenBookingControls(
+                            queues: {
+                              for (final q in queues)
+                                if (canBook && open && (eligible?.contains(q.id) ?? false))
+                                  q.id: q.data()['service'] as String? ?? q.id,
+                            },
+                            selected: _selection.value,
+                            busy: _busy.value,
+                            reward: reward,
+                            onSelect: (id) => _selection.value = id,
+                            onConfirm: _confirmBooking,
                           ),
                         ),
                       ],

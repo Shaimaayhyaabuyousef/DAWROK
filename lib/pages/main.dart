@@ -14,7 +14,6 @@ import 'package:first_project/pages/home_screen.dart';
 import 'package:first_project/pages/onboarding.dart';
 import 'package:first_project/pages/profile_screen.dart';
 //import 'package:first_project/pages/queue_ticket_screen.dart';
-//import 'package:first_project/pages/add_queue_screen.dart';
 import 'active_queues_screen.dart';
 import 'package:first_project/pages/splash.dart';
 import 'package:first_project/pages/login.dart';
@@ -69,7 +68,6 @@ class MyApp extends StatelessWidget {
     const CitizenIdVerificationScreen(),
          "home_screen": (context) => const HomeScreen(),
          "facilities_screen":(context) => const FacilitiesScreen(),
-        // "add_queue_ticket":((context) => const AddQueueScreen()),
         // "queue_ticket_screen":((context) => const QueueTicketScreen()),
         
          'active_queues_screen': (context) =>

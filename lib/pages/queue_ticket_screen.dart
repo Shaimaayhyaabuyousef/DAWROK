@@ -4,6 +4,7 @@ import '../services/facility_time.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'save_ticket_button.dart';
 
 const Color _ticketPrimary = Color(0xFF0EA5FF);
 const Color _ticketDark = Color(0xFF1E2235);
@@ -76,6 +77,7 @@ class QueueTicketScreen extends StatelessWidget {
   }
 
   Widget _content(BuildContext context,bool isDemo,String status,{bool paid=false}) {
+    final cardKey = GlobalKey();
     return Scaffold(
       backgroundColor: const Color(0xFFF7FAFD),
       body: SafeArea(
@@ -123,7 +125,15 @@ class QueueTicketScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildTicketCard(),
+                    RepaintBoundary(
+                      key: cardKey,
+                      child: ColoredBox(color: Colors.white, child: _buildTicketCard()),
+                    ),
+                    if (!isDemo)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: SaveTicketButton(cardKey: cardKey, ticketNumber: ticketNumber),
+                      ),
                     if (!isDemo && liveTicket && status == 'waiting') TextButton(onPressed: () async {
                           final confirmed = await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
                             title:const Text('Cancel this booking?'),

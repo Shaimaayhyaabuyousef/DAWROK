@@ -1,3 +1,4 @@
+import 'server_clock.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -41,6 +42,7 @@ class CitizenAccountService {
   ) async {
     if (!['served', 'absent'].contains(outcome))
       throw ArgumentError.value(outcome);
+    await ServerClock.now();
     final ticketRef = db.collection('bookings').doc(ticketId);
     await db.runTransaction((tx) async {
       final ticket = (await tx.get(ticketRef)).data();
@@ -52,9 +54,16 @@ class CitizenAccountService {
         );
       if (outcome == 'served' && ticket['checkedIn'] != true)
         throw StateError('Check-in is required.');
+      if (outcome == 'absent') {
+        final called = (ticket['calledAt'] as Timestamp?)?.toDate();
+        if (ticket['checkedIn'] == true || called == null ||
+            ServerClock.estimate.isBefore(called.add(const Duration(minutes:10)))) {
+          throw StateError('Absence requires ten minutes after calling and no check-in.');
+        }
+      }
       final uid = ticket['citizenId'] as String;
       final old = policy((await tx.get(account(uid))).data());
-      final next = old.close(outcome, DateTime.now());
+      final next = old.close(outcome, ServerClock.estimate);
       DocumentReference<Map<String, dynamic>>? lane;
       if (ticket['routingVersion'] == 2) {
         lane = db.collection('facilities').doc(facilityId).collection('queues')

@@ -7,7 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../services/facility_context.dart';
 
-enum FacilityVisitStatus { waiting, called, served, absent }
+enum FacilityVisitStatus { waiting, called, served, absent, cancelled }
 enum FacilityScanOutcome { verified, repeated, invalid }
 
 class FacilityVisit {
@@ -18,6 +18,7 @@ class FacilityVisit {
   final String queueId;
   final int estimatedMinutes;
   FacilityVisitStatus status;
+  final DateTime? calledAt;
   bool checkedIn;
   int postponements;
 
@@ -29,6 +30,7 @@ class FacilityVisit {
     required this.queueId,
     required this.estimatedMinutes,
     this.status = FacilityVisitStatus.waiting,
+    this.calledAt,
     this.checkedIn = false,
     this.postponements = 0,
   });
@@ -81,9 +83,10 @@ class FacilityScanStore extends ChangeNotifier {
       _bookingsSub = _db.collection('bookings')
           .where('facilityId', isEqualTo: id)
           .snapshots().listen((snap) {
+      final cancelled = cancelledTicketIds(snap.docs);
         _visits
           ..clear()
-          ..addAll((snap.docs.toList()..sort((a,b) => compareBookingRows(a.data(),a.id,b.data(),b.id))).map((d) {
+          ..addAll((snap.docs.toList()..sort((a,b) => compareBookingRows(a.data(),a.id,b.data(),b.id,cancelled:cancelled))).map((d) {
             final m = d.data();
             final status = FacilityVisitStatus.values.firstWhere(
               (v) => v.name == m['status'], orElse: () => FacilityVisitStatus.waiting);
@@ -94,6 +97,7 @@ class FacilityScanStore extends ChangeNotifier {
               windowNumber: m['routingVersion'] == 2 ? (m['windowNumber'] as num?)?.toInt() ?? 0 : 1,
               queueId: m['queueId'] as String? ?? '',
               estimatedMinutes: 30,
+              calledAt: (m['calledAt'] as Timestamp?)?.toDate(),
               status: status, checkedIn: m['checkedIn'] == true,
               postponements: (m['postponements'] as num?)?.toInt() ?? 0,
             );

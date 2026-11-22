@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../services/server_clock.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -41,6 +43,10 @@ class CenterDetailsScreen extends StatelessWidget {
     if (id == null || id.isEmpty) {
       return _layout(context, message: 'Choose a facility from the directory.');
     }
+    return _FacilityClockView(builder: (context) => _liveDetails(context,id));
+  }
+
+  Widget _liveDetails(BuildContext context,String id) {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('facilities')
@@ -91,7 +97,7 @@ class CenterDetailsScreen extends StatelessWidget {
                 occupancy: 0,
                 message: 'No active queues are available.',
               );
-            return _dailyTotals(context, facility, docs, 0, 0, false);
+            return _dailyTotals(context, facility, docs, 0, 0, const []);
           },
         );
       },
@@ -105,8 +111,9 @@ class CenterDetailsScreen extends StatelessWidget {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> queues,
     int index,
     int total,
-    bool canBook,
+    List<String> eligible,
   ) {
+    final canBook = eligible.isNotEmpty;
     if (index == queues.length) {
       final capacity = queues.fold<int>(
         0,
@@ -121,8 +128,10 @@ class CenterDetailsScreen extends StatelessWidget {
             ? (total * 100 / capacity).round().clamp(0, 100).toInt()
             : 0,
         canBook: canBook,
+        eligible: eligible,
         message: canBook
             ? null
+            : reward == 'priority' ? 'No eligible waiting ticket for priority today. No points were charged.'
             : 'No available booking times or capacity today.',
       );
     }
@@ -131,11 +140,17 @@ class CenterDetailsScreen extends StatelessWidget {
     final slots = QueueSchedule.availableSlots(
       (row['startsAtMinutes'] as num?)?.toInt() ?? 0,
       (row['endsAtMinutes'] as num?)?.toInt() ?? 0,
-      DateTime.now(),
+      ServerClock.estimate,
     );
     final day = QueueSchedule.dayKey(
-      slots.isEmpty ? DateTime.now() : slots.first,
+      slots.isEmpty ? ServerClock.estimate : slots.first,
     );
+    return StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
+      stream: queue.reference.collection('closures').doc(day).snapshots(),
+      builder: (context, closure) {
+        if (closure.hasError) return _layout(context,facility:facility,queues:queues,message:'Could not verify service availability.');
+        if (!closure.hasData) return _layout(context,facility:facility,queues:queues,loading:true);
+        if (closure.data!.exists) return _dailyTotals(context, facility, queues,index+1,total,eligible);
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: queue.reference.collection('days').doc(day).snapshots(),
       builder: (context, snapshot) {
@@ -154,19 +169,25 @@ class CenterDetailsScreen extends StatelessWidget {
             loading: true,
           );
         final reserved =
-            (snapshot.data!.data()?['reserved'] as num?)?.toInt() ?? 0;
+            ((snapshot.data!.data()?['reserved'] as num?)?.toInt() ?? 0) - ((snapshot.data!.data()?['cancelled'] as num?)?.toInt() ?? 0);
         final capacity = (row['capacity'] as num?)?.toInt() ?? 0;
-        return _dailyTotals(
-          context,
-          facility,
-          queues,
-          index + 1,
-          total + reserved,
-          canBook || (slots.isNotEmpty && (reward == 'extra'
-            ? reserved - ((snapshot.data!.data()?['rewardReserved'] as num?)?.toInt() ?? 0) >= capacity
-              && ((snapshot.data!.data()?['rewardReserved'] as num?)?.toInt() ?? 0) < ((row['rewardCapacity'] as num?)?.toInt() ?? 0)
-            : reserved - ((snapshot.data!.data()?['rewardReserved'] as num?)?.toInt() ?? 0) < capacity)),
-        );
+        final extra = (snapshot.data!.data()?['rewardReserved'] as num?)?.toInt() ?? 0;
+        final room = reward == 'extra' ? reserved-extra >= capacity && extra < (row['rewardCapacity'] ?? 0)
+            : reserved-extra < capacity;
+        Widget next(bool available) => _dailyTotals(context,facility,queues,index+1,total+reserved,
+            available ? [...eligible,queue.id] : eligible);
+        if (slots.isEmpty || !room) return next(false);
+        if (reward != 'priority') return next(true);
+        var slot = QueueSchedule.nextBooking(start:row['startsAtMinutes'],end:row['endsAtMinutes'],
+            capacity:capacity,reserved:reserved,now:ServerClock.estimate);
+        if (slot == null) return next(false);
+        final last = (snapshot.data!.data()?['lastSlotStart'] as Timestamp?)?.toDate();
+        if(last != null && last.isAfter(slot)) slot = last;
+        return StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
+          stream:queue.reference.collection('priority_offers').where('slotStart',isEqualTo:Timestamp.fromDate(slot)).limit(1).snapshots(),
+          builder:(context,offers) => next(offers.data?.docs.isNotEmpty ?? false));
+      },
+    );
       },
     );
   }
@@ -182,6 +203,7 @@ class CenterDetailsScreen extends StatelessWidget {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> queues = const [],
     int? total,
     int? occupancy,
+    List<String>? eligible,
     bool canBook = false,
     bool loading = false,
     String? message,
@@ -605,6 +627,7 @@ class CenterDetailsScreen extends StatelessWidget {
                                     MaterialPageRoute(
                                       builder: (_) => AddQueueScreen(
                                         reward: reward,
+                                        availableQueueIds: eligible,
                                         facilityName: title,
                                         facilityId: facilityId,
                                         isOpen: open,
@@ -788,5 +811,41 @@ class CenterDetailsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _FacilityClockView extends StatefulWidget {
+  const _FacilityClockView({required this.builder});
+  final WidgetBuilder builder;
+  @override
+  State<_FacilityClockView> createState() => _FacilityClockViewState();
+}
+
+class _FacilityClockViewState extends State<_FacilityClockView> {
+  Timer? timer;
+  bool ready = false;
+  Object? error;
+  @override
+  void initState() {
+    super.initState();
+    refresh();
+    timer = Timer.periodic(const Duration(seconds:30), (_) => refresh());
+  }
+  Future<void> refresh() async {
+    try {
+      await ServerClock.now();
+      if (mounted) setState(() { ready = true; error = null; });
+    } catch (e) {
+      if (mounted) setState(() { error = e; });
+    }
+  }
+  @override
+  void dispose() { timer?.cancel(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    if (ready) return widget.builder(context);
+    return Scaffold(appBar:AppBar(),body:Center(child: error == null
+        ? const CircularProgressIndicator()
+        : TextButton(onPressed:refresh,child:const Text('Reconnect to check availability'))));
   }
 }

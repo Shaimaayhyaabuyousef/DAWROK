@@ -1,3 +1,4 @@
+import 'absence_button.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -171,7 +172,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
   }
 
   Future<void> _markAbsent() async {
-    if (_selectedQueue?.isActive != true) {
+    if (_selectedQueue == null) {
       _message('Select an active counter first.', invalid: true);
       return;
     }
@@ -188,11 +189,16 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
         ],
       ),
     );
-    if (confirmed == true) _perform((n) => _visits.markAbsent(n, window: _serviceWindow));
+    if (confirmed == true) _perform((n) {
+      if (_visits.currentFor(n,window:_serviceWindow)?.ticketNumber != current.ticketNumber) {
+        throw StateError('The called ticket changed. Check the current visitor.');
+      }
+      return _visits.markAbsent(n, window:_serviceWindow);
+    });
   }
 
   Future<void> _postponeCurrent() async {
-    if (_selectedQueue?.isActive != true) {
+    if (_selectedQueue == null) {
       _message('Select an active counter first.', invalid: true);
       return;
     }
@@ -269,7 +275,7 @@ class _FacilityScanScreenState extends State<FacilityScanScreen> {
                   Row(children: [
                     Expanded(child: _actionButton('Next', Icons.chevron_right_rounded, _blue, () => _perform((n) => _visits.callNext(n, window: _serviceWindow)))),
                     const SizedBox(width: 14),
-                    Expanded(child: _actionButton('Absent', null, const Color(0xFF133F64), _markAbsent)),
+                    Expanded(child: AbsenceButton(calledAt: current?.calledAt, onAbsent: current?.checkedIn == false ? _markAbsent : null)),
                     const SizedBox(width: 14),
                     Expanded(child: Tooltip(
                       message: 'Postpone current turn',

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import 'server_clock.dart';
 import 'booking_order.dart';
 import 'queue_audit_service.dart';
 import 'citizen_account_service.dart';
@@ -21,12 +22,14 @@ class QueueOperationsService {
   }
 
   Future<String> callNext(String fid, String qid, int window) async {
+    await ServerClock.now();
     // Refetch after a conflict: another window may have taken the candidate.
     for (var attempt = 0; attempt < 4; attempt++) {
       final snap = await db
           .collection('bookings')
           .where('facilityId', isEqualTo: fid)
           .get();
+      final cancelled = cancelledTicketIds(snap.docs);
       final rows =
           snap.docs
               .where(
@@ -34,13 +37,19 @@ class QueueOperationsService {
                     d.data()['queueId'] == qid &&
                     d.data()['status'] == 'waiting' &&
                     !((d.data()['slotStart'] as Timestamp?)?.toDate().isAfter(
-                          DateTime.now(),
+                          ServerClock.estimate,
                         ) ??
                         false),
               )
               .toList()
             ..sort(
-              (a, b) => compareBookingRows(a.data(), a.id, b.data(), b.id),
+              (a, b) => compareBookingRows(
+                a.data(),
+                a.id,
+                b.data(),
+                b.id,
+                cancelled: cancelled,
+              ),
             );
       if (rows.isEmpty) return 'No tickets are due for service yet.';
       final candidate = rows.first;
@@ -65,10 +74,14 @@ class QueueOperationsService {
             throw StateError('Finish or postpone the current ticket first.');
           if (ticket?['status'] != 'waiting') throw const QueueClaimConflict();
           final time = (ticket?['slotStart'] as Timestamp?)?.toDate();
-          if (time != null && time.isAfter(DateTime.now()))
+          if (time != null && time.isAfter(ServerClock.estimate))
             throw StateError(
               'The next ticket is scheduled for ${time.toLocal()}.',
             );
+          if (ticket?['offersPriority'] == true &&
+              ticket?['priorityBuyer'] == null) {
+            tx.delete(qref.collection('priority_offers').doc(candidate.id));
+          }
           tx.update(candidate.reference, {
             'status': 'called',
             'windowNumber': window,

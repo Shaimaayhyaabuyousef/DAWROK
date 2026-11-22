@@ -51,11 +51,14 @@ try{
  assert.equal((await lane(client('windowOwner'),'multi',b.windowNumber).get()).data().ticketId,'');
  await assertSucceeds(call('windowOwner','busy','multi',b.windowNumber)); // Owner retains access with employees.
  await assertSucceeds(client(winner).doc('bookings/busy').update({checkedIn:true}));
+ await assertFails(complete(winner,'busy','multi',b.windowNumber,'absent'));
  await assertSucceeds(complete(winner,'busy','multi',b.windowNumber));
  await assertFails(complete(winner,'busy','multi',b.windowNumber));
  await ticket('different');await assertFails(call('one','different','multi',2));
  await assertFails(call('unassigned','different','multi',1));
  await ticket('directTicket','direct');await assertSucceeds(call('windowOwner','directTicket','direct',0));
+ await assertFails(complete('windowOwner','directTicket','direct',0,'absent'));
+ await env.withSecurityRulesDisabled(c=>c.firestore().doc('bookings/directTicket').update({calledAt:firebase.firestore.Timestamp.fromMillis(Date.now()-601000)}));
  await assertSucceeds(complete('windowOwner','directTicket','direct',0,'absent'));
  await ticket('directWrong','direct');await assertFails(call('windowOwner','directWrong','direct',1));
  await ticket('future','multi',true);await assertFails(call(other,'future','multi',b.windowNumber===1?2:1));

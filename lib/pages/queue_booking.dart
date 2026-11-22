@@ -1,3 +1,4 @@
+import '../services/facility_time.dart';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -78,8 +79,7 @@ class QueueBookingStore extends ChangeNotifier {
                     snap.docs
                         .where(
                           (d) =>
-                              d.data()['status'] != 'served' &&
-                              d.data()['status'] != 'absent',
+                              ['waiting','called'].contains(d.data()['status']),
                         )
                         .map((d) {
                           final m = d.data();
@@ -120,7 +120,7 @@ class QueueBookingStore extends ChangeNotifier {
                             peopleAhead: ahead,
                             status: status,
                             scheduledTime: state == 'waiting'
-                                ? '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
+                                ? '${FacilityTime.wall(time).hour.toString().padLeft(2, '0')}:${FacilityTime.wall(time).minute.toString().padLeft(2, '0')}'
                                 : null,
                           );
                         }),

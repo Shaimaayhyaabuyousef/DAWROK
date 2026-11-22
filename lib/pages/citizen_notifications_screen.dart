@@ -73,6 +73,8 @@ class CitizenNotificationsScreen extends StatelessWidget {
                               : citizenBlue;
                           final title = switch (type) {
                             'welcome' => 'Welcome to DAWROK!',
+                            'service_cancelled' => 'The facility cancelled service today',
+                            'cancelled' => 'Booking cancelled',
                             'booking' => 'Your booking is confirmed',
                             'served' => '+5 commitment points added',
                             'absent' => '5 commitment points deducted',
@@ -80,6 +82,7 @@ class CitizenNotificationsScreen extends StatelessWidget {
                           };
                           final body = switch (type) {
                             'welcome' => 'Your account was created successfully. Explore facilities and book your first turn.',
+                            'service_cancelled' || 'cancelled' => d['delta'] == 100 ? 'Your ticket was cancelled and 100 points were returned.' : 'Your ticket was cancelled without an absence penalty.',
                             'booking' =>
                               d['delta'] == -100
                                   ? 'Your reward booking was confirmed. 100 points were redeemed.'

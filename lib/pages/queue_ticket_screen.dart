@@ -1,3 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/booking_cancellation.dart';
+import '../services/facility_time.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -6,6 +9,7 @@ const Color _ticketPrimary = Color(0xFF0EA5FF);
 const Color _ticketDark = Color(0xFF1E2235);
 
 class QueueTicketScreen extends StatelessWidget {
+  final bool liveTicket;
   final String ticketNumber;
   final int queueNumber;
   final int? windowNumber;
@@ -19,6 +23,7 @@ class QueueTicketScreen extends StatelessWidget {
 
   const QueueTicketScreen({
     super.key,
+    this.liveTicket = true,
     required this.ticketNumber,
     required this.queueNumber,
     this.windowNumber,
@@ -32,14 +37,14 @@ class QueueTicketScreen extends StatelessWidget {
   });
 
   String get _formattedDate {
-    final date = scheduledAt ?? createdAt;
+    final date = FacilityTime.wall(scheduledAt ?? createdAt);
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
     return '$day/$month/${date.year}';
   }
 
   String get _formattedTime {
-    final time = scheduledAt ?? createdAt;
+    final time = FacilityTime.wall(scheduledAt ?? createdAt);
     final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
     final minute = time.minute.toString().padLeft(2, '0');
     final period = time.hour >= 12 ? 'PM' : 'AM';
@@ -54,6 +59,23 @@ class QueueTicketScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDemo = qrPayload.startsWith('DAWROK-DEMO|');
+    if (isDemo || !liveTicket) return _content(context,isDemo,'waiting');
+    return StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('bookings').doc(ticketNumber).snapshots(),
+      builder:(context,snapshot) {
+        final row = snapshot.data?.data();
+        if (row == null) return Scaffold(appBar:AppBar(),body:Center(child:
+          snapshot.hasError ? const Text('Unable to verify ticket status.') : const CircularProgressIndicator()));
+        final status = row['status'] as String;
+        if (!['waiting','called'].contains(status)) {
+          return Scaffold(appBar:AppBar(title:const Text('Ticket')),body:Center(
+            child:Text('Ticket #$queueNumber · $status')));
+        }
+        return _content(context,false,status,paid:['extra','priority'].contains(row['reward']));
+      });
+  }
+
+  Widget _content(BuildContext context,bool isDemo,String status,{bool paid=false}) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7FAFD),
       body: SafeArea(
@@ -102,6 +124,21 @@ class QueueTicketScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     _buildTicketCard(),
+                    if (!isDemo && liveTicket && status == 'waiting') TextButton(onPressed: () async {
+                          final confirmed = await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+                            title:const Text('Cancel this booking?'),
+                            content:Text(paid ? 'Your place will be released and 100 points returned.' : 'Your place will be released. No points will be deducted.'),
+                            actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Keep ticket')),
+                              TextButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Cancel booking'))]));
+                          if(confirmed != true) return;
+                          try {
+                            await BookingCancellation.cancel(ticketNumber);
+                            if(context.mounted) Navigator.maybePop(context);
+                          } catch(e) {
+                            if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));
+                          }
+                        },child:const Text('Cancel booking')),
+
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,

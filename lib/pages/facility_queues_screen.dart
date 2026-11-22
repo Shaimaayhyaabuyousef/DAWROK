@@ -1,3 +1,5 @@
+import '../services/facility_context.dart';
+import '../services/booking_cancellation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -29,6 +31,10 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await FacilityQueueStore.instance.refresh();
+        final fid = await FacilityContext.instance.requireFacilityId();
+        for (final queue in FacilityQueueStore.instance.queues) {
+          await BookingCancellation.resume(fid, 'window_${queue.windowNumber}');
+        }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -282,6 +288,20 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
               ],
             ),
           ),
+          TextButton(onPressed: () async {
+            final yes = await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+              title:const Text('Cancel service for today?'),
+              content:const Text('Waiting and called tickets will be cancelled. Citizens will be notified and reward points returned.'),
+              actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Keep service')),
+                TextButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Cancel today’s service'))]));
+            if (yes != true) return;
+            try {
+              await BookingCancellation.stopDay('window_${queue.windowNumber}');
+              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Service cancelled and affected tickets updated.')));
+            } catch(e) {
+              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not finish. Retry to continue: $e')));
+            }
+          },child:const Text('Cancel today’s service')),
           const Divider(color: Color(0xFFEBF0F5), height: 1),
           const SizedBox(height: 6),
           Row(
@@ -290,7 +310,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
               const SizedBox(width: 6),
               Expanded(child: _actionButton('Edit', Icons.edit_square, Colors.white, const Color(0xFF354258), () => _edit(context, queue))),
               const SizedBox(width: 6),
-              Expanded(child: _actionButton(active ? 'Deactivate' : 'activation', null, const Color(0xFFFF9000), const Color(0xFFFFDEAF), () {
+              Expanded(child: _actionButton(active ? 'Pause booking' : 'Open booking', null, const Color(0xFFFF9000), const Color(0xFFFFDEAF), () {
                 FacilityQueueStore.instance.setActive(queue.windowNumber, !active).catchError((Object e) {
                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
                 });

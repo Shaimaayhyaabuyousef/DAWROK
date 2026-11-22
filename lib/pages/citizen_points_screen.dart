@@ -55,12 +55,12 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                 leading: const Icon(Icons.priority_high),
                 title: const Text('Priority within your time slot'),
                 subtitle: const Text(
-                  'Earlier time slots and tickets already called keep their turn.',
+                  'Available when a waiting ticket in the same period qualifies under the missed-attendance policy.',
                 ),
                 onTap: () => Navigator.pop(context, 'priority'),
               ),
               const Text(
-                'Points are deducted only after successful booking.',
+                '100 points are returned if you cancel before being called or the facility cancels service.',
                 style: TextStyle(color: Colors.blueGrey),
               ),
             ],

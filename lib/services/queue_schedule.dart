@@ -1,10 +1,12 @@
+import 'facility_time.dart';
+
 /// Shared local-time slot generation and UTC persistence keys.
 class QueueSchedule {
   static String clock(int minutes) =>
       '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
 
   static String dayKey(DateTime time) {
-    final utc = time.toUtc();
+    final utc = FacilityTime.wall(time);
     return '${utc.year}${utc.month.toString().padLeft(2, '0')}${utc.day.toString().padLeft(2, '0')}';
   }
 
@@ -24,11 +26,7 @@ class QueueSchedule {
     if (start < 0 || end > 1440 || windowCount < 1) return null;
     final remaining = availableSlots(start, end, now);
     if (remaining.isEmpty) return null;
-    final day = dayKey(remaining.first);
-    final windows = <DateTime>[
-      for (var i = 0; i < windowCount; i++)
-        DateTime(now.year, now.month, now.day, 0, firstMinute + i * 30),
-    ].where((time) => dayKey(time) == day).toList();
+    final windows = _windows(start, end, now);
     final perWindow = (capacity + windowCount - 1) ~/ windowCount;
     final index = (reserved ~/ perWindow).clamp(0, windows.length - 1);
     final planned = windows[index];
@@ -37,20 +35,20 @@ class QueueSchedule {
 
   static List<DateTime> availableSlots(int start, int end, DateTime now) {
     if (start < 0 || end > 1440 || start >= end) return [];
+    return _windows(start, end, now).where((t) => t.isAfter(now)).toList();
+  }
+
+  static List<DateTime> _windows(int start, int end, DateTime now) {
+    final wall = FacilityTime.wall(now);
+    final midnight = DateTime.utc(wall.year, wall.month, wall.day);
     final slots = <DateTime>[];
-    for (
-      var minute = ((start + 29) ~/ 30) * 30;
-      minute + 30 <= end;
-      minute += 30
-    ) {
-      final time = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        minute ~/ 60,
-        minute % 60,
-      );
-      if (time.isAfter(now)) slots.add(time);
+    // Iterate absolute instants so skipped/repeated wall hours follow the zone.
+    for (int m = -180; m < 1440 - 120; m += 30) {
+      final instant = midnight.add(Duration(minutes: m));
+      final local = FacilityTime.wall(instant);
+      final minute = local.hour * 60 + local.minute;
+      if (local.day == wall.day && minute >= start && minute + 30 <= end)
+        slots.add(instant);
     }
     return slots;
   }

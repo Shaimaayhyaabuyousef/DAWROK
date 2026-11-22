@@ -23,6 +23,14 @@ service cloud.firestore {
     function dayKey(t) {
       return string(t.year()) + pad2(t.month()) + pad2(t.day());
     }
+    // IANA Asia/Gaza transition instants in UTC, indexed from 2020.
+    function facilityWall(t) {
+      let i = t.year()-2020;
+      let summer = [1585346400, 1616796000, 1648332000, 1682726400, 1713571200, 1744416000, 1774656000, 1806105600, 1837555200, 1869004800, 1901059200, 1932508800, 1963958400, 1995408000, 2026857600, 2058307200];
+      let winter = [1603490400, 1635458400, 1666998000, 1698447600, 1729897200, 1761346800, 1792796400, 1824850800, 1856300400, 1887750000, 1919199600, 1950649200, 1982703600, 2014153200, 2045602800, 2077052400];
+      let sec = t.toMillis();
+      return t + duration.value(sec >= 1000 * summer[i] && sec < 1000 * winter[i] ? 3 : 2,'h');
+    }
     function slotKey(t) { return pad2(t.hours()) + pad2(t.minutes()); }
     function guardPath(uid, day) {
       return /databases/$(database)/documents/users/$(uid)/booking_days/$(day);
@@ -153,11 +161,84 @@ service cloud.firestore {
       return b.facilityId == fid && b.queueId == qid && (
         (next != '' && old == '' && b.status == 'called' && string(b.windowNumber) == w
           && b.calledAt == request.time && laneOperator(b,b.windowNumber) && validWindow(fid,qid,b.windowNumber))
-        || (next == '' && old != '' && b.status in ['waiting','served','absent']
+        || (next == '' && old != '' && b.status in ['waiting','served','absent','cancelled']
           && get(bookingPath(id)).data.status == 'called'
           && string(get(bookingPath(id)).data.windowNumber) == w
-          && laneOperator(b,get(bookingPath(id)).data.windowNumber))
+          && (laneOperator(b,get(bookingPath(id)).data.windowNumber) || (b.status == 'cancelled' && isSelf(b.citizenId) && serviceCancelled(b))))
       );
+    }
+    match /clock_samples/{uid} {
+      allow get: if isSelf(uid);
+      allow create, update: if isSelf(uid) && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
+    }
+    function closed(fid,qid,day) {
+      return exists(/databases/$(database)/documents/facilities/$(fid)/queues/$(qid)/closures/$(day));
+    }
+    function serviceCancelled(b) {
+      return closed(b.facilityId,b.queueId,'slotStart' in b ? dayKey(facilityWall(b.slotStart)) : b.get('dayKey','legacy'));
+    }
+    function cancelling(id) {
+      let old = get(bookingPath(id)).data;
+      let b = getAfter(bookingPath(id)).data;
+      return old.status in ['waiting','called'] && b.status == 'cancelled' && b.closedAt == request.time;
+    }
+    function cancelTicket(id,b,a) {
+      let cap = getAfter(capPath(b.facilityId,b.queueId,b.dayKey)).data;
+      let guard = getAfter(guardPath(b.citizenId,b.dayKey)).data;
+      let ev = getAfter(/databases/$(database)/documents/citizen_accounts/$(b.citizenId)/events/$('cancel_'+id)).data;
+      return b.status in ['waiting','called'] && a.closedAt == request.time
+        && a.diff(b).affectedKeys().hasOnly(['status','closedAt','cancelledBy'])
+        && (a.cancelledBy == 'facility' ? (isSelf(b.citizenId) || facilityOwner(b.facilityId)) && serviceCancelled(b)
+          : a.cancelledBy == 'citizen' && isSelf(b.citizenId) && b.status == 'waiting')
+        && cap.lastCancelled == id && cap.updatedAt == request.time
+        && guard.lastCancelled == id && guard.updatedAt == request.time
+        && ev.createdAt == request.time
+        && (!b.get('offersPriority',false) || !existsAfter(offerPath(b,id)))
+        && (b.status != 'called' || releasedLane(b,id))
+        && (b.get('reward','none') == 'none' || getAfter(accountPath(b.citizenId)).data.lastAction == 'refund'
+          && getAfter(accountPath(b.citizenId)).data.lastBookingId == id && getAfter(accountPath(b.citizenId)).data.updatedAt == request.time);
+    }
+    function cancelGuard(uid,day,a,b) {
+      let id = a.lastCancelled;
+      let t = getAfter(bookingPath(id)).data;
+      let key = t.facilityId+'_'+t.queueId;
+      return t.citizenId == uid && t.dayKey == day && cancelling(id)
+        && a.diff(b).affectedKeys().hasOnly(['queues','slots','updatedAt','lastCancelled'])
+        && b.queues[key] == id && b.slots[t.slot] == id
+        && !(key in a.queues) && !(t.slot in a.slots)
+        && a.queues.diff(b.queues).affectedKeys().hasOnly([key])
+        && a.slots.diff(b.slots).affectedKeys().hasOnly([t.slot]) && a.updatedAt == request.time;
+    }
+    function refund(uid,a,b) {
+      let id = a.lastBookingId;
+      let t = getAfter(bookingPath(id)).data;
+      return t.citizenId == uid && cancelling(id) && t.reward in ['extra','priority']
+        && a.diff(b).affectedKeys().hasOnly(['points','lastAction','lastBookingId','updatedAt'])
+        && a.points == b.points + 100 && a.updatedAt == request.time
+        && hasPointEntry(uid,id,'refund_',100,'refund');
+    }
+    function offerPath(b,id) {
+      return /databases/$(database)/documents/facilities/$(b.facilityId)/queues/$(b.queueId)/priority_offers/$(id);
+    }
+    function validSwap(id,b) {
+      let target = b.priorityTarget;
+      let old = get(bookingPath(target)).data;
+      return old.facilityId == b.facilityId && old.queueId == b.queueId && old.slotStart == b.slotStart
+        && old.status == 'waiting' && old.postponements == 0 && old.citizenId != b.citizenId
+        && exists(offerPath(b,target)) && !existsAfter(offerPath(b,target))
+        && b.dispatchPosition == old.queuePosition && getAfter(bookingPath(target)).data.priorityBuyer == id;
+    }
+    function validOffer(fid,qid,id,a) {
+      let b = getAfter(bookingPath(id)).data;
+      return b.facilityId == fid && b.queueId == qid && b.citizenId == request.auth.uid && b.createdAt == request.time
+        && accountData(b.citizenId).streak > 0 && b.offersPriority == true && b.reward != 'priority'
+        && a.keys().hasOnly(['slotStart','position']) && a.position == b.queuePosition && a.slotStart == b.slotStart;
+    }
+    function swapTarget(id,b,a) {
+      let buyer = getAfter(bookingPath(a.priorityBuyer)).data;
+      return a.diff(b).affectedKeys().hasOnly(['priorityBuyer','dispatchPosition'])
+        && !('priorityBuyer' in b) && buyer.createdAt == request.time && buyer.reward == 'priority'
+        && validSwap(a.priorityBuyer,buyer) && buyer.priorityTarget == id && buyer.citizenId == request.auth.uid && a.dispatchPosition == buyer.queuePosition;
     }
     function ticketUpdate(bid,b,a) {
       let changed = a.diff(b).affectedKeys();
@@ -165,6 +246,7 @@ service cloud.firestore {
       return (
         b.status == 'waiting' && a.status == 'called'
         && changed.hasOnly(['status','calledAt','windowNumber','routingVersion'])
+        && (!b.get('offersPriority',false) || !existsAfter(offerPath(b,bid)))
         && a.routingVersion == 2 && a.calledAt == request.time
         && b.slotStart <= request.time
         && validWindow(b.facilityId,b.queueId,a.windowNumber) && laneOperator(b,a.windowNumber)
@@ -179,6 +261,7 @@ service cloud.firestore {
         b.status == 'called' && a.status in ['served','absent']
         && changed.hasOnly(['status','closedAt']) && a.closedAt == request.time
         && (laneOperator(b,b.windowNumber) || (b.get('routingVersion',0) != 2 && assignedQueue(b.facilityId,b.queueId)))
+        && (a.status != 'absent' || b.checkedIn == false && b.calledAt + duration.value(10,'m') <= request.time)
         && releasedLane(b,bid) && scoredClose(bid)
         && (a.status != 'served' || b.checkedIn == true)
       ) || (
@@ -230,19 +313,33 @@ service cloud.firestore {
       return reward == 'none' || (reward in ['extra','priority'] && after.lastBookingId == bid && after.lastAction == 'redeem'
         && after.updatedAt == request.time && after.points == accountData(uid).points - 100);
     }
+    function cancelCapacity(fid,qid,day,old,a) {
+      let id = a.lastCancelled;
+      let b = getAfter(bookingPath(id)).data;
+      return b.facilityId == fid && b.queueId == qid && b.dayKey == day && cancelling(id)
+        && a.diff(old).affectedKeys().hasOnly(['cancelled','lastCancelled','rewardReserved','updatedAt'])
+        && a.cancelled == old.get('cancelled',0)+1 && a.updatedAt == request.time
+        && a.get('rewardReserved',0) == old.get('rewardReserved',0) - (b.get('reward','none') == 'extra' ? 1 : 0);
+    }
+    function inServiceHours(q,b) {
+      let wall = facilityWall(b.slotStart);
+      let minute = wall.hours()*60 + wall.minutes();
+      return minute >= q.get('startsAtMinutes',0) && minute+30 <= q.get('endsAtMinutes',1440);
+    }
     function validCapacity(b) {
       let q = get(queuePath(b.facilityId,b.queueId)).data;
       let path = capPath(b.facilityId,b.queueId,b.dayKey);
       let old = exists(path) ? get(path).data : {'reserved':0};
       let after = getAfter(path).data;
       let extra = b.get('reward','none') == 'extra';
-      return b.queuePosition is int && b.queuePosition == old.reserved + 1
+      return inServiceHours(q,b) && b.queuePosition is int && b.queuePosition == old.reserved + 1
+        && (!b.get('offersPriority',false) || existsAfter(offerPath(b,after.lastBookingId)))
         && after.lastSlotStart == b.slotStart
         && (!('lastSlotStart' in old) || b.slotStart >= old.lastSlotStart)
         && after.reserved == old.reserved + 1
         && after.get('rewardReserved',0) == old.get('rewardReserved',0) + (extra ? 1 : 0)
-        && (extra ? (old.reserved - old.get('rewardReserved',0) >= q.capacity && after.get('rewardReserved',0) <= q.get('rewardCapacity',0))
-          : (old.reserved - old.get('rewardReserved',0) < q.capacity));
+        && (extra ? (old.reserved - old.get('cancelled',0) - old.get('rewardReserved',0) >= q.capacity && after.get('rewardReserved',0) <= q.get('rewardCapacity',0))
+          : (old.reserved - old.get('cancelled',0) - old.get('rewardReserved',0) < q.capacity));
     }
     function scoredClose(bid) {
       let a = getAfter(accountPath(resource.data.citizenId)).data;
@@ -254,11 +351,17 @@ service cloud.firestore {
         || (exists(memberRef(request.auth.uid)) && staffOperator(get(memberRef(request.auth.uid)).data.facilityId))));
       allow list, delete: if false;
       allow create, update: if accountShape(request.resource.data) && (scoreResult(uid,request.resource.data) || redeemPoints(uid,request.resource.data));
+      allow update: if request.resource.data.lastAction == 'refund' && refund(uid,request.resource.data,resource.data);
       allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['streak','suspendedAt','reviewRequired','updatedAt'])
         && request.resource.data.streak == 0 && request.resource.data.suspendedAt == null && request.resource.data.reviewRequired == false && request.resource.data.updatedAt == request.time;
       match /point_transactions/{pid} {
         allow read: if isSelf(uid) || admin();
         allow update, delete: if false;
+        allow create: if pid == 'refund_'+request.resource.data.bookingId && request.resource.data.reason == 'refund'
+          && request.resource.data.points == 100 && request.resource.data.createdAt == request.time
+          && request.resource.data.keys().hasOnly(['reason','points','bookingId','createdAt'])
+          && cancelling(request.resource.data.bookingId) && getAfter(accountPath(uid)).data.lastBookingId == request.resource.data.bookingId
+          && getAfter(accountPath(uid)).data.updatedAt == request.time && getAfter(accountPath(uid)).data.lastAction == 'refund';
         allow create: if signedIn() && validPointEntry(uid,pid,request.resource.data);
       }
       match /events/{eid} {
@@ -290,6 +393,9 @@ service cloud.firestore {
       let b = getAfter(bookingPath(e.bookingId)).data;
       return b.citizenId == uid && ((eid == 'book_' + e.bookingId && isSelf(uid) && b.createdAt == request.time
           && e.type == 'booking' && e.delta == (b.get('reward','none') == 'none' ? 0 : -100))
+        || (eid == 'cancel_'+e.bookingId && cancelling(e.bookingId)
+          && e.type == (b.cancelledBy == 'facility' ? 'service_cancelled' : 'cancelled')
+          && e.delta == (b.get('reward','none') == 'none' ? 0 : 100))
         || (eid == 'result_' + e.bookingId && (facilityOwner(b.facilityId) || staffOperator(b.facilityId))
           && b.closedAt == request.time && e.type == b.status && b.status in ['served','absent'] && e.delta == (b.status == 'served' ? 5 : -5)));
     }
@@ -399,10 +505,11 @@ service cloud.firestore {
           && request.resource.data.queues.keys().size() == 1
           && request.resource.data.slots.keys().size() == 1
           && request.resource.data.updatedAt == request.time;
+        allow update: if 'lastCancelled' in request.resource.data && cancelGuard(uid,day,request.resource.data,resource.data);
         allow update: if isSelf(uid) && citizen()
           && request.resource.data.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['queues','slots','updatedAt'])
+            .hasOnly(['queues','slots','updatedAt','lastCancelled'])
           && request.resource.data.queues is map
           && request.resource.data.slots is map
           && request.resource.data.queues.diff(resource.data.queues).addedKeys().size() == 1
@@ -564,8 +671,22 @@ service cloud.firestore {
             && validLaneWrite(fid,qid,w);
         }
 
+        match /closures/{day} {
+          allow get: if signedIn() || facilityPublished(fid);
+          allow list: if facilityOwner(fid);
+          allow update: if facilityOwner(fid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pending']) && request.resource.data.pending == false;
+          allow create: if facilityOwner(fid) && day == dayKey(facilityWall(request.time))
+            && request.resource.data.keys().hasOnly(['closedAt','pending']) && request.resource.data.pending == true && request.resource.data.closedAt == request.time;
+        }
+        match /priority_offers/{id} {
+          allow read: if citizen();
+          allow create: if citizen() && validOffer(fid,qid,id,request.resource.data);
+          allow delete: if signedIn() && (getAfter(bookingPath(id)).data.status in ['called','cancelled']
+            || getAfter(bookingPath(id)).data.get('priorityBuyer','') != '');
+        }
         match /days/{day} {
           allow get: if facilityOwner(fid) || citizen();
+          allow update: if 'lastCancelled' in request.resource.data && cancelCapacity(fid,qid,day,resource.data,request.resource.data);
           allow list, delete: if false;
           allow create: if citizen()
             && day.matches('^[0-9]{8}$')
@@ -696,11 +817,13 @@ service cloud.firestore {
       allow create: if citizen()
         && canBook(request.auth.uid)
         && request.resource.data.get('reward','none') in ['none','extra','priority']
+        && (request.resource.data.get('reward','none') == 'priority' ? getAfter(bookingPath(request.resource.data.priorityTarget)).data.priorityBuyer == bid
+          : !('priorityTarget' in request.resource.data) && !('dispatchPosition' in request.resource.data))
         && paidReward(request.auth.uid,bid,request.resource.data.get('reward','none'))
         && request.resource.data.keys().hasOnly([
           'citizenId','citizenName','facilityId','facilityName',
           'queueId','windowNumber','service','serviceId','dayKey','slot',
-          'slotStart','queuePosition','status','checkedIn','postponements','createdAt','reward','routingVersion','windowCount'
+          'slotStart','queuePosition','status','checkedIn','postponements','createdAt','reward','routingVersion','windowCount','priorityTarget','dispatchPosition','offersPriority'
         ])
         && request.resource.data.citizenId == request.auth.uid
         && request.resource.data.citizenName == userDoc(request.auth.uid).get('displayName','')
@@ -714,7 +837,8 @@ service cloud.firestore {
         && request.resource.data.slotStart < request.time + duration.value(1,'d')
         && request.resource.data.slotStart.minutes() % 30 == 0
         && request.resource.data.slotStart.seconds() == 0
-        && request.resource.data.dayKey == dayKey(request.resource.data.slotStart)
+        && request.resource.data.dayKey == dayKey(facilityWall(request.resource.data.slotStart))
+        && !closed(request.resource.data.facilityId,request.resource.data.queueId,request.resource.data.dayKey)
         && request.resource.data.slot == slotKey(request.resource.data.slotStart)
         && facilityPublished(request.resource.data.facilityId)
         && get(queuePath(request.resource.data.facilityId,
@@ -735,8 +859,12 @@ service cloud.firestore {
         && getAfter(capPath(request.resource.data.facilityId,
             request.resource.data.queueId,
             request.resource.data.dayKey)).data.lastBookingId == bid
-        && validCapacity(request.resource.data);
-      allow update: if signedIn() && ticketUpdate(bid,resource.data,request.resource.data);
+        && getAfter(capPath(request.resource.data.facilityId,request.resource.data.queueId,request.resource.data.dayKey)).data.updatedAt == request.time;
+      allow update: if signedIn() && (request.resource.data.status == 'cancelled'
+        ? cancelTicket(bid,resource.data,request.resource.data)
+        : request.resource.data.get('priorityBuyer','') != resource.data.get('priorityBuyer','')
+          ? swapTarget(bid,resource.data,request.resource.data)
+          : !serviceCancelled(resource.data) && ticketUpdate(bid,resource.data,request.resource.data));
       allow delete: if false;
     }
 

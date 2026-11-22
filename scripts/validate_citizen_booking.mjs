@@ -28,7 +28,7 @@ try {
     .where('isActive','==',true).where('archived','==',false).get());
   assert.equal(queues.size,1);
   const date = new Date(Math.ceil((Date.now() + 60_000) / 1_800_000) * 1_800_000);
-  const day = date.toISOString().slice(0,10).replaceAll('-','');
+  const day = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Gaza'}).format(date).replaceAll('-','');
   const slot = date.toISOString().slice(11,16).replace(':','');
   const queue = db.doc('facilities/booking-facility/queues/window_1');
   const daily = queue.collection('days').doc(day);

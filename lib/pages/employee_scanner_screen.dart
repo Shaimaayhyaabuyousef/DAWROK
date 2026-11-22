@@ -1,3 +1,4 @@
+import 'absence_button.dart';
 import '../services/booking_order.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -98,7 +99,8 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
             doc.data()['status'] == 'called' && doc.data()['windowNumber'] == widget.windowNumber).toList();
           final waiting = queueTickets.where((doc) =>
             doc.data()['status'] == 'waiting').toList();
-          waiting.sort((a,b) => compareBookingRows(a.data(),a.id,b.data(),b.id));
+      final cancelled = cancelledTicketIds(queueTickets);
+          waiting.sort((a,b) => compareBookingRows(a.data(),a.id,b.data(),b.id,cancelled:cancelled));
           final current = called.isNotEmpty ? called.first.id : null;
           return ListView(
             padding: const EdgeInsets.fromLTRB(23, 14, 23, 33),
@@ -189,7 +191,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                     ? Future.value('No waiting tickets.')
                     : EmployeeWorkService.instance.callNext(widget.queueId, widget.windowNumber)), primary: true)),
                 const SizedBox(width: 12),
-                Expanded(child: _action('Absent', current == null ? null
+                Expanded(child: AbsenceButton(calledAt: called.isEmpty ? null : (called.first.data()['calledAt'] as Timestamp?)?.toDate(), onAbsent: current == null || called.first.data()['checkedIn'] == true ? null
                   : () => _run(() => EmployeeWorkService.instance
                     .changeTicket(current, 'absent', widget.queueId, widget.windowNumber)))),
                 const SizedBox(width: 12),

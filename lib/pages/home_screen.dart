@@ -1,3 +1,5 @@
+import '../services/booking_cancellation.dart';
+import '../services/facility_time.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _welcome() async {
     try {
       await CitizenAccountService.instance.ensureWelcome();
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) await BookingCancellation.settleCitizenClosures(uid);
       if (mounted) setState(() => _welcomeError = null);
     } catch (_) {
       if (mounted)
@@ -511,7 +515,7 @@ class CitizenHomeView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    time == null ? '—' : citizenTime(time),
+                    time == null ? '—' : citizenTime(FacilityTime.wall(time)),
                     style: const TextStyle(
                       color: Color(0xFF008ED3),
                       fontWeight: FontWeight.bold,

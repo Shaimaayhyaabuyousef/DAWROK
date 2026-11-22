@@ -6,10 +6,10 @@ void check(bool condition, String message) {
 }
 
 void main() {
-  final now = DateTime(2026, 11, 15, 10, 15);
+  final now = DateTime.utc(2026, 11, 15, 8, 15);
   final slots = QueueSchedule.availableSlots(480, 720, now);
   check(slots.length == 3, 'Only 10:30, 11:00 and 11:30 remain');
-  check(slots.first == DateTime(2026, 11, 15, 10, 30), 'Next future slot');
+  check(slots.first == DateTime.utc(2026, 11, 15, 8, 30), 'Next future slot');
   check(QueueSchedule.availableSlots(480, 600, now).isEmpty, 'Closed queue');
   check(QueueSchedule.availableSlots(720, 480, now).isEmpty, 'Invalid hours');
   check(
@@ -17,14 +17,14 @@ void main() {
     'No complete slot',
   );
   check(
-    QueueSchedule.availableSlots(615, 690, DateTime(2026, 11, 15, 9)).length ==
+    QueueSchedule.availableSlots(615, 690, DateTime.utc(2026, 11, 15, 7)).length ==
         2,
     'Round opening time up to half hour',
   );
   check(
     QueueSchedule.dayKey(DateTime.parse('2026-11-15T00:30:00+02:00')) ==
-        '20261114',
-    'Day keys must match Firestore UTC timestamps',
+        '20261115',
+    'Day keys follow the facility calendar',
   );
   check(QueueSchedule.clock(1440) == '24:00', 'Closing at midnight');
   print('Queue schedule regression checks passed.');

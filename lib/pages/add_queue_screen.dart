@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'citizen_ui.dart';
 import 'package:flutter/material.dart';
 
 import 'queue_ticket_screen.dart';
@@ -12,6 +14,7 @@ const Color _queueDark = Color(0xFF172033);
 
 class AddQueueScreen extends StatefulWidget {
   final String facilityName;
+  final List<String>? availableQueueIds;
   final String reward;
   final String? facilityId;
   final String? queueId;
@@ -21,6 +24,7 @@ class AddQueueScreen extends StatefulWidget {
   const AddQueueScreen({
     super.key,
     this.reward = 'none',
+    this.availableQueueIds,
     required this.facilityName,
     this.facilityId,
     this.queueId,
@@ -36,6 +40,28 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
   final _formKey = GlobalKey<FormState>();
   final _idController = TextEditingController();
   bool _submitting = false;
+  bool _opened = false;
+  bool _checking = false;
+  StreamSubscription<QueryDocumentSnapshot<Map<String,dynamic>>>? _recovery;
+
+  void _watchRecovery() {
+    final fid = widget.facilityId;
+    if (fid == null) return;
+    _recovery = BookingService.instance.recoveredTickets(fid,widget.reward).listen((doc) async {
+      if (!mounted || _opened || _submitting || ModalRoute.of(context)?.isCurrent != true) return;
+      _opened = true;
+      final data = doc.data();
+      await openCitizenTicket(context,doc.id,data);
+      if (mounted) {
+        await BookingService.instance.acknowledge(fid,data['queueId'],widget.reward,doc.id);
+        _opened = false;
+        setState(() => _checking = false);
+      }
+    },onError:(Object e) {
+      if(mounted && _checking) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));
+    });
+  }
+
   bool _loadingIdentity = true;
   String? _identityError;
 
@@ -43,6 +69,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
   void initState() {
     super.initState();
     _loadSavedId();
+    _watchRecovery();
   }
 
   Future<void> _loadSavedId() async {
@@ -63,6 +90,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
 
   @override
   void dispose() {
+    _recovery?.cancel();
     _idController.dispose();
     super.dispose();
   }
@@ -93,7 +121,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
           .where('archived', isEqualTo: false)
           .get();
       final available = queues.docs
-          .where((q) => widget.queueId == null || q.id == widget.queueId)
+          .where((q) => (widget.queueId == null || q.id == widget.queueId) && (widget.availableQueueIds?.contains(q.id) ?? true))
           .toList();
       if (available.isEmpty)
         throw StateError('This facility has not opened any queues yet.');
@@ -127,6 +155,7 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
         reward: widget.reward,
       );
       if (!mounted) return;
+      _opened = true;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -146,7 +175,14 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
           ),
         ),
       );
+      await BookingService.instance.acknowledge(id,queueId,widget.reward,receipt.id);
     } catch (e) {
+      if (mounted && (e is FirebaseException && ['unavailable','deadline-exceeded','aborted'].contains(e.code) ||
+          e is TimeoutException || e.toString().contains('Checking your booking'))) {
+        setState(() => _checking = true);
+        await _recovery?.cancel();
+        if (mounted) _watchRecovery();
+      }
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))),
@@ -172,11 +208,13 @@ class _AddQueueScreenState extends State<AddQueueScreen> {
                     _buildFacilitySummary(),
                     const SizedBox(height: 48),
                     _buildIdForm(),
+                    if (_checking) const Text('Checking your booking. Your ticket will appear when the connection returns. You can retry the same request.'),
+
                     if (widget.reward != 'none')
                       Padding(
                         padding: const EdgeInsets.only(top: 16),
                         child: Text(
-                          '${widget.reward == 'extra' ? 'Extra reward place' : 'Priority within your time slot'} · 100 points. Charged only after a successful booking.',
+                          '${widget.reward == 'extra' ? 'Extra reward place' : 'Priority within your time slot'} · 100 points. Returned if you cancel before being called or the facility cancels service.',
                         ),
                       ),
                   ],

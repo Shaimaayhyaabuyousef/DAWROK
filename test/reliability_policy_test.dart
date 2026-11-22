@@ -4,6 +4,35 @@ import 'package:first_project/services/reliability_policy.dart';
 import 'package:first_project/services/booking_order.dart';
 
 void main() {
+  test('a paid swap preserves other positions and cancelling restores the original order', () {
+    final target = {
+      'queuePosition': 1,
+      'dispatchPosition': 3,
+      'priorityBuyer': 'buyer',
+    };
+    final other = {'queuePosition': 2};
+    final buyer = {
+      'queuePosition': 3,
+      'dispatchPosition': 1,
+      'priorityTarget': 'target',
+      'reward': 'priority',
+    };
+    expect(compareBookingRows(buyer, 'buyer', other, 'other'), lessThan(0));
+    expect(
+      compareBookingRows(target, 'target', other, 'other'),
+      greaterThan(0),
+    );
+    expect(
+      compareBookingRows(
+        target,
+        'target',
+        other,
+        'other',
+        cancelled: {'buyer'},
+      ),
+      lessThan(0),
+    );
+  });
   test(
     'attendance resets consecutive misses; third miss bans for seven days',
     () {

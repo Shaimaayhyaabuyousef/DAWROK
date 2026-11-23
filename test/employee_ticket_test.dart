@@ -19,6 +19,15 @@ void main() {
       throwsStateError,
     );
   });
+  test('ambiguous and incomplete QR payloads cannot identify a booking', () {
+    for (final code in [
+      'DAWROK|ticket=a|ticket=b|facility=f|queue=q',
+      'DAWROK|ticket=a|facility=f|queue=',
+      'DAWROK|ticket=a&facility=f&queue=q',
+    ]) {
+      expect(() => employeeTicketCode(code, 'f', 'q'), throwsStateError);
+    }
+  });
   for (final width in [320.0, 393.0]) {
     testWidgets('both ticket results fit at width $width with enlarged text', (
       tester,

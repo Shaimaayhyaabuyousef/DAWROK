@@ -236,7 +236,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
       if (!context.mounted) return;
       await Navigator.push(context, MaterialPageRoute(builder: (_) => EmployeeScannerScreen(
         facilityId: facilityId, queueId: queue.documentId ?? 'window_${queue.windowNumber}',
-        windowNumber: window, facilityOwner: true, queueName: queue.service,
+        windowNumber: window, facilityOwner: true,
       )));
     } catch (error) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open queue: $error')));

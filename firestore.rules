@@ -265,9 +265,10 @@ service cloud.firestore {
         && releasedLane(b,bid) && scoredClose(bid)
         && (a.status != 'served' || b.checkedIn == true)
       ) || (
-        a.status == b.status && b.status in ['waiting','called']
+        a.status == b.status && b.status == 'called'
         && changed.hasOnly(['checkedIn']) && b.checkedIn == false && a.checkedIn == true
-        && (facilityOwner(b.facilityId) || (b.status == 'waiting' || b.get('routingVersion',0) != 2 ? assignedQueue(b.facilityId,b.queueId) : assignedLane(b.facilityId,b.queueId,b.windowNumber)))
+        && (laneOperator(b,b.windowNumber) || (b.get('routingVersion',0) != 2 && assignedQueue(b.facilityId,b.queueId)))
+        && (b.get('routingVersion',0) != 2 || get(lanePath(b.facilityId,b.queueId,string(b.windowNumber))).data.ticketId == bid)
       );
     }
 

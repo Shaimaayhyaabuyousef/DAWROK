@@ -1,11 +1,11 @@
 import '../services/queue_schedule.dart';
+import '../services/server_clock.dart';
 import '../services/facility_time.dart';
 import 'employee_ticket_result.dart';
 import 'workspace_style.dart';
 import 'scanner_corners.dart';
 import '../services/queue_audit_service.dart';
 import 'absence_button.dart';
-import '../services/booking_order.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -25,12 +25,10 @@ class EmployeeScannerScreen extends StatefulWidget {
     required this.queueId,
     required this.windowNumber,
     this.facilityOwner = false,
-    this.queueName,
   });
   final String facilityId, queueId;
   final int windowNumber;
   final bool facilityOwner;
-  final String? queueName;
 
   @override
   State<EmployeeScannerScreen> createState() => _EmployeeScannerScreenState();
@@ -39,7 +37,7 @@ class EmployeeScannerScreen extends StatefulWidget {
 class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
   late final _operator = widget.facilityOwner
       ? EmployeeWorkService.forFacilityOwner(widget.facilityId)
-      : EmployeeWorkService.instance;
+      : EmployeeWorkService.forEmployee(widget.facilityId);
   final _text = TextEditingController();
   bool _busy = false;
   String? _failure;
@@ -77,11 +75,17 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
     }
   }
 
-  Future<void> _verify(
-    String raw,
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> tickets,
-    String? current,
-  ) async {
+  late final _tickets = FirebaseFirestore.instance
+      .collection('bookings')
+      .where('facilityId', isEqualTo: widget.facilityId)
+      .where('queueId', isEqualTo: widget.queueId);
+  late final _updates = _tickets.snapshots();
+
+  bool _calledHere(QueryDocumentSnapshot<Map<String, dynamic>> ticket) =>
+      ticket.data()['status'] == 'called' &&
+      ticket.data()['windowNumber'] == widget.windowNumber;
+
+  Future<void> _verify(String raw) async {
     if (_busy || raw.trim().isEmpty) return;
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
@@ -91,11 +95,15 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
     });
     try {
       final code = employeeTicketCode(raw, widget.facilityId, widget.queueId);
+      final tickets = (await _tickets.get(
+        const GetOptions(source: Source.server),
+      )).docs;
+      final current = tickets.where(_calledHere).firstOrNull?.id;
       var ticket = tickets.where((d) => d.id == code).firstOrNull;
       if (ticket == null &&
           !raw.trim().startsWith('DAWROK|') &&
           int.tryParse(code) != null) {
-        final day = QueueSchedule.dayKey(DateTime.now());
+        final day = QueueSchedule.dayKey(await ServerClock.now());
         final matches = tickets
             .where(
               (d) =>
@@ -109,6 +117,9 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
         throw StateError(
           'Ticket not found in this queue. Check the ticket ID.',
         );
+      }
+      if (!{'waiting', 'called'}.contains(ticket.data()['status'])) {
+        throw StateError('This ticket is already closed.');
       }
       if (current == null) {
         throw StateError('Call the next ticket before checking it in.');
@@ -161,10 +172,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('bookings')
-              .where('facilityId', isEqualTo: widget.facilityId)
-              .snapshots(),
+          stream: _updates,
           builder: (context, tickets) {
             if (tickets.hasError) {
               return Center(
@@ -177,32 +185,13 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
             if (!tickets.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            final queueTickets =
-                tickets.data?.docs
-                    .where((doc) => doc.data()['queueId'] == widget.queueId)
-                    .toList() ??
-                [];
-            final called = queueTickets
-                .where(
-                  (doc) =>
-                      doc.data()['status'] == 'called' &&
-                      doc.data()['windowNumber'] == widget.windowNumber,
-                )
-                .toList();
-            final waiting = queueTickets
-                .where((doc) => doc.data()['status'] == 'waiting')
-                .toList();
-            final cancelled = cancelledTicketIds(queueTickets);
-            waiting.sort(
-              (a, b) => compareBookingRows(
-                a.data(),
-                a.id,
-                b.data(),
-                b.id,
-                cancelled: cancelled,
-              ),
+            final queueTickets = tickets.requireData.docs;
+            final called = queueTickets.where(_calledHere);
+            final waiting = queueTickets.where(
+              (doc) => doc.data()['status'] == 'waiting',
             );
             final current = called.isNotEmpty ? called.first.id : null;
+            final visibleMatch = _match?['ticketId'] == current ? _match : null;
             return ListView(
               padding: const EdgeInsets.fromLTRB(23, 14, 23, 33),
               children: [
@@ -217,8 +206,6 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                     ),
                   ),
                 ),
-                if (widget.queueName?.isNotEmpty == true)
-                  Text(widget.queueName!, style: const TextStyle(color: _ink, fontSize: 18, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -283,7 +270,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                     enabled: !_busy,
                     textAlign: TextAlign.center,
                     textInputAction: TextInputAction.done,
-                    onSubmitted: (v) => _verify(v, queueTickets, current),
+                    onSubmitted: (v) => _verify(v),
                     onChanged: (_) => setState(() {
                       _match = null;
                       _failure = null;
@@ -301,7 +288,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                         borderSide: BorderSide(
                           color: _failure != null
                               ? const Color(0xffffb7b7)
-                              : _match != null
+                              : visibleMatch != null
                               ? const Color(0xff9be4b8)
                               : const Color(0xffdce5ef),
                         ),
@@ -313,8 +300,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                             IconButton(
                               tooltip: 'Verify ticket',
                               icon: const Icon(Icons.check, color: _blue),
-                              onPressed: () =>
-                                  _verify(_text.text, queueTickets, current),
+                              onPressed: () => _verify(_text.text),
                             ),
                           IconButton(
                             tooltip: 'Scan QR code',
@@ -339,11 +325,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                                           builder: (_) => const _ScannerSheet(),
                                         );
                                     if (code != null && mounted) {
-                                      await _verify(
-                                        code,
-                                        queueTickets,
-                                        current,
-                                      );
+                                      await _verify(code);
                                     }
                                   },
                           ),
@@ -353,11 +335,11 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                   ),
                 ),
                 if (_busy) const LinearProgressIndicator(),
-                if (_failure != null || _match != null)
+                if (_failure != null || visibleMatch != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 24),
                     child: EmployeeTicketResult(
-                      match: _match,
+                      match: visibleMatch,
                       failure: _failure,
                     ),
                   ),
@@ -453,7 +435,10 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                     final docs = (logs.data?.docs ?? [])
                         .where(
                           (doc) =>
-                              doc.data()['label'] == 'Checked in' ||
+                              const {
+                                'Checked in',
+                                'Ticket check-in',
+                              }.contains(doc.data()['label']) ||
                               doc.data()['outcome'] == 'invalid',
                         )
                         .toList();

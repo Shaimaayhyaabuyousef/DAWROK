@@ -38,6 +38,10 @@ try{
  await assertFails(configurable.update({windowCount:21}));
  await assertFails(configurable.update({windowCount:-1}));
  await ticket('race');
+ for (const actor of ['one','windowOwner']) {
+   await assertFails(client(actor).doc('bookings/race').update({checkedIn:true}));
+ }
+
  const race=await Promise.allSettled([call('one','race','multi',1),call('two','race','multi',2)]);
  if(race.every(r=>r.status==='rejected'))console.error(race);
  assert.equal(race.filter(r=>r.status==='fulfilled').length,1,'one ticket can be claimed only once');
@@ -60,6 +64,10 @@ try{
  await assertFails(complete('windowOwner','directTicket','direct',0,'absent'));
  await env.withSecurityRulesDisabled(c=>c.firestore().doc('bookings/directTicket').update({calledAt:firebase.firestore.Timestamp.fromMillis(Date.now()-601000)}));
  await assertSucceeds(complete('windowOwner','directTicket','direct',0,'absent'));
+ await ticket('ownerScan','direct');
+ await assertSucceeds(call('windowOwner','ownerScan','direct',0));
+ await assertSucceeds(client('windowOwner').doc('bookings/ownerScan').update({checkedIn:true}));
+ await assertSucceeds(complete('windowOwner','ownerScan','direct',0));
  await ticket('directWrong','direct');await assertFails(call('windowOwner','directWrong','direct',1));
  await ticket('future','multi',true);await assertFails(call(other,'future','multi',b.windowNumber===1?2:1));
  await seed(`staff_memberships/${other}`,{facilityId:'windows',role:'windowOfficer',state:'suspended'});

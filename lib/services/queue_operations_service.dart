@@ -114,28 +114,30 @@ class QueueOperationsService {
     String id,
     String fid,
     String qid,
-    int window, {
-    bool requireCalled = false,
-  }) async {
+    int window,
+  ) async {
     final ref = db.collection('bookings').doc(id);
     return db.runTransaction((tx) async {
       final b = (await tx.get(ref)).data();
-      if (b == null ||
-          b['facilityId'] != fid ||
-          b['queueId'] != qid ||
-          !['waiting', 'called'].contains(b['status'])) {
-        throw StateError('Ticket does not belong to this active queue.');
+      if (b == null || b['facilityId'] != fid || b['queueId'] != qid) {
+        throw StateError('Ticket does not belong to this queue.');
       }
-      if (requireCalled &&
-          (b['status'] != 'called' || b['windowNumber'] != window)) {
+      if (b['status'] != 'called' || b['windowNumber'] != window) {
         throw StateError(
           'This ticket is not the current turn at this counter.',
         );
       }
-      if (b['routingVersion'] == 2 &&
-          b['status'] == 'called' &&
-          b['windowNumber'] != window) {
-        throw StateError('Ticket is called at a different window.');
+      if (b['routingVersion'] == 2) {
+        final lane = db
+            .collection('facilities')
+            .doc(fid)
+            .collection('queues')
+            .doc(qid)
+            .collection('lanes')
+            .doc('$window');
+        if ((await tx.get(lane)).data()?['ticketId'] != id) {
+          throw StateError('The current ticket changed.');
+        }
       }
       if (b['checkedIn'] == true) {
         throw StateError('Ticket already checked in.');
@@ -181,8 +183,20 @@ class QueueOperationsService {
     await _log(fid, 'Postponed', id);
   }
 
-  Future<void> close(String id, String fid, String outcome, {String? queueId, int? window}) async {
-    await CitizenAccountService.instance.completeTicket(id, fid, outcome, queueId: queueId, window: window);
+  Future<void> close(
+    String id,
+    String fid,
+    String outcome, {
+    String? queueId,
+    int? window,
+  }) async {
+    await CitizenAccountService.instance.completeTicket(
+      id,
+      fid,
+      outcome,
+      queueId: queueId,
+      window: window,
+    );
     await _log(fid, outcome, id);
   }
 }

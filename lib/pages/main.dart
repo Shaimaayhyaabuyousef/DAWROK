@@ -47,6 +47,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(fontFamily: 'Inter'),
+      builder: (context, navigator) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.0,
+        child: navigator!,
+      ),
       home: const Splash(),
     // home: const FacilityHomeScreen(),
 

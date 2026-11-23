@@ -68,6 +68,7 @@ class EmployeeWorkService {
       fid,
       qid,
       window,
+      owner: _owner,
     );
     try {
       await QueueAuditService.record(fid, 'Checked in', id);
@@ -82,6 +83,7 @@ class EmployeeWorkService {
       await _facility(),
       qid,
       window,
+      owner: _owner,
     );
   }
 
@@ -93,12 +95,13 @@ class EmployeeWorkService {
   ) async {
     final fid = await _facility();
     if (action == 'postpone') {
-      await QueueOperationsService.instance.postpone(id, fid, qid, window);
+      await QueueOperationsService.instance.postpone(id, fid, qid, window, owner: _owner);
     } else {
       await QueueOperationsService.instance.close(
         id,
         fid,
         action,
+        owner: _owner,
         queueId: qid,
         window: window,
       );

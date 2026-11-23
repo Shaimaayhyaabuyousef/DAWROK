@@ -228,18 +228,28 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
             }
             }
 
+  bool _openingQueue = false;
+
   Future<void> _manage(BuildContext context, FacilityQueue queue) async {
-    final window = await chooseFacilityQueueWindow(context, queue.windowCount, queue.service);
-    if (!context.mounted || window == null) return;
+    if (_openingQueue) return;
+    _openingQueue = true;
     try {
       final facilityId = await FacilityContext.instance.requireFacilityId();
+      final queueId = queue.documentId ?? 'window_${queue.windowNumber}';
+      final window = await resolveOwnerWindow(facilityId, queueId);
       if (!context.mounted) return;
+      if (window == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No service position is available right now.')));
+        return;
+      }
       await Navigator.push(context, MaterialPageRoute(builder: (_) => EmployeeScannerScreen(
-        facilityId: facilityId, queueId: queue.documentId ?? 'window_${queue.windowNumber}',
+        facilityId: facilityId, queueId: queueId,
         windowNumber: window, facilityOwner: true,
       )));
     } catch (error) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open queue: $error')));
+    } finally {
+      _openingQueue = false;
     }
   }
 

@@ -246,19 +246,6 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                             : Colors.grey,
                       ),
                       const SizedBox(width: 13),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: TextButton.styleFrom(
-                          backgroundColor: const Color(0xFFE7F7FF),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Change',
-                          style: TextStyle(color: _blue),
-                        ),
-                      ),
                     ],
                   ),
                 ),

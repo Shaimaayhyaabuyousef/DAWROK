@@ -4,6 +4,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 List<int> serviceWindows(int count) =>
     count == 0 ? [0] : List.generate(count, (i) => i + 1);
 
+Set<int> assignedServiceWindows(Map<String,dynamic>? document, String queueId) {
+  final assignments = document?['assignments'] as Map? ?? {};
+  return assignments.values.whereType<Map>().where((a) => a['queueId'] == queueId)
+      .map((a) => a['windowNumber']).whereType<int>().toSet();
+}
+
+// Reading this document inside the write transaction also catches a staff
+// reassignment that races an owner's action on an already-open screen.
+Future<void> checkOwnerWindow(Transaction tx, String fid, String qid, int window) async {
+  final ref = FirebaseFirestore.instance.collection('facilities').doc(fid)
+      .collection('operations').doc('assignments');
+  if (assignedServiceWindows((await tx.get(ref)).data(), qid).contains(window)) {
+    throw StateError('This position has been assigned to a staff member. Reopen the queue.');
+  }
+}
+
 Map<String, dynamic> allocateStaff(
   Map<String, int> queues,
   List<String> staff,

@@ -21,7 +21,12 @@ class QueueOperationsService {
     }
   }
 
-  Future<String> callNext(String fid, String qid, int window) async {
+  Future<String> callNext(
+    String fid,
+    String qid,
+    int window, {
+    bool owner = false,
+  }) async {
     await ServerClock.now();
     // Refetch after a conflict: another window may have taken the candidate.
     for (var attempt = 0; attempt < 4; attempt++) {
@@ -61,6 +66,7 @@ class QueueOperationsService {
       final lane = qref.collection('lanes').doc('$window');
       try {
         await db.runTransaction((tx) async {
+          if (owner) await checkOwnerWindow(tx, fid, qid, window);
           final q = (await tx.get(qref)).data();
           final lock = (await tx.get(lane)).data();
           final ticket = (await tx.get(candidate.reference)).data();
@@ -114,10 +120,12 @@ class QueueOperationsService {
     String id,
     String fid,
     String qid,
-    int window,
-  ) async {
+    int window, {
+    bool owner = false,
+  }) async {
     final ref = db.collection('bookings').doc(id);
     return db.runTransaction((tx) async {
+      if (owner) await checkOwnerWindow(tx, fid, qid, window);
       final b = (await tx.get(ref)).data();
       if (b == null || b['facilityId'] != fid || b['queueId'] != qid) {
         throw StateError('Ticket does not belong to this queue.');
@@ -147,7 +155,13 @@ class QueueOperationsService {
     });
   }
 
-  Future<void> postpone(String id, String fid, String qid, int window) async {
+  Future<void> postpone(
+    String id,
+    String fid,
+    String qid,
+    int window, {
+    bool owner = false,
+  }) async {
     final ref = db.collection('bookings').doc(id);
     final lane = db
         .collection('facilities')
@@ -157,6 +171,7 @@ class QueueOperationsService {
         .collection('lanes')
         .doc('$window');
     await db.runTransaction((tx) async {
+      if (owner) await checkOwnerWindow(tx, fid, qid, window);
       final b = (await tx.get(ref)).data();
       final lock = (await tx.get(lane)).data();
       if (b == null ||
@@ -187,6 +202,7 @@ class QueueOperationsService {
     String id,
     String fid,
     String outcome, {
+    bool owner = false,
     String? queueId,
     int? window,
   }) async {
@@ -194,6 +210,7 @@ class QueueOperationsService {
       id,
       fid,
       outcome,
+      owner: owner,
       queueId: queueId,
       window: window,
     );

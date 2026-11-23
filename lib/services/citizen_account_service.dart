@@ -1,3 +1,4 @@
+import 'queue_assignment_service.dart';
 import 'server_clock.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -38,13 +39,14 @@ class CitizenAccountService {
   Future<void> completeTicket(
     String ticketId,
     String facilityId,
-    String outcome, {String? queueId, int? window}
+    String outcome, {String? queueId, int? window, bool owner = false}
   ) async {
     if (!['served', 'absent'].contains(outcome))
       throw ArgumentError.value(outcome);
     await ServerClock.now();
     final ticketRef = db.collection('bookings').doc(ticketId);
     await db.runTransaction((tx) async {
+      if (owner) await checkOwnerWindow(tx, facilityId, queueId!, window!);
       final ticket = (await tx.get(ticketRef)).data();
       if (ticket == null ||
           ticket['facilityId'] != facilityId ||

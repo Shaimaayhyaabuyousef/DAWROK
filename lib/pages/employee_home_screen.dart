@@ -365,19 +365,11 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                               ],
                             ),
                             const Divider(height: 27, color: _outline),
-                            Row(
+                            SizedBox(width: double.infinity, child: Wrap(
+                              alignment: WrapAlignment.spaceBetween, spacing: 8, runSpacing: 4,
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    'Zone: ${facilityData['address'] ?? 'Not specified'}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Color(0xFF687C99),
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
+                                Text('Zone: ${facilityData['address'] ?? 'Not specified'}',
+                                  style: const TextStyle(color: Color(0xFF687C99), fontSize: 12)),
                                 if (q != null)
                                   Text(
                                     'Hours: ${QueueSchedule.clock(start)} - ${QueueSchedule.clock(end)}',
@@ -387,7 +379,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                                     ),
                                   ),
                               ],
-                            ),
+                            )),
                             const Divider(height: 28, color: _outline),
                             _stat(
                               'served',

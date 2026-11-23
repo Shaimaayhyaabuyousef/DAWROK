@@ -178,7 +178,8 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
 
   Widget _statistics(FacilityQueueStore store) {
     return Container(
-      height: 61,
+      constraints: const BoxConstraints(minHeight: 61),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFF1FAFF),
         border: Border.all(color: _border),
@@ -202,10 +203,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _muted)),
-          ),
+          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _muted)),
           const SizedBox(height: 5),
           Text(value, style: TextStyle(color: valueColor, fontSize: 14, fontWeight: FontWeight.w700)),
         ],
@@ -342,20 +340,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
           const Divider(color: Color(0xFFEBF0F5), height: 9),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              children: [
-                const WorkspaceIcon('beneficiaries', color: _brightBlue),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text('${queue.beneficiaries} Beneficiaries in queue',
-                    softWrap: true,
-                    style: const TextStyle(color: Color(0xFF35445C), fontSize: 11.5)),
-                ),
-                const SizedBox(width: 5),
-                Text('~${queue.waitingMinutes} min wait',
-                  style: const TextStyle(color: Color(0xFF008DE2), fontSize: 11, fontWeight: FontWeight.w600)),
-              ],
-            ),
+            child: QueueWaitSummary(count: queue.beneficiaries, minutes: queue.waitingMinutes),
           ),
 
           const Divider(color: Color(0xFFEBF0F5), height: 1),
@@ -379,8 +364,8 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
   }
 
   Widget _actionButton(String label, IconData? icon, Color color, Color background, VoidCallback pressed) {
-    return SizedBox(
-      height: 30,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 30),
       child: ElevatedButton(
         onPressed: pressed,
         style: ElevatedButton.styleFrom(
@@ -390,19 +375,11 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 15),
-                const SizedBox(width: 5),
-              ],
-              Text(label, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
+        child: Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 5, children: [
+            if (icon != null) Icon(icon, size: 15),
+            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+          ]),
       ),
     );
   }
@@ -430,4 +407,20 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
     );
   }
 
+}
+
+class QueueWaitSummary extends StatelessWidget {
+  const QueueWaitSummary({super.key, required this.count, required this.minutes});
+  final int count, minutes;
+  @override
+  Widget build(BuildContext context) => SizedBox(width: double.infinity, child: Wrap(
+    alignment: WrapAlignment.spaceBetween, spacing: 6, runSpacing: 4,
+    children: [
+      Text.rich(TextSpan(children: [
+        const WidgetSpan(alignment: PlaceholderAlignment.middle, child: WorkspaceIcon('beneficiaries',color:_brightBlue)),
+        TextSpan(text:'  $count Beneficiaries in queue'),
+      ]), style:const TextStyle(color:Color(0xFF35445C),fontSize:11.5)),
+      Text('~$minutes min wait', style:const TextStyle(color:Color(0xFF008DE2),fontSize:11,fontWeight:FontWeight.w600)),
+    ],
+  ));
 }

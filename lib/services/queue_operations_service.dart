@@ -70,14 +70,16 @@ class QueueOperationsService {
                   .contains(window)) {
             throw StateError('This service position is unavailable.');
           }
-          if ((lock?['ticketId'] as String? ?? '').isNotEmpty)
+          if ((lock?['ticketId'] as String? ?? '').isNotEmpty) {
             throw StateError('Finish or postpone the current ticket first.');
+          }
           if (ticket?['status'] != 'waiting') throw const QueueClaimConflict();
           final time = (ticket?['slotStart'] as Timestamp?)?.toDate();
-          if (time != null && time.isAfter(ServerClock.estimate))
+          if (time != null && time.isAfter(ServerClock.estimate)) {
             throw StateError(
               'The next ticket is scheduled for ${time.toLocal()}.',
             );
+          }
           if (ticket?['offersPriority'] == true &&
               ticket?['priorityBuyer'] == null) {
             tx.delete(qref.collection('priority_offers').doc(candidate.id));
@@ -108,22 +110,38 @@ class QueueOperationsService {
     throw StateError('The queue changed. Please tap Next again.');
   }
 
-  Future<void> checkIn(String id, String fid, String qid, int window) async {
+  Future<Map<String, dynamic>> checkIn(
+    String id,
+    String fid,
+    String qid,
+    int window, {
+    bool requireCalled = false,
+  }) async {
     final ref = db.collection('bookings').doc(id);
-    await db.runTransaction((tx) async {
+    return db.runTransaction((tx) async {
       final b = (await tx.get(ref)).data();
       if (b == null ||
           b['facilityId'] != fid ||
           b['queueId'] != qid ||
-          !['waiting', 'called'].contains(b['status']))
+          !['waiting', 'called'].contains(b['status'])) {
         throw StateError('Ticket does not belong to this active queue.');
+      }
+      if (requireCalled &&
+          (b['status'] != 'called' || b['windowNumber'] != window)) {
+        throw StateError(
+          'This ticket is not the current turn at this counter.',
+        );
+      }
       if (b['routingVersion'] == 2 &&
           b['status'] == 'called' &&
-          b['windowNumber'] != window)
+          b['windowNumber'] != window) {
         throw StateError('Ticket is called at a different window.');
-      if (b['checkedIn'] == true)
+      }
+      if (b['checkedIn'] == true) {
         throw StateError('Ticket already checked in.');
+      }
       tx.update(ref, {'checkedIn': true});
+      return b;
     });
   }
 
@@ -144,19 +162,21 @@ class QueueOperationsService {
           b['queueId'] != qid ||
           b['status'] != 'called' ||
           (b['routingVersion'] == 2 &&
-              (b['windowNumber'] != window || lock?['ticketId'] != id)))
+              (b['windowNumber'] != window || lock?['ticketId'] != id))) {
         throw StateError('The current ticket changed.');
+      }
       tx.update(ref, {
         'status': 'waiting',
         'postponements': (b['postponements'] as num).toInt() + 1,
         'postponedAt': FieldValue.serverTimestamp(),
         'windowNumber': 0,
       });
-      if (b['routingVersion'] == 2)
+      if (b['routingVersion'] == 2) {
         tx.set(lane, {
           'ticketId': '',
           'updatedAt': FieldValue.serverTimestamp(),
         });
+      }
     });
     await _log(fid, 'Postponed', id);
   }

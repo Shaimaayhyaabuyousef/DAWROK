@@ -1,5 +1,12 @@
+import '../services/queue_schedule.dart';
+import '../services/facility_time.dart';
+import 'employee_ticket_result.dart';
+import 'workspace_style.dart';
+import 'scanner_corners.dart';
+import '../services/queue_audit_service.dart';
 import 'absence_button.dart';
 import '../services/booking_order.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -26,228 +33,506 @@ class EmployeeScannerScreen extends StatefulWidget {
 }
 
 class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
-  final _camera = MobileScannerController(
-    formats: const [BarcodeFormat.qrCode],
-    detectionSpeed: DetectionSpeed.noDuplicates,
-  );
   final _text = TextEditingController();
   bool _busy = false;
-  String? _result;
+  String? _failure;
+  Map<String, dynamic>? _match;
 
   @override
   void dispose() {
-    _camera.dispose();
     _text.dispose();
     super.dispose();
   }
 
   Future<void> _run(Future<String> Function() action) async {
     if (_busy) return;
-    setState(() { _busy = true; _result = null; });
+    setState(() {
+      _busy = true;
+      _match = null;
+      _failure = null;
+    });
     try {
-      final result = await action();
-      if (mounted) setState(() => _result = result);
+      final message = await action();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+      }
     } catch (e) {
-      if (mounted) setState(() => _result = e.toString());
+      if (mounted) {
+        setState(
+          () => _failure = e is StateError
+              ? e.message
+              : 'Queue action failed. Try again.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  void _manual() {
-    showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
-      title: const Text('Manual ticket input'),
-      content: TextField(
-        controller: _text,
-        autofocus: true,
-        decoration: const InputDecoration(
-          hintText: 'Ticket number or QR content',
-          border: OutlineInputBorder())),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Cancel')),
-        FilledButton(
-          onPressed: () {
-            Navigator.pop(dialogContext);
-            _run(() => EmployeeWorkService.instance.checkIn(_text.text, widget.queueId, widget.windowNumber));
-          },
-          child: const Text('Verify')),
-      ],
-    ));
-  }
-
-  Future<void> _scan(BarcodeCapture capture) async {
-    if (_busy) return;
-    final code = capture.barcodes.isEmpty ? null
-        : capture.barcodes.first.rawValue;
-    if (code == null || code.isEmpty) return;
-    await _run(() => EmployeeWorkService.instance.checkIn(code, widget.queueId, widget.windowNumber));
+  Future<void> _verify(
+    String raw,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> tickets,
+    String? current,
+  ) async {
+    if (_busy || raw.trim().isEmpty) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _busy = true;
+      _match = null;
+      _failure = null;
+    });
+    try {
+      final code = employeeTicketCode(raw, widget.facilityId, widget.queueId);
+      var ticket = tickets.where((d) => d.id == code).firstOrNull;
+      if (ticket == null &&
+          !raw.trim().startsWith('DAWROK|') &&
+          int.tryParse(code) != null) {
+        final day = QueueSchedule.dayKey(DateTime.now());
+        final matches = tickets
+            .where(
+              (d) =>
+                  d.data()['dayKey'] == day &&
+                  d.data()['queuePosition'] == int.tryParse(code),
+            )
+            .toList();
+        if (matches.length == 1) ticket = matches.single;
+      }
+      if (ticket == null) {
+        throw StateError(
+          'Ticket not found in this queue. Check the ticket ID.',
+        );
+      }
+      if (current == null) {
+        throw StateError('Call the next ticket before checking it in.');
+      }
+      if (ticket.id != current) {
+        final expected = tickets.firstWhere((d) => d.id == current);
+        final actual = ticket.data()['queuePosition'] ?? ticket.id;
+        final position = expected.data()['queuePosition'] ?? current;
+        final slot = ticket.data()['slotStart'] as Timestamp?;
+        final time = slot == null ? null : FacilityTime.wall(slot.toDate());
+        final appointment = time == null
+            ? ''
+            : ' Its appointment is at ${QueueSchedule.clock(time.hour * 60 + time.minute)}.';
+        throw StateError(
+          'This is ticket #$actual, not #$position.$appointment Please wait for the called turn.',
+        );
+      }
+      final data = await EmployeeWorkService.instance.checkIn(
+        ticket.id,
+        widget.queueId,
+        widget.windowNumber,
+      );
+      if (mounted) setState(() => _match = {...data, 'ticketId': ticket!.id});
+    } on StateError catch (error) {
+      if (mounted) setState(() => _failure = error.message);
+      try {
+        await QueueAuditService.record(
+          widget.facilityId,
+          'Invalid code',
+          '',
+          outcome: 'invalid',
+        );
+      } on FirebaseException catch (e) {
+        debugPrint('Could not record invalid scan: ${e.code}');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _failure = 'Unable to verify this ticket. Check your connection and assignment.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Colors.white,
-    body: SafeArea(
-      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('bookings')
-          .where('facilityId', isEqualTo: widget.facilityId).snapshots(),
-        builder: (context, tickets) {
-          final queueTickets = tickets.data?.docs.where((doc) =>
-            doc.data()['queueId'] == widget.queueId).toList() ?? [];
-          final called = queueTickets.where((doc) =>
-            doc.data()['status'] == 'called' && doc.data()['windowNumber'] == widget.windowNumber).toList();
-          final waiting = queueTickets.where((doc) =>
-            doc.data()['status'] == 'waiting').toList();
-      final cancelled = cancelledTicketIds(queueTickets);
-          waiting.sort((a,b) => compareBookingRows(a.data(),a.id,b.data(),b.id,cancelled:cancelled));
-          final current = called.isNotEmpty ? called.first.id : null;
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(23, 14, 23, 33),
-            children: [
-              Align(alignment: Alignment.centerLeft, child: IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_ios_new,
-                  color: Colors.black, size: 23))),
-              const SizedBox(height: 34),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 15, vertical: 14),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE0E8F2)),
-                  borderRadius: BorderRadius.circular(16)),
-                child: Row(children: [
-                  Container(width: 37, height: 37,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE7F7FF),
-                      borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.apartment_outlined, color: _blue)),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(
-                    widget.windowNumber == 0 ? 'Direct queue service' : 'Window ${widget.windowNumber}',
-                    style: const TextStyle(color: _ink, fontSize: 16))),
-                  CircleAvatar(radius: 4, backgroundColor:
-                    waiting.isNotEmpty || called.isNotEmpty
-                      ? const Color(0xFF10B58B) : Colors.grey),
-                  const SizedBox(width: 13),
-                  TextButton(
+  Widget build(BuildContext context) => WorkspaceStyle(
+    child: Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('bookings')
+              .where('facilityId', isEqualTo: widget.facilityId)
+              .snapshots(),
+          builder: (context, tickets) {
+            if (tickets.hasError) {
+              return Center(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Queue unavailable. Return home"),
+                ),
+              );
+            }
+            if (!tickets.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final queueTickets =
+                tickets.data?.docs
+                    .where((doc) => doc.data()['queueId'] == widget.queueId)
+                    .toList() ??
+                [];
+            final called = queueTickets
+                .where(
+                  (doc) =>
+                      doc.data()['status'] == 'called' &&
+                      doc.data()['windowNumber'] == widget.windowNumber,
+                )
+                .toList();
+            final waiting = queueTickets
+                .where((doc) => doc.data()['status'] == 'waiting')
+                .toList();
+            final cancelled = cancelledTicketIds(queueTickets);
+            waiting.sort(
+              (a, b) => compareBookingRows(
+                a.data(),
+                a.id,
+                b.data(),
+                b.id,
+                cancelled: cancelled,
+              ),
+            );
+            final current = called.isNotEmpty ? called.first.id : null;
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(23, 14, 23, 33),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
                     onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      backgroundColor: const Color(0xFFE7F7FF),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10))),
-                    child: const Text('Change', style: TextStyle(color: _blue))),
-                ]),
-              ),
-              const SizedBox(height: 42),
-              Container(
-                height: 217,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF192237),
-                  border: Border.all(color: const Color(0xFF8E9AAD), width: 2),
-                  borderRadius: BorderRadius.circular(26)),
-                child: Stack(children: [
-                  MobileScanner(
-                    controller: _camera,
-                    onDetect: _scan,
-                    errorBuilder: (context, error) => Center(child:
-                      Text('Camera unavailable. Use manual input.\n$error',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 12))),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: Colors.black,
+                      size: 23,
+                    ),
                   ),
-                  IgnorePointer(child: Center(child: Container(
-                    height: 139, width: 139,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: _blue, width: 3),
-                      borderRadius: BorderRadius.circular(19)),
-                  ))),
-                ]),
-              ),
-              const SizedBox(height: 13),
-              const Text('Please place the code inside the frame for automatic scanning.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: _muted, fontSize: 13, height: 1.35)),
-              const SizedBox(height: 13),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : _manual,
-                icon: const Icon(Icons.keyboard_outlined),
-                label: const Text('manual input',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
-                  foregroundColor: const Color(0xFF0086D3),
-                  side: const BorderSide(color: Color(0xFFB5DFFB)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
-              ),
-              if (_result != null) Padding(
-                padding: const EdgeInsets.only(top: 13),
-                child: Text(_result!, textAlign: TextAlign.center,
-                  style: const TextStyle(color: _blue, fontSize: 12))),
-              const SizedBox(height: 38),
-              Row(children: [
-                Expanded(child: _action('Next', () => _run(() =>
-                  current != null ? Future.value('Finish the current ticket first.') : waiting.isEmpty
-                    ? Future.value('No waiting tickets.')
-                    : EmployeeWorkService.instance.callNext(widget.queueId, widget.windowNumber)), primary: true)),
-                const SizedBox(width: 12),
-                Expanded(child: AbsenceButton(calledAt: called.isEmpty ? null : (called.first.data()['calledAt'] as Timestamp?)?.toDate(), onAbsent: current == null || called.first.data()['checkedIn'] == true ? null
-                  : () => _run(() => EmployeeWorkService.instance
-                    .changeTicket(current, 'absent', widget.queueId, widget.windowNumber)))),
-                const SizedBox(width: 12),
-                Expanded(child: _action('Post', current == null ? null
-                  : () => _run(() => EmployeeWorkService.instance
-                    .changeTicket(current, 'postpone', widget.queueId, widget.windowNumber)))),
-              ]),
-              const SizedBox(height: 16),
-              FilledButton(onPressed: current == null || _busy ? null : () => _run(() =>
-                EmployeeWorkService.instance.changeTicket(current, 'served', widget.queueId, widget.windowNumber)),
-                child: const Text('Complete service')),
-              const SizedBox(height: 47),
-              StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
-                stream: FirebaseFirestore.instance
-                  .collection('facilities').doc(widget.facilityId)
-                  .collection('queue_logs').orderBy('createdAt', descending: true)
-                  .limit(10).snapshots(),
-                builder: (context, logs) {
-                  if (logs.hasError) return Text('Logs error: ${logs.error}',
-                    style: const TextStyle(color: Colors.red));
-                  final docs = logs.data?.docs ?? [];
-                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      const Text('RECENT SURVEYS', style: TextStyle(
-                        color: Color(0xFF52657F), fontSize: 13)),
-                      const SizedBox(width: 11),
-                      Text('${docs.length} logs',
-                        style: const TextStyle(color: Color(0xFF8A9DB3))),
-                    ]),
-                    const Divider(height: 21),
-                    if (docs.isEmpty) const Padding(
-                      padding: EdgeInsets.all(14),
-                      child: Text('No scans yet.', style: TextStyle(color: _muted))),
-                    for (final doc in docs) ...[
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(backgroundColor: const Color(0xFF111D34),
-                          child: Icon(doc.data()['outcome'] == 'invalid'
-                            ? Icons.warning_amber_rounded
-                            : Icons.shopping_bag_outlined, color: Colors.white)),
-                        title: Text(doc.data()['label'] as String? ?? 'Ticket'),
-                        subtitle: Text('ID: ${doc.data()['identifier'] ?? ''}'),
-                        trailing: Icon(
-                          doc.data()['outcome'] == 'invalid'
-                            ? Icons.cancel_outlined : Icons.check_circle_outline,
-                          color: doc.data()['outcome'] == 'invalid'
-                            ? Colors.redAccent : const Color(0xFF10AD86)),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFE0E8F2)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 37,
+                        height: 37,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE7F7FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.apartment_outlined,
+                          color: _blue,
+                        ),
                       ),
-                      const Divider(height: 1),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          widget.windowNumber == 0
+                              ? 'Direct queue service'
+                              : 'Counter ${widget.windowNumber.toString().padLeft(2, '0')}',
+                          style: const TextStyle(color: _ink, fontSize: 16),
+                        ),
+                      ),
+                      CircleAvatar(
+                        radius: 4,
+                        backgroundColor: waiting.isNotEmpty || called.isNotEmpty
+                            ? const Color(0xFF10B58B)
+                            : Colors.grey,
+                      ),
+                      const SizedBox(width: 13),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          backgroundColor: const Color(0xFFE7F7FF),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Change',
+                          style: TextStyle(color: _blue),
+                        ),
+                      ),
                     ],
-                  ]);
-                },
-              ),
-            ],
-          );
-        },
+                  ),
+                ),
+                const SizedBox(height: 42),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: TextField(
+                    controller: _text,
+                    enabled: !_busy,
+                    textAlign: TextAlign.center,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (v) => _verify(v, queueTickets, current),
+                    onChanged: (_) => setState(() {
+                      _match = null;
+                      _failure = null;
+                    }),
+                    decoration: InputDecoration(
+                      hintText: 'Ticket ID or turn number',
+                      isDense: true,
+                      filled: true,
+                      fillColor: const Color(0xfffafbfd),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: _failure != null
+                              ? const Color(0xffffb7b7)
+                              : _match != null
+                              ? const Color(0xff9be4b8)
+                              : const Color(0xffdce5ef),
+                        ),
+                      ),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_text.text.trim().isNotEmpty)
+                            IconButton(
+                              tooltip: 'Verify ticket',
+                              icon: const Icon(Icons.check, color: _blue),
+                              onPressed: () =>
+                                  _verify(_text.text, queueTickets, current),
+                            ),
+                          IconButton(
+                            tooltip: 'Scan QR code',
+                            icon: const Icon(
+                              Icons.qr_code_scanner,
+                              color: _blue,
+                            ),
+                            onPressed: _busy
+                                ? null
+                                : () async {
+                                    final code =
+                                        await showModalBottomSheet<String>(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          useSafeArea: true,
+                                          backgroundColor: Colors.white,
+                                          shape: const RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.vertical(
+                                              top: Radius.circular(40),
+                                            ),
+                                          ),
+                                          builder: (_) => const _ScannerSheet(),
+                                        );
+                                    if (code != null && mounted) {
+                                      await _verify(
+                                        code,
+                                        queueTickets,
+                                        current,
+                                      );
+                                    }
+                                  },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (_busy) const LinearProgressIndicator(),
+                if (_failure != null || _match != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 24),
+                    child: EmployeeTicketResult(
+                      match: _match,
+                      failure: _failure,
+                    ),
+                  ),
+                const SizedBox(height: 38),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _action(
+                        'Next',
+                        () => _run(
+                          () => current != null
+                              ? Future.value('Finish the current ticket first.')
+                              : waiting.isEmpty
+                              ? Future.value('No waiting tickets.')
+                              : EmployeeWorkService.instance.callNext(
+                                  widget.queueId,
+                                  widget.windowNumber,
+                                ),
+                        ),
+                        primary: true,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: AbsenceButton(
+                        calledAt: called.isEmpty
+                            ? null
+                            : (called.first.data()['calledAt'] as Timestamp?)
+                                  ?.toDate(),
+                        onAbsent:
+                            current == null ||
+                                called.first.data()['checkedIn'] == true
+                            ? null
+                            : () => _run(
+                                () => EmployeeWorkService.instance.changeTicket(
+                                  current,
+                                  'absent',
+                                  widget.queueId,
+                                  widget.windowNumber,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _action(
+                        'Post',
+                        current == null
+                            ? null
+                            : () => _run(
+                                () => EmployeeWorkService.instance.changeTicket(
+                                  current,
+                                  'postpone',
+                                  widget.queueId,
+                                  widget.windowNumber,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (current != null && called.first.data()['checkedIn'] == true)
+                  FilledButton(
+                    onPressed: _busy
+                        ? null
+                        : () => _run(
+                            () => EmployeeWorkService.instance.changeTicket(
+                              current,
+                              'served',
+                              widget.queueId,
+                              widget.windowNumber,
+                            ),
+                          ),
+                    child: const Text('Complete service'),
+                  ),
+                const SizedBox(height: 47),
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('facilities')
+                      .doc(widget.facilityId)
+                      .collection('queue_logs')
+                      .orderBy('createdAt', descending: true)
+                      .limit(10)
+                      .snapshots(),
+                  builder: (context, logs) {
+                    if (logs.hasError) {
+                      return Text(
+                        'Logs error: ${logs.error}',
+                        style: const TextStyle(color: Colors.red),
+                      );
+                    }
+                    final docs = (logs.data?.docs ?? [])
+                        .where(
+                          (doc) =>
+                              doc.data()['label'] == 'Checked in' ||
+                              doc.data()['outcome'] == 'invalid',
+                        )
+                        .toList();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'RECENT SURVEYS',
+                              style: TextStyle(
+                                color: Color(0xFF52657F),
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(width: 11),
+                            Text(
+                              '${docs.length} logs',
+                              style: const TextStyle(color: Color(0xFF8A9DB3)),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 21),
+                        if (docs.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(14),
+                            child: Text(
+                              'No scans yet.',
+                              style: TextStyle(color: _muted),
+                            ),
+                          ),
+                        for (final doc in docs) ...[
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor:
+                                  doc.data()['outcome'] == 'invalid'
+                                  ? const Color(0xff570c20)
+                                  : const Color(0xFF111D34),
+                              child: Icon(
+                                doc.data()['outcome'] == 'invalid'
+                                    ? Icons.warning_amber_rounded
+                                    : Icons.shopping_bag_outlined,
+                                color: Colors.white,
+                              ),
+                            ),
+                            title: Wrap(
+                              spacing: 6,
+                              children: [
+                                Text(
+                                  doc.data()['label'] as String? ?? 'Ticket',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                Text(
+                                  doc.data()['outcome'] == 'invalid'
+                                      ? 'Failed attempt'
+                                      : 'Verified',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: doc.data()['outcome'] == 'invalid'
+                                        ? Colors.red
+                                        : Colors.teal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Text(
+                              'ID: ${doc.data()['identifier'] ?? ''}',
+                            ),
+                            trailing: Icon(
+                              doc.data()['outcome'] == 'invalid'
+                                  ? Icons.cancel_outlined
+                                  : Icons.check_circle_outline,
+                              color: doc.data()['outcome'] == 'invalid'
+                                  ? Colors.redAccent
+                                  : const Color(0xFF10AD86),
+                            ),
+                          ),
+                          const Divider(height: 1),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        ),
       ),
     ),
   );
@@ -257,12 +542,133 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
         onPressed: _busy ? null : action,
         style: ElevatedButton.styleFrom(
           minimumSize: const Size(0, 43),
-          backgroundColor: primary ? const Color(0xFF4FAAF4) : const Color(0xFF12456D),
+          backgroundColor: primary
+              ? const Color(0xFF4FAAF4)
+              : const Color(0xFF12456D),
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(13)),
+            borderRadius: BorderRadius.circular(13),
+          ),
           padding: EdgeInsets.zero,
         ),
         child: Text(text, style: const TextStyle(fontSize: 13)),
       );
+}
+
+class _ScannerSheet extends StatefulWidget {
+  const _ScannerSheet();
+  @override
+  State<_ScannerSheet> createState() => _ScannerSheetState();
+}
+
+class _ScannerSheetState extends State<_ScannerSheet> {
+  final camera = MobileScannerController(formats: const [BarcodeFormat.qrCode]);
+  bool returning = false;
+  @override
+  void dispose() {
+    camera.dispose();
+    super.dispose();
+  }
+
+  Future<void> control(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Camera control unavailable.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => WorkspaceStyle(
+    child: SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 18, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.circle, color: _blue, size: 10),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'QR Code Scanner',
+                    style: TextStyle(fontSize: 18, color: _ink),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Flashlight',
+                  icon: const Icon(Icons.flash_on_outlined),
+                  onPressed: () => control(camera.toggleTorch),
+                ),
+                IconButton(
+                  tooltip: 'Switch camera',
+                  icon: const Icon(Icons.cameraswitch_outlined),
+                  onPressed: () => control(camera.switchCamera),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: AspectRatio(
+                aspectRatio: 1.5,
+                child: MobileScanner(
+                  controller: camera,
+                  onDetect: (capture) {
+                    final value = capture.barcodes.firstOrNull?.rawValue;
+                    if (returning ||
+                        value == null ||
+                        value.isEmpty ||
+                        ModalRoute.of(context)?.isCurrent != true) {
+                      return;
+                    }
+                    returning = true;
+                    Navigator.pop(context, value);
+                  },
+                  overlayBuilder: (context, constraints) => IgnorePointer(
+                    child: SizedBox.expand(
+                      child: CustomPaint(painter: ScannerCorners()),
+                    ),
+                  ),
+                  errorBuilder: (_, error) => ColoredBox(
+                    color: _ink,
+                    child: Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          'Camera unavailable. Enter ticket manually.',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Please place the code inside the\nframe for automatic scanning.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: _muted),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

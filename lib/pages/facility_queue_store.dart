@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 enum FacilityQueueShift { morning, evening }
 
 class FacilityQueue {
+  final String? documentId;
   final int windowNumber; // Stable legacy queue number, not a service window.
   final int windowCount;
   final String service;
@@ -25,6 +26,7 @@ class FacilityQueue {
   final bool isActive;
 
   const FacilityQueue({
+    this.documentId,
     required this.windowNumber,
     this.windowCount = 1,
     required this.service,
@@ -52,6 +54,7 @@ class FacilityQueue {
     bool? isActive,
   }) {
     return FacilityQueue(
+      documentId: documentId,
       windowNumber: windowNumber,
       windowCount: windowCount,
       service: service ?? this.service,
@@ -106,6 +109,8 @@ class FacilityQueueStore extends ChangeNotifier {
       _counts = {};
       _facilityId = null;
       _queues.clear();
+      hasLoadedQueues = false;
+      error = null;
       notifyListeners();
       _listen();
     });
@@ -117,6 +122,7 @@ class FacilityQueueStore extends ChangeNotifier {
   Map<int,int> _counts = {};
   String? _facilityId;
   String? error;
+  bool hasLoadedQueues = false;
   final List<FacilityQueue> _queues = [];
 
   List<FacilityQueue> get queues => List.unmodifiable(_queues);
@@ -151,6 +157,7 @@ class FacilityQueueStore extends ChangeNotifier {
           ..clear()
           ..addAll(snap.docs.where((d) => d.data()['archived'] != true)
               .map(_fromDoc).map((q) => q.copyWith(beneficiaries: _counts[q.windowNumber] ?? 0)));
+        hasLoadedQueues = true;
         _queues.sort((a,b) => a.windowNumber.compareTo(b.windowNumber));
         error = null;
         notifyListeners();
@@ -181,6 +188,7 @@ class FacilityQueueStore extends ChangeNotifier {
         ..addAll(snapshot.docs.where((d) => d.data()['archived'] != true)
           .map(_fromDoc).map((q) =>
             q.copyWith(beneficiaries: _counts[q.windowNumber] ?? 0)));
+      hasLoadedQueues = true;
       _queues.sort((a, b) => a.windowNumber.compareTo(b.windowNumber));
       error = null;
       notifyListeners();
@@ -199,6 +207,7 @@ class FacilityQueueStore extends ChangeNotifier {
     final start = (m['startsAtMinutes'] as num?)?.toInt() ?? 480;
     final end = (m['endsAtMinutes'] as num?)?.toInt() ?? 1020;
     return FacilityQueue(
+      documentId: doc.id,
       windowNumber: (m['windowNumber'] as num?)?.toInt() ?? 0,
       windowCount: (m['windowCount'] as num?)?.toInt() ?? 1,
       service: m['service'] as String? ?? '',

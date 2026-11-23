@@ -181,8 +181,8 @@ class QueueOperationsService {
     await _log(fid, 'Postponed', id);
   }
 
-  Future<void> close(String id, String fid, String outcome) async {
-    await CitizenAccountService.instance.completeTicket(id, fid, outcome);
+  Future<void> close(String id, String fid, String outcome, {String? queueId, int? window}) async {
+    await CitizenAccountService.instance.completeTicket(id, fid, outcome, queueId: queueId, window: window);
     await _log(fid, outcome, id);
   }
 }

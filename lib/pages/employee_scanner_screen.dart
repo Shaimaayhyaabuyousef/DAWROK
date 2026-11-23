@@ -24,15 +24,22 @@ class EmployeeScannerScreen extends StatefulWidget {
     required this.facilityId,
     required this.queueId,
     required this.windowNumber,
+    this.facilityOwner = false,
+    this.queueName,
   });
   final String facilityId, queueId;
   final int windowNumber;
+  final bool facilityOwner;
+  final String? queueName;
 
   @override
   State<EmployeeScannerScreen> createState() => _EmployeeScannerScreenState();
 }
 
 class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
+  late final _operator = widget.facilityOwner
+      ? EmployeeWorkService.forFacilityOwner(widget.facilityId)
+      : EmployeeWorkService.instance;
   final _text = TextEditingController();
   bool _busy = false;
   String? _failure;
@@ -119,7 +126,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
           'This is ticket #$actual, not #$position.$appointment Please wait for the called turn.',
         );
       }
-      final data = await EmployeeWorkService.instance.checkIn(
+      final data = await _operator.checkIn(
         ticket.id,
         widget.queueId,
         widget.windowNumber,
@@ -210,6 +217,8 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                     ),
                   ),
                 ),
+                if (widget.queueName?.isNotEmpty == true)
+                  Text(widget.queueName!, style: const TextStyle(color: _ink, fontSize: 18, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -363,7 +372,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                               ? Future.value('Finish the current ticket first.')
                               : waiting.isEmpty
                               ? Future.value('No waiting tickets.')
-                              : EmployeeWorkService.instance.callNext(
+                              : _operator.callNext(
                                   widget.queueId,
                                   widget.windowNumber,
                                 ),
@@ -383,7 +392,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                                 called.first.data()['checkedIn'] == true
                             ? null
                             : () => _run(
-                                () => EmployeeWorkService.instance.changeTicket(
+                                () => _operator.changeTicket(
                                   current,
                                   'absent',
                                   widget.queueId,
@@ -399,7 +408,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                         current == null
                             ? null
                             : () => _run(
-                                () => EmployeeWorkService.instance.changeTicket(
+                                () => _operator.changeTicket(
                                   current,
                                   'postpone',
                                   widget.queueId,
@@ -416,7 +425,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                     onPressed: _busy
                         ? null
                         : () => _run(
-                            () => EmployeeWorkService.instance.changeTicket(
+                            () => _operator.changeTicket(
                               current,
                               'served',
                               widget.queueId,

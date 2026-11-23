@@ -38,7 +38,7 @@ class CitizenAccountService {
   Future<void> completeTicket(
     String ticketId,
     String facilityId,
-    String outcome,
+    String outcome, {String? queueId, int? window}
   ) async {
     if (!['served', 'absent'].contains(outcome))
       throw ArgumentError.value(outcome);
@@ -52,6 +52,10 @@ class CitizenAccountService {
         throw StateError(
           'This ticket is not currently called in your facility.',
         );
+      if ((queueId != null && ticket['queueId'] != queueId) ||
+          (window != null && ticket['windowNumber'] != window)) {
+        throw StateError('This ticket is no longer called at this counter.');
+      }
       if (outcome == 'served' && ticket['checkedIn'] != true)
         throw StateError('Check-in is required.');
       if (outcome == 'absent') {

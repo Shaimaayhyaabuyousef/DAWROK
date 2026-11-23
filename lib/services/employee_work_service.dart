@@ -1,3 +1,4 @@
+import 'facility_context.dart';
 import 'package:flutter/foundation.dart';
 
 import 'queue_operations_service.dart';
@@ -9,7 +10,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 /// Employee operations are checked again in Firestore rules. An employee
 /// invitation code alone never grants work permissions.
 class EmployeeWorkService {
-  EmployeeWorkService._();
+  EmployeeWorkService._() : _ownerFacilityId = null;
+  EmployeeWorkService.forFacilityOwner(String facilityId) : _ownerFacilityId = facilityId;
+  final String? _ownerFacilityId;
   static final instance = EmployeeWorkService._();
   final _db = FirebaseFirestore.instance;
 
@@ -32,17 +35,18 @@ class EmployeeWorkService {
   }
 
   Future<String> _facility() async {
-    final m = await _membership();
-    final fid = m['facilityId'];
-    if (fid is! String || fid.isEmpty) throw StateError('Invalid facility.');
-    return fid;
-  }
-
-  Future<void> _canOperate() async {
-    final m = await _membership();
-    if (m['role'] != 'windowOfficer' && m['role'] != 'supervisor') {
+    if (_ownerFacilityId != null) {
+      final id = await FacilityContext.instance.requireFacilityId();
+      if (id != _ownerFacilityId) throw StateError('This queue belongs to another facility.');
+      return id;
+    }
+    final membership = await _membership();
+    if (!{'windowOfficer', 'supervisor'}.contains(membership['role'])) {
       throw StateError('Your assigned role cannot manage queue tickets.');
     }
+    final id = membership['facilityId'];
+    if (id is! String || id.isEmpty) throw StateError('Invalid facility.');
+    return id;
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> tickets(String fid) => _db
@@ -55,7 +59,6 @@ class EmployeeWorkService {
     String qid,
     int window,
   ) async {
-    await _canOperate();
     final fid = await _facility();
     final booking = await QueueOperationsService.instance.checkIn(
       id,
@@ -73,7 +76,6 @@ class EmployeeWorkService {
   }
 
   Future<String> callNext(String qid, int window) async {
-    await _canOperate();
     return QueueOperationsService.instance.callNext(
       await _facility(),
       qid,
@@ -87,12 +89,11 @@ class EmployeeWorkService {
     String qid,
     int window,
   ) async {
-    await _canOperate();
     final fid = await _facility();
     if (action == 'postpone') {
       await QueueOperationsService.instance.postpone(id, fid, qid, window);
     } else {
-      await QueueOperationsService.instance.close(id, fid, action);
+      await QueueOperationsService.instance.close(id, fid, action, queueId: qid, window: window);
     }
     return 'Ticket updated: $action';
   }

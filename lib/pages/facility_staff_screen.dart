@@ -1,3 +1,4 @@
+import 'facility_empty_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'facility_nav.dart';
@@ -42,6 +43,11 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
                 style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
             ),
           ],
+          if (FacilityStaffStore.instance.staff.isEmpty && FacilityStaffStore.instance.error == null)
+            if (FacilityStaffStore.instance.hasLoadedStaff)
+              const FacilityEmptyState.staff()
+            else
+              const Center(child: CircularProgressIndicator()),
           ...FacilityStaffStore.instance.staff.map((s) => Padding(padding: const EdgeInsets.only(bottom: 16), child: _staffCard(context, s))),
           const SizedBox(height: 3),
           SizedBox(height: 54, child: ElevatedButton.icon(

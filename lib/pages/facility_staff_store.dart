@@ -43,6 +43,7 @@ class StaffInviteResult {
 class FacilityStaffStore extends ChangeNotifier {
   FacilityStaffStore._() {
     _authSub = FirebaseAuth.instance.authStateChanges().listen((_) {
+      hasLoadedStaff = false;
       _generation++;
       _staffSub?.cancel(); _requestsSub?.cancel();
       _staffSub = null; _requestsSub = null;
@@ -58,6 +59,7 @@ class FacilityStaffStore extends ChangeNotifier {
   final List<FacilityStaff> _staff = [];
   final Map<String,Map<String,dynamic>> _requests = {};
   String? _facilityId, error;
+  bool hasLoadedStaff = false;
   int _generation = 0;
   List<FacilityStaff> get staff => List.unmodifiable(_staff);
   CollectionReference<Map<String,dynamic>> _collection(String fid) =>
@@ -117,6 +119,7 @@ class FacilityStaffStore extends ChangeNotifier {
   void _applyStaffDocs(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
+    hasLoadedStaff = true;
     _staff..clear()..addAll(docs.map((doc) {
           final m = doc.data();
           return FacilityStaff(

@@ -1,3 +1,6 @@
+import 'facility_empty_state.dart';
+import 'employee_scanner_screen.dart';
+import 'facility_queue_window_picker.dart';
 import 'workspace_style.dart';
 import '../services/facility_context.dart';
 import '../services/booking_cancellation.dart';
@@ -137,7 +140,12 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _statistics(store),
+                            if (store.queues.isNotEmpty) _statistics(store),
+                            if (store.queues.isEmpty && store.error == null)
+                              if (store.hasLoadedQueues)
+                                const FacilityEmptyState.queues()
+                              else
+                                const Center(child: CircularProgressIndicator()),
                             if (store.error != null) ...[
                               const SizedBox(height: 12),
                               Text(
@@ -151,7 +159,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                               _queueCard(context, queue),
                               const SizedBox(height: 10),
                             ],
-                            const SizedBox(height: 45),
+                            if (store.queues.isNotEmpty) const SizedBox(height: 45),
                             _addButton(context),
                           ],
                         ),
@@ -220,9 +228,27 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
             }
             }
 
+  Future<void> _manage(BuildContext context, FacilityQueue queue) async {
+    final window = await chooseFacilityQueueWindow(context, queue.windowCount, queue.service);
+    if (!context.mounted || window == null) return;
+    try {
+      final facilityId = await FacilityContext.instance.requireFacilityId();
+      if (!context.mounted) return;
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => EmployeeScannerScreen(
+        facilityId: facilityId, queueId: queue.documentId ?? 'window_${queue.windowNumber}',
+        windowNumber: window, facilityOwner: true, queueName: queue.service,
+      )));
+    } catch (error) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open queue: $error')));
+    }
+  }
+
   Widget _queueCard(BuildContext context, FacilityQueue queue) {
     final active = queue.isActive;
-    return Container(
+    return InkWell(
+      borderRadius: BorderRadius.circular(17),
+      onTap: () => _manage(context, queue),
+      child: Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 21),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -272,6 +298,10 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                         ),
                       ]),
                       const SizedBox(height: 6),
+                      Row(children: [
+                        Flexible(child: Text(queue.service, style: const TextStyle(color: _dark, fontWeight: FontWeight.w600))),
+                        const Icon(Icons.chevron_right, size: 18, color: _brightBlue, semanticLabel: 'Manage queue'),
+                      ]),
                       Text('Queue #${queue.windowNumber.toString().padLeft(2, '0')}',
                         style: const TextStyle(color: _muted, fontSize: 12)),
                       const SizedBox(height: 10),
@@ -335,7 +365,7 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _actionButton(String label, IconData? icon, Color color, Color background, VoidCallback pressed) {

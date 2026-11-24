@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../models/citizen_registration_draft.dart';
+import '../services/local_card_check.dart';
 import 'citizen_id_verification_screen.dart';
 
 const _primary = Color(0xFF03A9F4);
@@ -53,10 +54,10 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
   }
 
   void _next() {
-    // A sample ID is collected for the visual prototype only.
+
     // Do not use a real ID card while testing.
     final fullName = _name.text.trim();
-    final sampleId = _id.text.trim();
+    final nationalId = cardDigits(_id.text.trim());
     final phone = _phone.text.trim();
     final email = _email.text.trim();
     final password = _password.text;
@@ -65,8 +66,8 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
       _notice('Please enter your full name.');
       return;
     }
-    if (!RegExp(r'^\d{9}$').hasMatch(sampleId)) {
-      _notice('Enter a 9-digit sample ID for this demo.');
+    if (!RegExp(r'^\d{9}$').hasMatch(nationalId)) {
+      _notice('Enter your nine-digit ID number.');
       return;
     }
     final compactPhone = phone.replaceAll(RegExp(r'[\s\-()]'), '');
@@ -88,13 +89,13 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
       return;
     }
     if (!_agreed) {
-      _notice('Please agree to the demo terms.');
+      _notice('Please review and accept the terms.');
       return;
     }
 
     final draft = CitizenRegistrationDraft(
       fullName: fullName,
-      nationalId: sampleId,
+      nationalId: nationalId,
       phone: phone,
       email: email,
       password: password,
@@ -299,7 +300,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                         icon: Icons.badge_outlined,
                         keyboard: TextInputType.number,
                         formatters: [
-                          FilteringTextInputFormatter.digitsOnly,
+                          FilteringTextInputFormatter.allow(RegExp('[0-9٠-٩۰-۹]')),
                           LengthLimitingTextInputFormatter(9),
                         ],
                         height: 40 * scale,
@@ -413,11 +414,8 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                                   )),
                                 GestureDetector(
                                   onTap: () => _information(
-                                    'Demo terms',
-                                    'Dawrok is in development. Use sample IDs '
-                                    'and images only. Photos are not uploaded '
-                                    'to Firebase Storage. This step does NOT '
-                                    'verify a real identity.',
+                                    'Registration terms',
+                                    'Your ID number is saved to your account. The card photo is examined on this device to compare the number and layout. This is a visual check only.',
                                   ),
                                   child: Text(
                                     'Terms and Conditions',

@@ -1,4 +1,5 @@
-import 'dart:typed_data';
+import '../services/local_card_check.dart';
+import '../services/citizen_identity_service.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,13 +12,9 @@ import 'citizen_pin_setup_screen.dart';
 const _primary = Color(0xFF03A9F4);
 const _ink = Color(0xFF475870);
 
-/// Step 2 of 3: local SAMPLE-image preview only.
-/// Does not recognize, validate, transmit or store a real identity document.
+/// Step 2 checks the front of the card locally before opening PIN setup.
 class CitizenIdVerificationScreen extends StatefulWidget {
-  const CitizenIdVerificationScreen({
-    super.key,
-    this.draft,
-  });
+  const CitizenIdVerificationScreen({super.key, this.draft});
 
   /// Data received from step 1; optional for resuming an existing account.
   final CitizenRegistrationDraft? draft;
@@ -33,62 +30,97 @@ class _CitizenIdVerificationScreenState
   Uint8List? _preview;
   String? _error;
   bool _busy = false;
-  final _checks = [false, false, false];
+  bool get _supported =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  CardCheck? _result;
 
   @override
   void initState() {
     super.initState();
-    _recoverLostPhoto();
+    if (_supported) _recoverLostPhoto();
   }
 
   Future<void> _recoverLostPhoto() async {
-    if (defaultTargetPlatform != TargetPlatform.android) return;
+    _busy = true;
     try {
       final response = await _picker.retrieveLostData();
       if (response.files case final List<XFile> files when files.isNotEmpty) {
-        await _loadFile(files.first);
+        await _checkFile(files.first);
       }
     } catch (_) {
-      // A lost demo sample is noncritical; user can select another.
+      if (mounted)
+        setState(() => _error = 'Please select the front of the card again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _loadFile(XFile file) async {
+  Future<void> _checkFile(XFile file) async {
     final length = await file.length();
+    if (!mounted) return;
     if (length <= 0 || length > 5 * 1024 * 1024) {
-      throw const FormatException('Choose an image smaller than 5 MB.');
+      setState(() => _error = 'Choose an image smaller than 5 MB.');
+      return;
     }
     final bytes = await file.readAsBytes();
     if (!mounted) return;
-    setState(() {
-      _preview = bytes;
-      _error = null;
-      for (var i = 0; i < _checks.length; i++) {
-        _checks[i] = false;
-      }
-    });
+    setState(() => _preview = bytes);
+    final expected =
+        widget.draft?.nationalId ??
+        await CitizenIdentityService.instance.savedNationalId();
+    final result = await readLocalCard(bytes, expected);
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+    setState(() => _result = result);
+    if (result == CardCheck.match) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CitizenPinSetupScreen(draft: widget.draft),
+        ),
+      );
+    }
   }
 
   Future<void> _choose(ImageSource source) async {
-    if (_busy) return;
-    setState(() => _busy = true);
+    if (_busy || !_supported) return;
+    setState(() {
+      _busy = true;
+      _result = null;
+      _error = null;
+      _preview = null;
+    });
     try {
       final file = await _picker.pickImage(
         source: source,
         preferredCameraDevice: CameraDevice.rear,
-        maxWidth: 1400,
-        imageQuality: 80,
+        maxWidth: 2200,
+        imageQuality: 92,
         requestFullMetadata: false,
       );
-      if (file == null) return;
-      await _loadFile(file);
-    } catch (e) {
-      if (mounted) {
-        setState(() => _error = 'Could not open photo: $e');
-      }
+      if (file != null && mounted) await _checkFile(file);
+    } catch (_) {
+      if (mounted)
+        setState(
+          () =>
+              _error = 'Could not complete the local check. Please try again.',
+        );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  String get _message {
+    if (!_supported)
+      return 'Please use the Android app for the on-device card check.';
+    if (_error != null) return _error!;
+    if (_busy) return 'Checking on this device…';
+    return switch (_result) {
+      CardCheck.different =>
+        'The number differs from step 1. Check the number or retake the photo.',
+      CardCheck.layout => 'Could not recognize the card layout. Photograph the full front upright, filling the frame.',
+      CardCheck.unreadable => 'Could not read one clear nine-digit ID. Retake the photo without glare.',
+      CardCheck.match => 'Card layout and ID number matched.',
+      null => 'Take a photo or choose a clear image of the front of your card.',
+    };
   }
 
   Future<void> _back() async {
@@ -101,19 +133,6 @@ class _CitizenIdVerificationScreenState
     }
   }
 
-  void _next() {
-    if (_preview == null || _checks.any((element) => !element)) {
-      setState(() => _error =
-          'Select a sample image and confirm all three visual checks.');
-      return;
-    }
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CitizenPinSetupScreen(draft: widget.draft),
-      ),
-    );
-  }
-
   Widget _pill() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
@@ -124,11 +143,20 @@ class _CitizenIdVerificationScreenState
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.verified_user_outlined, color: Color(0xFF00699B), size: 19),
+          Icon(
+            Icons.verified_user_outlined,
+            color: Color(0xFF00699B),
+            size: 19,
+          ),
           SizedBox(width: 6),
-          Text('Step 2 of 3: Verification',
-            style: TextStyle(color: Color(0xFF00699B),
-              fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(
+            'Step 2 of 3: Verification',
+            style: TextStyle(
+              color: Color(0xFF00699B),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -136,15 +164,18 @@ class _CitizenIdVerificationScreenState
 
   Widget _progress() {
     return Row(
-      children: List.generate(3, (i) => Container(
-        width: 25,
-        height: 7,
-        margin: const EdgeInsets.only(left: 4),
-        decoration: BoxDecoration(
-          color: i < 2 ? _primary : const Color(0xFFCFEAF7),
-          borderRadius: BorderRadius.circular(8),
+      children: List.generate(
+        3,
+        (i) => Container(
+          width: 25,
+          height: 7,
+          margin: const EdgeInsets.only(left: 4),
+          decoration: BoxDecoration(
+            color: i < 2 ? _primary : const Color(0xFFCFEAF7),
+            borderRadius: BorderRadius.circular(8),
+          ),
         ),
-      )),
+      ),
     );
   }
 
@@ -160,16 +191,24 @@ class _CitizenIdVerificationScreenState
         fit: StackFit.expand,
         children: [
           if (_preview != null)
-            Image.memory(_preview!, fit: BoxFit.contain, gaplessPlayback: false)
+            Image.memory(
+              _preview!,
+              fit: BoxFit.contain,
+              gaplessPlayback: false,
+              errorBuilder: (_, error, stack) => const Center(
+                child: Icon(Icons.broken_image, color: Colors.white),
+              ),
+            )
           else
             const Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.badge_outlined, size: 82,
-                  color: Color(0xFFB9DEFA)),
+                Icon(Icons.badge_outlined, size: 82, color: Color(0xFFB9DEFA)),
                 SizedBox(height: 8),
-                Text('Sample image preview',
-                  style: TextStyle(color: Colors.white, fontSize: 16)),
+                Text(
+                  'Front of identity card',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
               ],
             ),
           Positioned(
@@ -181,9 +220,14 @@ class _CitizenIdVerificationScreenState
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(25),
               ),
-              child: const Text('DEMO • No automatic ID verification',
-                style: TextStyle(color: Color(0xFF14527A),
-                  fontSize: 11, fontWeight: FontWeight.w600)),
+              child: const Text(
+                'On-device visual check',
+                style: TextStyle(
+                  color: Color(0xFF14527A),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
           Positioned(
@@ -196,9 +240,11 @@ class _CitizenIdVerificationScreenState
                 color: const Color(0xCC000000),
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Text('Avoid glare and direct reflections',
+              child: const Text(
+                'Avoid glare and direct reflections',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 13)),
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
             ),
           ),
         ],
@@ -206,36 +252,26 @@ class _CitizenIdVerificationScreenState
     );
   }
 
-  Widget _check(int index, String text) {
-    return CheckboxListTile(
-      dense: true,
-      controlAffinity: ListTileControlAffinity.leading,
-      contentPadding: EdgeInsets.zero,
-      value: _checks[index],
-      activeColor: const Color(0xFF19B78C),
-      title: Text(text,
-        style: const TextStyle(fontSize: 14, color: Color(0xFF26364D))),
-      onChanged: _preview == null ? null : (v) => setState(() {
-        _checks[index] = v ?? false;
-        _error = null;
-      }),
-    );
-  }
-
-  Widget _photoButton(String label, IconData icon, VoidCallback tap,
-      {bool filled = false}) {
+  Widget _photoButton(
+    String label,
+    IconData icon,
+    VoidCallback tap, {
+    bool filled = false,
+  }) {
     return Expanded(
       child: SizedBox(
         height: 52,
         child: OutlinedButton.icon(
-          onPressed: _busy ? null : tap,
+          onPressed: _busy || !_supported ? null : tap,
           icon: Icon(icon, size: 22),
           label: Text(label, style: const TextStyle(fontSize: 14)),
           style: OutlinedButton.styleFrom(
             foregroundColor: filled ? const Color(0xFF00699B) : _ink,
             backgroundColor: filled ? const Color(0xFFDFF5FF) : Colors.white,
             side: const BorderSide(color: Color(0xFFE9F0F4)),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
           ),
         ),
       ),
@@ -254,18 +290,23 @@ class _CitizenIdVerificationScreenState
               alignment: Alignment.centerLeft,
               child: IconButton(
                 onPressed: _busy ? null : _back,
-                icon: const Icon(Icons.arrow_back_ios_new, size: 27, color: Colors.black),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  size: 27,
+                  color: Colors.black,
+                ),
               ),
             ),
             const SizedBox(height: 24),
             Row(children: [_pill(), const Spacer(), _progress()]),
             const SizedBox(height: 19),
-            const Text('Scan ID Document',
-              style: TextStyle(fontSize: 30, color: _primary)),
+            const Text(
+              'Scan ID Document',
+              style: TextStyle(fontSize: 30, color: _primary),
+            ),
             const SizedBox(height: 9),
             const Text(
-              'Align a sample identity card within the frame. '
-              'Check that the image is clear. No real document verification is performed.',
+              'Photograph the front of your Palestinian ID horizontally. Fill the frame and keep the title, number and field labels visible.',
               style: TextStyle(color: _ink, fontSize: 15, height: 1.45),
             ),
             const SizedBox(height: 22),
@@ -277,54 +318,49 @@ class _CitizenIdVerificationScreenState
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFFF2F4F6)),
-                boxShadow: const [BoxShadow(color: Color(0x0C000000),
-                  blurRadius: 5, offset: Offset(0, 2))],
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0C000000),
+                    blurRadius: 5,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Manual Preview Check (Demo)',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 7),
-                  _check(0, 'All 4 corners are visible and aligned'),
-                  _check(1, 'Text is readable; no glare on details'),
-                  _check(2, 'Photo has sufficient lighting'),
+                  const Text(
+                    'Card layout and ID number',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_busy) const LinearProgressIndicator(),
+                  Semantics(liveRegion: true, child: Text(_message)),
                 ],
               ),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
-                _photoButton('Retake Photo', Icons.refresh,
-                  () => _choose(ImageSource.camera), filled: true),
+                _photoButton(
+                  'Camera',
+                  Icons.refresh,
+                  () => _choose(ImageSource.camera),
+                  filled: true,
+                ),
                 const SizedBox(width: 11),
-                _photoButton('Upload File', Icons.image_outlined,
-                  () => _choose(ImageSource.gallery)),
+                _photoButton(
+                  'Gallery',
+                  Icons.image_outlined,
+                  () => _choose(ImageSource.gallery),
+                ),
               ],
             ),
             const SizedBox(height: 16),
-            if (_error != null) ...[
-              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-              const SizedBox(height: 8),
-            ],
-            const Text('Use sample images only. The photo stays on this device; '
-              'it is not uploaded to Firebase.',
+            const Text(
+              'Your photo is processed on this device. A visual match opens PIN setup; it does not certify the document or its holder.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: _ink)),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _busy ? null : _next,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                child: const Text('Continue to PIN →',
-                  style: TextStyle(fontSize: 19)),
-              ),
+              style: TextStyle(fontSize: 12, color: _ink),
             ),
           ],
         ),

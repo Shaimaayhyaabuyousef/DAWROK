@@ -1,231 +1,230 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-// Route names registered in main.dart
-const String kSignInRoute = 'login';
-const String kSignUpRoute = 'login'; // change to 'signup' once that page exists
-
-const Color kPrimary = Color(0xFF0EA5FF);
-const Color kDark = Color(0xFF1E2235);
-
-class _OnboardingItem {
-  final String image;
-  final String title;
-  final String desc;
-
-  const _OnboardingItem({
-    required this.image,
-    required this.title,
-    required this.desc,
-  });
-}
-
-const List<_OnboardingItem> _items = [
-  _OnboardingItem(
-    image: 'assets/images/onboarding_1.png',
-    title: 'No more long queues',
-    desc:
-        'Skip the hours in crowds. Dawrok organizes the service so you receive it safely.',
-  ),
-  _OnboardingItem(
-    image: 'assets/images/onboarding_2.png',
-    title: 'Book your appointment easily',
-    desc:
-        'Choose the service and center, pick a time that suits you, and get your digital ticket in seconds.',
-  ),
-  _OnboardingItem(
-    image: 'assets/images/onboarding_3.png',
-    title: 'Track your turn live',
-    desc:
-        'A secure QR ticket that works offline, with an instant alert when your turn is near.',
-  ),
-];
+import 'intro_art.dart';
 
 class Onboarding extends StatefulWidget {
   const Onboarding({super.key});
-
   @override
   State<Onboarding> createState() => _OnboardingState();
 }
 
 class _OnboardingState extends State<Onboarding> {
-  final PageController _controller = PageController();
-  int _index = 0;
-
+  final _controller = PageController();
+  int _page = 0;
+  static const _titles = [
+    'No More Waiting in Endless Lines',
+    'Book your appointment easily',
+    'No More Waiting in Endless Lines',
+  ];
+  static const _descriptions = [
+    'Chaotic queues waste hours and strip dignity. We replace crowded waiting with organized digital time slots.',
+    'Choose the service and center, pick a time that suits you, and get your digital ticket in seconds.',
+    'Present your ticket at the counter and receive service in less than two minutes—with complete transparency.',
+  ];
+  static const _blue = Color(0xff03a9f4);
+  void _move(int page) => _controller.animateToPage(
+    page,
+    duration: const Duration(milliseconds: 260),
+    curve: Curves.easeOut,
+  );
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
-  void _go(String route) => Navigator.pushReplacementNamed(context, route);
-
   @override
   Widget build(BuildContext context) {
-    final isLast = _index == _items.length - 1;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          // Swipeable pages
-          Expanded(
-            child: Stack(
-              children: [
-                PageView.builder(
-                  controller: _controller,
-                  itemCount: _items.length,
-                  onPageChanged: (i) => setState(() => _index = i),
-                  itemBuilder: (_, i) => _OnboardingPage(item: _items[i]),
-                ),
-
-                // Skip button
-                if (!isLast)
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 8,
-                    right: 16,
-                    child: TextButton(
-                      onPressed: () => _go(kSignInRoute),
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.black.withValues(alpha: 0.35),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      child: const Text('Skip'),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // Page indicators
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_items.length, (i) {
-                final active = i == _index;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: active ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: active ? kDark : kPrimary.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                );
-              }),
-            ),
-          ),
-
-          // Buttons
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _go(kSignInRoute),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: kPrimary,
-                        side: const BorderSide(color: kPrimary, width: 1.5),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Sign in',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _go(kSignUpRoute),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Sign up',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
       ),
-    );
-  }
-}
-
-class _OnboardingPage extends StatelessWidget {
-  final _OnboardingItem item;
-  const _OnboardingPage({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          flex: 6,
-          child: SizedBox(
-            width: double.infinity,
-            child: Image.asset(
-              item.image,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                color: kPrimary.withValues(alpha: 0.12),
-                child: const Icon(Icons.image_outlined, size: 64, color: kPrimary),
-              ),
-            ),
-          ),
-        ),
-        Expanded(
-          flex: 4,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: kPrimary,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: LayoutBuilder(
+          builder: (context, layout) {
+            final heroHeight = layout.maxHeight * .6185;
+            return PageView.builder(
+              controller: _controller,
+              itemCount: 3,
+              onPageChanged: (i) => setState(() => _page = i),
+              itemBuilder: (context, i) => SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      height: heroHeight,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (i == 1)
+                            Image.asset(
+                              'assets/images/onboarding_2.png',
+                              fit: BoxFit.cover,
+                            )
+                          else
+                            ColoredBox(
+                              color: i == 0
+                                  ? const Color(0xfffff7ee)
+                                  : const Color(0xfff1faf2),
+                              child: CustomPaint(painter: IntroArt(i == 2)),
+                            ),
+                          SafeArea(
+                            bottom: false,
+                            child: Align(
+                              alignment: Alignment.topCenter,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(12, 6, 6, 0),
+                                child: Row(
+                                  children: [
+                                    if (i > 0)
+                                      IconButton(
+                                        tooltip: 'Back',
+                                        onPressed: () => _move(i - 1),
+                                        icon: const Icon(
+                                          Icons.arrow_back_ios_new,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    const Spacer(),
+                                    if (i < 2)
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pushReplacementNamed(
+                                              context,
+                                              'login',
+                                            ),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.black,
+                                        ),
+                                        child: const Text('Skip'),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    item.desc,
-                    style: TextStyle(
-                      fontSize: 15,
-                      height: 1.6,
-                      color: Colors.grey.shade700,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Semantics(
+                        label: 'Page ${i + 1} of 3',
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            3,
+                            (j) => GestureDetector(
+                              onTap: () => _move(j),
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                  vertical: 8,
+                                ),
+                                child: Container(
+                                  width: j == _page ? 23 : 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: j == _page
+                                        ? const Color(0xff202020)
+                                        : Colors.blue,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 8, 0),
+                      child: Text(
+                        _titles[i],
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 23,
+                          height: 1.25,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(21, 24, 12, 0),
+                      child: Text(
+                        _descriptions[i],
+                        style: const TextStyle(
+                          fontSize: 17.5,
+                          height: 1.48,
+                          color: Color(0xff757575),
+                        ),
+                      ),
+                    ),
+                    if (i == 2)
+                      SafeArea(
+                        top: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 26, 24, 18),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                        context,
+                                        'login',
+                                      ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _blue,
+                                    side: const BorderSide(color: _blue),
+                                    minimumSize: const Size(0, 50),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Signin',
+                                    style: TextStyle(fontSize: 18),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                        context,
+                                        'signup',
+                                      ),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: _blue,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size(0, 50),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Signup',
+                                    style: TextStyle(fontSize: 18),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
-      ],
+      ),
     );
   }
 }

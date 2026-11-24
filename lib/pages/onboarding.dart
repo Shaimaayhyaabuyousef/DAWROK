@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'intro_art.dart';
-
 class Onboarding extends StatefulWidget {
   const Onboarding({super.key});
   @override
@@ -58,18 +56,18 @@ class _OnboardingState extends State<Onboarding> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          if (i == 1)
-                            Image.asset(
-                              'assets/images/onboarding_2.png',
-                              fit: BoxFit.cover,
-                            )
-                          else
-                            ColoredBox(
-                              color: i == 0
-                                  ? const Color(0xfffff7ee)
-                                  : const Color(0xfff1faf2),
-                              child: CustomPaint(painter: IntroArt(i == 2)),
+                          ColoredBox(
+                            color: const [
+                              Color(0xfffff6ee),
+                              Color(0xffeff6fe),
+                              Color(0xfff1faf2),
+                            ][i],
+                            child: Image.asset(
+                              'assets/images/onboarding_${i + 1}.png',
+                              fit: BoxFit.contain,
+                              excludeFromSemantics: true,
                             ),
+                          ),
                           SafeArea(
                             bottom: false,
                             child: Align(

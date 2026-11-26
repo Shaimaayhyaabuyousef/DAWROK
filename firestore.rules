@@ -121,6 +121,14 @@ service cloud.firestore {
       return entry.bookingId == bid && entry.points == points && entry.reason == reason && entry.createdAt == request.time;
     }
 
+    function validProgress(fid,qid,day,p) {
+      let b = get(bookingPath(p.ticketId)).data;
+      return p.keys().hasOnly(['position','ticketId','updatedAt'])
+        && p.updatedAt == request.time && p.position is int && p.ticketId is string
+        && b.facilityId == fid && b.queueId == qid && b.dayKey == day
+        && b.status == 'called' && b.queuePosition == p.position
+        && laneOperator(b,b.windowNumber);
+    }
     function lanePath(fid,qid,w) {
       return /databases/$(database)/documents/facilities/$(fid)/queues/$(qid)/lanes/$(w);
     }
@@ -533,7 +541,19 @@ service cloud.firestore {
         && request.resource.data.nationalId is string
         && request.resource.data.nationalId.matches('^[0-9]{9}$')
         && request.resource.data.status == 'self_reported'
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/national_id_claims/$(request.resource.data.nationalId)).data.uid == uid;
+    }
+    // One national ID number per citizen account. The document ID is the
+    // number; only its owner can read it, and it can never be moved.
+    match /national_id_claims/{nid} {
+      allow get: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
+      allow list, update, delete: if false;
+      allow create: if signedIn() && nid.matches('^[0-9]{9}$')
+        && request.resource.data.keys().hasOnly(['uid','createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/citizen_identity/$(request.auth.uid)).data.nationalId == nid;
     }
     match /demo_identity_checks/{uid} {
       allow get: if isSelf(uid);
@@ -684,6 +704,12 @@ service cloud.firestore {
           allow create: if citizen() && validOffer(fid,qid,id,request.resource.data);
           allow delete: if signedIn() && (getAfter(bookingPath(id)).data.status in ['called','cancelled']
             || getAfter(bookingPath(id)).data.get('priorityBuyer','') != '');
+        }
+        // Last called queue position of the day, for "people ahead".
+        match /progress/{day} {
+          allow get: if signedIn();
+          allow list, delete: if false;
+          allow create, update: if validProgress(fid,qid,day,request.resource.data);
         }
         match /days/{day} {
           allow get: if facilityOwner(fid) || citizen();

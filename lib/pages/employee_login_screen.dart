@@ -3,8 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/employee_access_service.dart';
+import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF22334D);
 
 /// Returning staff use phone and password ONLY. The invitation code is
@@ -71,7 +72,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
   }
 
   InputDecoration _decoration(String label, IconData icon) => InputDecoration(
-    labelText: label,
+    labelText: trOpt(label),
     prefixIcon: Icon(icon, color: _blue),
     filled: true,
     fillColor: const Color(0xFFF9FCFF),
@@ -91,7 +92,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
     backgroundColor: Colors.white,
     body: SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(25, 15, 25, 40),
+        padding: const EdgeInsetsDirectional.fromSTEB(25, 15, 25, 40),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
@@ -101,7 +102,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     child: IconButton(
                       onPressed: _busy ? null : () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back_ios_new, color: _ink),
@@ -114,14 +115,14 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
                     child: Icon(Icons.badge_outlined, color: _blue, size: 43),
                   ),
                   const SizedBox(height: 20),
-                  const Text('Employee Sign In',
+                  Text(tr('Employee Sign In'),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: _ink, fontSize: 28,
                       fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Sign in with your phone number and password. '
-                    'Your facility approval is saved in Firebase.',
+                  Text(
+                    tr('Sign in with your phone number and password. '
+                    'Your facility approval is saved in Firebase.'),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Color(0xFF7C8DA7),
                       fontSize: 13, height: 1.5),
@@ -154,7 +155,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 14),
-                    Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+                    Text(tr(_error!), style: const TextStyle(color: Colors.redAccent)),
                   ],
                   const SizedBox(height: 28),
                   SizedBox(
@@ -169,7 +170,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
                       ),
                       child: _busy
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Sign In',
+                        : Text(tr('Sign In'),
                           style: TextStyle(fontSize: 17,
                             fontWeight: FontWeight.bold)),
                     ),
@@ -179,14 +180,14 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
                     onPressed: _busy
                       ? null
                       : () => Navigator.pushNamed(context, 'employee_join_screen'),
-                    child: const Text('New employee? Request to Join Facility',
+                    child: Text(tr('New employee? Request to Join Facility'),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: _blue)),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'An invitation code is needed only when you apply '
-                    'to join a facility, not when signing in.',
+                  Text(
+                    tr('An invitation code is needed only when you apply '
+                    'to join a facility, not when signing in.'),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Color(0xFF8C9CB4),
                       fontSize: 12, height: 1.45),

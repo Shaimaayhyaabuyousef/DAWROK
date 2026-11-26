@@ -6,8 +6,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../services/citizen_auth_service.dart';
 import '../services/app_auth_service.dart';
+import 'package:first_project/l10n/app_language.dart';
 
-const Color _primary = Color(0xFF03A9F4);
+const Color _primary = Color(0xFF2196F3);
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -61,14 +62,14 @@ class _LoginState extends State<Login> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 30),
+          padding: const EdgeInsetsDirectional.fromSTEB(22, 12, 22, 30),
           child: Form(
             key: _key,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   child: IconButton(
                     onPressed: _busy
                         ? null
@@ -93,8 +94,8 @@ class _LoginState extends State<Login> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Signin',
+                Text(
+                  tr('Signin'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _primary,
@@ -135,7 +136,7 @@ class _LoginState extends State<Login> {
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(
-                    _error!,
+                    tr(_error!),
                     style: const TextStyle(color: Colors.redAccent),
                   ),
                 ],
@@ -161,7 +162,7 @@ class _LoginState extends State<Login> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Signin', style: TextStyle(fontSize: 18)),
+                        : Text(tr('Signin'), style: TextStyle(fontSize: 18)),
                   ),
                 ),
                 const SizedBox(height: 15),
@@ -176,13 +177,13 @@ class _LoginState extends State<Login> {
                               builder: (_) => const DemoRecoveryScreen(),
                             ),
                           ),
-                    child: const Text('Forgot Password?'),
+                    child: Text(tr('Forgot Password?')),
                   ),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Don’t have an account?"),
+                    Text(tr("Don’t have an account?")),
                     TextButton(
                       onPressed: _busy
                           ? null
@@ -190,7 +191,7 @@ class _LoginState extends State<Login> {
                               context,
                               'signup',
                             ),
-                      child: const Text('SignUp'),
+                      child: Text(tr('SignUp')),
                     ),
                   ],
                 ),
@@ -201,7 +202,7 @@ class _LoginState extends State<Login> {
                           context,
                           'employee_login_screen',
                         ),
-                  child: const Text('Employee account'),
+                  child: Text(tr('Employee account')),
                 ),
               ],
             ),
@@ -212,7 +213,7 @@ class _LoginState extends State<Login> {
   }
 
   InputDecoration _decoration(String hint, IconData icon) => InputDecoration(
-    hintText: hint,
+    hintText: trOpt(hint),
     hintStyle: const TextStyle(color: _primary),
     suffixIcon: Icon(icon, color: _primary),
     filled: true,

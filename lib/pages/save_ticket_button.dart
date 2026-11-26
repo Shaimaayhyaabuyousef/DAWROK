@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class SaveTicketButton extends StatefulWidget {
   final GlobalKey cardKey;
@@ -51,15 +52,15 @@ class _SaveTicketButtonState extends State<SaveTicketButton> {
       );
       if (mounted && result != null) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Ticket saved')));
+            .showSnackBar(SnackBar(content: Text(tr('Ticket saved'))));
       }
     } catch (error, stack) {
       debugPrint('Ticket export failed: $error');
       debugPrintStack(stackTrace: stack);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not save the ticket. Please try again.'),
+          SnackBar(
+            content: Text(tr('Could not save the ticket. Please try again.')),
           ),
         );
       }
@@ -72,6 +73,6 @@ class _SaveTicketButtonState extends State<SaveTicketButton> {
   Widget build(BuildContext context) => OutlinedButton.icon(
     onPressed: _saving ? null : _save,
     icon: const Icon(Icons.download_outlined),
-    label: Text(_saving ? 'Saving…' : 'Save Ticket'),
+    label: Text(tr(_saving ? 'Saving…' : 'Save Ticket')),
   );
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class CitizenBookingControls extends StatelessWidget {
   final Map<String, String> queues;
@@ -30,10 +31,10 @@ class CitizenBookingControls extends StatelessWidget {
       children: [
         if (queues.isNotEmpty) ...[
           if (queues.length == 1 && queue != null)
-            Text('Service: ${queues[queue]}')
+            Text(tr('Service: ${queues[queue]}'))
           else
             DropdownButton<String>(
-              hint: const Text('Choose a service'),
+              hint: Text(tr('Choose a service')),
               value: queue,
               isExpanded: true,
               items: queues.entries
@@ -41,7 +42,7 @@ class CitizenBookingControls extends StatelessWidget {
                     (entry) => DropdownMenuItem(
                       value: entry.key,
                       child: Text(
-                        entry.value,
+                        tr(entry.value),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -54,7 +55,7 @@ class CitizenBookingControls extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                '${reward == 'extra' ? 'Extra reward place' : 'Priority within your time slot'} · 100 points. Returned if you cancel before being called or the facility cancels service.',
+                tr('${reward == 'extra' ? 'Extra reward place' : 'Priority within your time slot'} · 100 points. Returned if you cancel before being called or the facility cancels service.'),
               ),
             ),
           const SizedBox(height: 12),
@@ -63,7 +64,7 @@ class CitizenBookingControls extends StatelessWidget {
           onPressed: busy || queue == null ? null : () => onConfirm(queue),
           icon: const Icon(Icons.calendar_month_outlined, size: 22),
           label: Text(
-            busy ? 'Checking booking…' : 'Confirm Booking',
+            tr(busy ? 'Checking booking…' : 'Confirm Booking'),
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
           ),
           style: ElevatedButton.styleFrom(

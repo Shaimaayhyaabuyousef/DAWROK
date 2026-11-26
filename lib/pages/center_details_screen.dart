@@ -8,6 +8,7 @@ import '../services/booking_service.dart';
 import 'citizen_booking_controls.dart';
 import 'citizen_ui.dart';
 import 'queue_ticket_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const _blue = Color(0xFF008DD2);
 const _ink = Color(0xFF141C2F);
@@ -85,7 +86,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
   void _showError(Object error) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))));
+        SnackBar(content: Text(tr(error.toString().replaceFirst('Bad state: ', '')))));
     }
   }
 
@@ -101,7 +102,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
   Widget build(BuildContext context) {
     final id = widget.facilityId;
     if (id == null || id.isEmpty) {
-      return _layout(context, message: 'Choose a facility from the directory.');
+      return _layout(context, message: tr('Choose a facility from the directory.'));
     }
     return _FacilityClockView(builder: (context) => _liveDetails(context,id));
   }
@@ -116,7 +117,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
         if (snapshot.hasError) {
           return _layout(
             context,
-            message: 'Unable to load facility details. Please try again.',
+            message: tr('Unable to load facility details. Please try again.'),
           );
         }
         if (!snapshot.hasData) return _layout(context, loading: true);
@@ -124,14 +125,14 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
         if (facility == null || facility['isActive'] != true) {
           return _layout(
             context,
-            message: 'This facility is no longer available.',
+            message: tr('This facility is no longer available.'),
           );
         }
         if (facility['isOnline'] != true) {
           return _layout(
             context,
             facility: facility,
-            message: 'Bookings are currently closed.',
+            message: tr('Bookings are currently closed.'),
           );
         }
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -145,7 +146,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
               return _layout(
                 context,
                 facility: facility,
-                message: 'Unable to load queue statistics. Please try again.',
+                message: tr('Unable to load queue statistics. Please try again.'),
               );
             }
             if (!queues.hasData) {
@@ -158,7 +159,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                 facility: facility,
                 total: 0,
                 occupancy: 0,
-                message: 'No active queues are available.',
+                message: tr('No active queues are available.'),
               );
             }
             return _dailyTotals(context, facility, docs, 0, 0, const []);
@@ -212,7 +213,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
     return StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
       stream: queue.reference.collection('closures').doc(day).snapshots(),
       builder: (context, closure) {
-        if (closure.hasError) return _layout(context,facility:facility,queues:queues,message:'Could not verify service availability.');
+        if (closure.hasError) return _layout(context,facility:facility,queues:queues,message:tr('Could not verify service availability.'));
         if (!closure.hasData) return _layout(context,facility:facility,queues:queues,loading:true);
         if (closure.data!.exists) return _dailyTotals(context, facility, queues,index+1,total,eligible);
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -223,7 +224,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
             context,
             facility: facility,
             queues: queues,
-            message: 'Unable to load queue statistics. Please try again.',
+            message: tr('Unable to load queue statistics. Please try again.'),
           );
         }
         if (!snapshot.hasData) {
@@ -358,7 +359,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                    padding: const EdgeInsetsDirectional.fromSTEB(20, 12, 20, 28),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -367,19 +368,19 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              const Text(
-                                'Center Details',
+                              Text(
+                                tr('Center Details'),
                                 style: TextStyle(
                                   color: Color(0xFF64B9FA),
                                   fontSize: 21,
                                 ),
                               ),
                               Align(
-                                alignment: Alignment.centerLeft,
+                                alignment: AlignmentDirectional.centerStart,
                                 child: IconButton(
                                   padding: EdgeInsets.zero,
-                                  alignment: Alignment.centerLeft,
-                                  tooltip: 'Back',
+                                  alignment: AlignmentDirectional.centerStart,
+                                  tooltip: tr('Back'),
                                   onPressed: () => Navigator.maybePop(context),
                                   icon: const Icon(
                                     Icons.arrow_back_ios_new,
@@ -409,7 +410,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                   20,
                                   16,
                                   20,
@@ -420,9 +421,9 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                                   children: [
                                     Row(
                                       children: [
-                                        const Expanded(
+                                        Expanded(
                                           child: Text(
-                                            'NAME OF FACILITY',
+                                            tr('NAME OF FACILITY'),
                                             style: TextStyle(
                                               color: _blue,
                                               fontSize: 11.5,
@@ -440,7 +441,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      title,
+                                      tr(title),
                                       style: const TextStyle(
                                         color: _ink,
                                         fontSize: 21,
@@ -481,8 +482,8 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
-                                                'Address',
+                                              Text(
+                                                tr('Address'),
                                                 style: TextStyle(
                                                   color: _muted,
                                                   fontSize: 12,
@@ -491,7 +492,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                                               ),
                                               const SizedBox(height: 3),
                                               Text(
-                                                location,
+                                                tr(location),
                                                 style: const TextStyle(
                                                   color: Color(0xFF263247),
                                                   fontSize: 14,
@@ -507,8 +508,8 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
-                                                'Booking available',
+                                              Text(
+                                                tr('Booking available'),
                                                 style: TextStyle(
                                                   color: _muted,
                                                   fontSize: 12,
@@ -579,8 +580,8 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                const Text(
-                                                  'HOURS',
+                                                Text(
+                                                  tr('HOURS'),
                                                   style: TextStyle(
                                                     color: Color(0xFF92A3BB),
                                                     fontSize: 10,
@@ -589,7 +590,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                                                 ),
                                                 const SizedBox(height: 2),
                                                 Text(
-                                                  '$from - $to',
+                                                  tr('$from - $to'),
                                                   style: const TextStyle(
                                                     color: Color(0xFF3D4D64),
                                                     fontSize: 13,
@@ -611,9 +612,9 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                         const SizedBox(height: 24),
                         Row(
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'Queue statistics',
+                                tr('Queue statistics'),
                                 style: TextStyle(
                                   color: _ink,
                                   fontSize: 17,
@@ -654,9 +655,9 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Expanded(
+                                  Expanded(
                                     child: Text(
-                                      'Center Occupancy',
+                                      tr('Center Occupancy'),
                                       style: TextStyle(
                                         color: Color(0xFF52627B),
                                         fontSize: 12,
@@ -665,9 +666,9 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                                     ),
                                   ),
                                   Text(
-                                    occupancy == null
+                                    tr(occupancy == null
                                         ? '—'
-                                        : '$occupancy% $load',
+                                        : '$occupancy% $load'),
                                     style: const TextStyle(
                                       color: _blue,
                                       fontSize: 12,
@@ -700,7 +701,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                           Padding(
                             padding: const EdgeInsets.only(top: 12),
                             child: Text(
-                              message,
+                              tr(message),
                               style: const TextStyle(
                                 color: _muted,
                                 fontSize: 12,
@@ -754,12 +755,12 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        label,
+        tr(label),
         style: const TextStyle(color: Color(0xFF92A3BB), fontSize: 10),
       ),
       const SizedBox(height: 5),
       Text(
-        value,
+        tr(value),
         style: TextStyle(
           color: color,
           fontSize: 10,
@@ -789,7 +790,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
             ),
             const SizedBox(width: 6),
             Text(
-              text,
+              tr(text),
               style: TextStyle(
                 color: active ? const Color(0xFF008765) : Colors.redAccent,
                 fontSize: 12,
@@ -826,7 +827,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              title,
+              tr(title),
               style: const TextStyle(
                 color: Color(0xFF273247),
                 fontSize: 14,
@@ -852,7 +853,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    value,
+                    tr(value),
                     style: const TextStyle(
                       color: _ink,
                       fontSize: 26,
@@ -862,7 +863,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  unit,
+                  tr(unit),
                   style: TextStyle(
                     color: amber ? const Color(0xFFB75E00) : _blue,
                     fontSize: 10,
@@ -910,6 +911,6 @@ class _FacilityClockViewState extends State<_FacilityClockView> {
     if (ready) return widget.builder(context);
     return Scaffold(appBar:AppBar(),body:Center(child: error == null
         ? const CircularProgressIndicator()
-        : TextButton(onPressed:refresh,child:const Text('Reconnect to check availability'))));
+        : TextButton(onPressed:refresh,child:Text(tr('Reconnect to check availability')))));
   }
 }

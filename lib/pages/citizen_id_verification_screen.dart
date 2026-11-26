@@ -10,8 +10,9 @@ import 'package:image_picker/image_picker.dart' show XFile;
 
 import '../models/citizen_registration_draft.dart';
 import 'citizen_pin_setup_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
-const _primary = Color(0xFF03A9F4);
+const _primary = Color(0xFF2196F3);
 const _ink = Color(0xFF475870);
 
 /// Step 2 checks the front of the card locally before opening PIN setup.
@@ -149,7 +150,7 @@ class _CitizenIdVerificationScreenState
         color: const Color(0xFFD7EFFB),
         borderRadius: BorderRadius.circular(28),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
@@ -159,7 +160,7 @@ class _CitizenIdVerificationScreenState
           ),
           SizedBox(width: 6),
           Text(
-            'Step 2 of 3: Verification',
+            tr('Step 2 of 3: Verification'),
             style: TextStyle(
               color: Color(0xFF00699B),
               fontSize: 14,
@@ -178,7 +179,7 @@ class _CitizenIdVerificationScreenState
         (i) => Container(
           width: 25,
           height: 7,
-          margin: const EdgeInsets.only(left: 4),
+          margin: const EdgeInsetsDirectional.only(start: 4),
           decoration: BoxDecoration(
             color: i < 2 ? _primary : const Color(0xFFCFEAF7),
             borderRadius: BorderRadius.circular(8),
@@ -209,28 +210,28 @@ class _CitizenIdVerificationScreenState
               ),
             )
           else
-            const Column(
+            Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.badge_outlined, size: 82, color: Color(0xFFB9DEFA)),
                 SizedBox(height: 8),
                 Text(
-                  'Front of identity card',
+                  tr('Front of identity card'),
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ],
             ),
-          Positioned(
+          PositionedDirectional(
             top: 14,
-            left: 13,
+            start: 13,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(25),
               ),
-              child: const Text(
-                'On-device visual check',
+              child: Text(
+                tr('On-device visual check'),
                 style: TextStyle(
                   color: Color(0xFF14527A),
                   fontSize: 11,
@@ -239,18 +240,18 @@ class _CitizenIdVerificationScreenState
               ),
             ),
           ),
-          Positioned(
+          PositionedDirectional(
             bottom: 13,
-            left: 16,
-            right: 16,
+            start: 16,
+            end: 16,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
                 color: const Color(0xCC000000),
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Text(
-                'Avoid glare and direct reflections',
+              child: Text(
+                tr('Avoid glare and direct reflections'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 13),
               ),
@@ -273,7 +274,7 @@ class _CitizenIdVerificationScreenState
         child: OutlinedButton.icon(
           onPressed: _busy || !_supported ? null : tap,
           icon: Icon(icon, size: 22),
-          label: Text(label, style: const TextStyle(fontSize: 14)),
+          label: Text(tr(label), style: const TextStyle(fontSize: 14)),
           style: OutlinedButton.styleFrom(
             foregroundColor: filled ? const Color(0xFF00699B) : _ink,
             backgroundColor: filled ? const Color(0xFFDFF5FF) : Colors.white,
@@ -293,10 +294,10 @@ class _CitizenIdVerificationScreenState
       backgroundColor: Colors.white,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 26),
+          padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 26),
           children: [
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: IconButton(
                 onPressed: _busy ? null : _back,
                 icon: const Icon(
@@ -309,13 +310,13 @@ class _CitizenIdVerificationScreenState
             const SizedBox(height: 24),
             Row(children: [_pill(), const Spacer(), _progress()]),
             const SizedBox(height: 19),
-            const Text(
-              'Scan ID Document',
+            Text(
+              tr('Scan ID Document'),
               style: TextStyle(fontSize: 30, color: _primary),
             ),
             const SizedBox(height: 9),
-            const Text(
-              'Scan the front of your Palestinian ID. The scanner finds the card edges, then crops and straightens it. Keep the title, number and field labels free of glare.',
+            Text(
+              tr('Scan the front of your Palestinian ID. The scanner finds the card edges, then crops and straightens it. Keep the title, number and field labels free of glare.'),
               style: TextStyle(color: _ink, fontSize: 15, height: 1.45),
             ),
             const SizedBox(height: 22),
@@ -338,13 +339,13 @@ class _CitizenIdVerificationScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Card layout and ID number',
+                  Text(
+                    tr('Card layout and ID number'),
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   if (_busy) const LinearProgressIndicator(),
-                  Semantics(liveRegion: true, child: Text(_message)),
+                  Semantics(liveRegion: true, child: Text(tr(_message))),
                 ],
               ),
             ),
@@ -360,8 +361,8 @@ class _CitizenIdVerificationScreenState
               ],
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Your photo is processed on this device. A visual match opens PIN setup; it does not certify the document or its holder.',
+            Text(
+              tr('Your photo is processed on this device. A visual match opens PIN setup; it does not certify the document or its holder.'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: _ink),
             ),

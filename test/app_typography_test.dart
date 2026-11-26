@@ -11,9 +11,10 @@ void main() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       // Use the production MaterialApp builder with a route independent of Firebase.
       await tester.pumpWidget(const SizedBox());
-      final app = const MyApp().build(
+      final app = const MyApp().app(
         tester.element(find.byType(SizedBox)),
-      ) as MaterialApp;
+        const Locale('en'),
+      );
       await tester.pumpWidget(
         MaterialApp(
           builder: app.builder,
@@ -34,7 +35,7 @@ void main() {
         for (final size in [11.0, 16.0, 24.0]) {
           expect(
             MediaQuery.textScalerOf(context).scale(size),
-            closeTo(size * scale.clamp(0, 1), 0.001),
+            closeTo(size * scale.clamp(0.9, 1.0), 0.001),
           );
         }
         if (label == 'Open dialog') {

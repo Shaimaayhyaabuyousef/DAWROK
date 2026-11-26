@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'facility_nav.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 /// Display only to the signed-in facility owner.
 /// The same code is kept in the owner's restricted staff document until
@@ -16,18 +17,18 @@ Future<void> showStaffCodeDialog(
   context: context,
   builder: (dialogContext) => AlertDialog(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(19)),
-    title: const Row(children: [
+    title: Row(children: [
       Icon(Icons.vpn_key_outlined, color: facilityBlue),
       SizedBox(width: 10),
-      Expanded(child: Text('Employee Link Code')),
+      Expanded(child: Text(tr('Employee Link Code'))),
     ]),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SelectableText('Facility number: $facilityNumber'),
+        SelectableText(tr('Facility number: $facilityNumber')),
         const SizedBox(height: 8),
-        Text('Share this code securely with $staffName. '
-            'The employee uses it to request access to your facility.'),
+        Text(tr('Share this code securely with $staffName. '
+            'The employee uses it to request access to your facility.')),
         const SizedBox(height: 18),
         Container(
           width: double.infinity,
@@ -38,7 +39,7 @@ Future<void> showStaffCodeDialog(
             borderRadius: BorderRadius.circular(13),
           ),
           child: SelectableText(
-            code,
+            tr(code),
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 18, fontWeight: FontWeight.bold, color: facilityDark),
@@ -46,13 +47,13 @@ Future<void> showStaffCodeDialog(
         ),
         const SizedBox(height: 12),
         Text(
-          'Expires: ${expiresAt.toLocal()}',
+          tr('Expires: ${expiresAt.toLocal()}'),
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 12, color: facilityMuted),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'The code also remains on this employee’s card after closing.',
+        Text(
+          tr('The code also remains on this employee’s card after closing.'),
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, color: facilityMuted),
         ),
@@ -61,7 +62,7 @@ Future<void> showStaffCodeDialog(
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(dialogContext),
-        child: const Text('Close'),
+        child: Text(tr('Close')),
       ),
       FilledButton.icon(
         style: FilledButton.styleFrom(backgroundColor: facilityBlue),
@@ -69,12 +70,12 @@ Future<void> showStaffCodeDialog(
           await Clipboard.setData(ClipboardData(text: code));
           if (dialogContext.mounted) {
             ScaffoldMessenger.of(dialogContext).showSnackBar(
-              const SnackBar(content: Text('Code copied to clipboard')),
+              SnackBar(content: Text(tr('Code copied to clipboard'))),
             );
           }
         },
         icon: const Icon(Icons.copy_outlined),
-        label: const Text('Copy Code'),
+        label: Text(tr('Copy Code')),
       ),
     ],
   ),

@@ -8,8 +8,9 @@ import 'package:flutter/material.dart';
 import '../services/employee_access_service.dart';
 import 'employee_scanner_screen.dart';
 import 'employee_profile_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF27344D);
 const _muted = Color(0xFF899BB4);
 const _outline = Color(0xFFE0E9F2);
@@ -41,7 +42,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Access check failed: $e')));
+            .showSnackBar(SnackBar(content: Text(tr('Access check failed: $e'))));
       }
     } finally {
       if (mounted) setState(() => _checkingRoute = false);
@@ -94,7 +95,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               ? const CircularProgressIndicator()
               : TextButton(
                   onPressed: _ensureAccess,
-                  child: const Text('Check access'),
+                  child: Text(tr('Check access')),
                 ),
         ),
       );
@@ -108,7 +109,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         if (membership.hasError) {
           return Scaffold(
             body: Center(
-              child: Text('Cannot load staff membership: ${membership.error}'),
+              child: Text(tr('Cannot load staff membership: ${membership.error}')),
             ),
           );
         }
@@ -126,8 +127,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         }
         final fid = m['facilityId'] as String? ?? '';
         if (fid.isEmpty) {
-          return const Scaffold(
-            body: Center(child: Text('Employee is not linked to a facility.')),
+          return Scaffold(
+            body: Center(child: Text(tr('Employee is not linked to a facility.'))),
           );
         }
 
@@ -174,7 +175,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               ),
               if (_tab == index) ...[
                 const SizedBox(width: 6),
-                Text(label, style: const TextStyle(fontSize: 13, color: _blue)),
+                Text(tr(label), style: const TextStyle(fontSize: 13, color: _blue)),
               ],
             ],
           ),
@@ -195,9 +196,9 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         .snapshots(),
     builder: (context, routing) {
       if (routing.hasError) {
-        return const Center(
+        return Center(
           child: Text(
-            'Unable to load your service assignment. Please try again.',
+            tr('Unable to load your service assignment. Please try again.'),
           ),
         );
       }
@@ -221,8 +222,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               .snapshots(),
           builder: (context, queues) {
             if (facility.hasError || queues.hasError)
-              return const Center(
-                child: Text('Unable to load the facility or queues.'),
+              return Center(
+                child: Text(tr('Unable to load the facility or queues.')),
               );
             if (!facility.hasData || !queues.hasData)
               return const Center(child: CircularProgressIndicator());
@@ -245,8 +246,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                   .snapshots(),
               builder: (context, bookings) {
                 if (bookings.hasError)
-                  return const Center(
-                    child: Text('Unable to load queue activity.'),
+                  return Center(
+                    child: Text(tr('Unable to load queue activity.')),
                   );
                 if (!bookings.hasData)
                   return const Center(child: CircularProgressIndicator());
@@ -276,7 +277,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                     (q?.data()['startsAtMinutes'] as num?)?.toInt() ?? 0;
                 final end = (q?.data()['endsAtMinutes'] as num?)?.toInt() ?? 0;
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+                  padding: const EdgeInsetsDirectional.fromSTEB(24, 20, 24, 36),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -290,7 +291,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            online ? 'ONLINE' : 'OFFLINE',
+                            tr(online ? 'ONLINE' : 'OFFLINE'),
                             style: TextStyle(
                               fontSize: 13,
                               letterSpacing: 1,
@@ -331,11 +332,11 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Row(
+                                      Row(
                                         children: [
                                           Flexible(
                                             child: Text(
-                                              'Active Facility',
+                                              tr('Active Facility'),
                                               style: TextStyle(
                                                 color: _muted,
                                                 fontSize: 12,
@@ -351,8 +352,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                                       ),
                                       const SizedBox(height: 5),
                                       Text(
-                                        facilityData['name'] as String? ??
-                                            'Facility',
+                                        tr(facilityData['name'] as String? ??
+                                            'Facility'),
                                         style: const TextStyle(
                                           color: _ink,
                                           fontWeight: FontWeight.w700,
@@ -368,11 +369,11 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                             SizedBox(width: double.infinity, child: Wrap(
                               alignment: WrapAlignment.spaceBetween, spacing: 8, runSpacing: 4,
                               children: [
-                                Text('Zone: ${facilityData['address'] ?? 'Not specified'}',
+                                Text(tr('Zone: ${facilityData['address'] ?? 'Not specified'}'),
                                   style: const TextStyle(color: Color(0xFF687C99), fontSize: 12)),
                                 if (q != null)
                                   Text(
-                                    'Hours: ${QueueSchedule.clock(start)} - ${QueueSchedule.clock(end)}',
+                                    tr('Hours: ${QueueSchedule.clock(start)} - ${QueueSchedule.clock(end)}'),
                                     style: const TextStyle(
                                       color: Color(0xFF008DDB),
                                       fontSize: 11,
@@ -398,10 +399,10 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 36),
-                      const Padding(
-                        padding: EdgeInsets.only(left: 9, bottom: 8),
+                      Padding(
+                        padding: EdgeInsetsDirectional.only(start: 9, bottom: 8),
                         child: Text(
-                          'the teller',
+                          tr('the teller'),
                           style: TextStyle(
                             color: Color(0xFF384962),
                             fontSize: 14,
@@ -426,9 +427,9 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                             const SizedBox(width: 9),
                             Expanded(
                               child: Text(
-                                q == null
+                                tr(q == null
                                     ? 'Awaiting a vacant service position'
-                                    : "${assignment?['windowNumber'] == 0 ? 'Direct service' : 'Counter ${assignment?['windowNumber']}'} – ${q.data()['service'] ?? 'Queue'}",
+                                    : "${assignment?['windowNumber'] == 0 ? 'Direct service' : 'Counter ${assignment?['windowNumber']}'} – ${q.data()['service'] ?? 'Queue'}"),
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: _ink,
@@ -465,7 +466,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                                     ),
                                   ),
                             icon: const Icon(Icons.keyboard_outlined, size: 16),
-                            label: const Text('go to the queue'),
+                            label: Text(tr('go to the queue')),
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size(0, 48),
                               foregroundColor: _blue,
@@ -494,7 +495,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       WorkspaceIcon(asset, color: asset == 'waiting' ? Colors.orange : _blue),
       const SizedBox(width: 8),
       Expanded(
-        child: Text(title, style: const TextStyle(fontSize: 12, color: _muted)),
+        child: Text(tr(title), style: const TextStyle(fontSize: 12, color: _muted)),
       ),
       Flexible(
         child: Text.rich(
@@ -509,7 +510,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                 ),
               ),
               TextSpan(
-                text: ' $suffix',
+                text: tr(' $suffix'),
                 style: const TextStyle(fontSize: 12, color: _muted),
               ),
             ],

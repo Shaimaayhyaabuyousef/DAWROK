@@ -12,8 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../services/employee_work_service.dart';
+import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF28374E);
 const _muted = Color(0xFF71829B);
 
@@ -60,7 +61,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
       final message = await action();
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+            .showSnackBar(SnackBar(content: Text(tr(message))));
       }
     } catch (e) {
       if (mounted) {
@@ -178,7 +179,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
               return Center(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("Queue unavailable. Return home"),
+                  child: Text(tr("Queue unavailable. Return home")),
                 ),
               );
             }
@@ -193,10 +194,10 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
             final current = called.isNotEmpty ? called.first.id : null;
             final visibleMatch = _match?['ticketId'] == current ? _match : null;
             return ListView(
-              padding: const EdgeInsets.fromLTRB(23, 14, 23, 33),
+              padding: const EdgeInsetsDirectional.fromSTEB(23, 14, 23, 33),
               children: [
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   child: IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(
@@ -233,9 +234,9 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          widget.windowNumber == 0
+                          tr(widget.windowNumber == 0
                               ? 'Direct queue service'
-                              : 'Counter ${widget.windowNumber.toString().padLeft(2, '0')}',
+                              : 'Counter ${widget.windowNumber.toString().padLeft(2, '0')}'),
                           style: const TextStyle(color: _ink, fontSize: 16),
                         ),
                       ),
@@ -263,7 +264,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                       _failure = null;
                     }),
                     decoration: InputDecoration(
-                      hintText: 'Ticket ID or turn number',
+                      hintText: tr('Ticket ID or turn number'),
                       isDense: true,
                       filled: true,
                       fillColor: const Color(0xfffafbfd),
@@ -285,12 +286,12 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                         children: [
                           if (_text.text.trim().isNotEmpty)
                             IconButton(
-                              tooltip: 'Verify ticket',
+                              tooltip: tr('Verify ticket'),
                               icon: const Icon(Icons.check, color: _blue),
                               onPressed: () => _verify(_text.text),
                             ),
                           IconButton(
-                            tooltip: 'Scan QR code',
+                            tooltip: tr('Scan QR code'),
                             icon: const Icon(
                               Icons.qr_code_scanner,
                               color: _blue,
@@ -401,7 +402,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                               widget.windowNumber,
                             ),
                           ),
-                    child: const Text('Complete service'),
+                    child: Text(tr('Complete service')),
                   ),
                 const SizedBox(height: 47),
                 StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -415,7 +416,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                   builder: (context, logs) {
                     if (logs.hasError) {
                       return Text(
-                        'Logs error: ${logs.error}',
+                        tr('Logs error: ${logs.error}'),
                         style: const TextStyle(color: Colors.red),
                       );
                     }
@@ -434,8 +435,8 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                       children: [
                         Row(
                           children: [
-                            const Text(
-                              'RECENT SURVEYS',
+                            Text(
+                              tr('RECENT SURVEYS'),
                               style: TextStyle(
                                 color: Color(0xFF52657F),
                                 fontSize: 11,
@@ -443,17 +444,17 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                             ),
                             const SizedBox(width: 11),
                             Text(
-                              '${docs.length} logs',
+                              tr('${docs.length} logs'),
                               style: const TextStyle(color: Color(0xFF8A9DB3)),
                             ),
                           ],
                         ),
                         const Divider(height: 21),
                         if (docs.isEmpty)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.all(14),
                             child: Text(
-                              'No scans yet.',
+                              tr('No scans yet.'),
                               style: TextStyle(color: _muted),
                             ),
                           ),
@@ -476,13 +477,13 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                               spacing: 6,
                               children: [
                                 Text(
-                                  doc.data()['label'] as String? ?? 'Ticket',
+                                  tr(doc.data()['label'] as String? ?? 'Ticket'),
                                   style: const TextStyle(fontSize: 12),
                                 ),
                                 Text(
-                                  doc.data()['outcome'] == 'invalid'
+                                  tr(doc.data()['outcome'] == 'invalid'
                                       ? 'Failed attempt'
-                                      : 'Verified',
+                                      : 'Verified'),
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: doc.data()['outcome'] == 'invalid'
@@ -493,7 +494,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
                               ],
                             ),
                             subtitle: Text(
-                              'ID: ${doc.data()['identifier'] ?? ''}',
+                              tr('ID: ${doc.data()['identifier'] ?? ''}'),
                             ),
                             trailing: Icon(
                               doc.data()['outcome'] == 'invalid'
@@ -532,7 +533,7 @@ class _EmployeeScannerScreenState extends State<EmployeeScannerScreen> {
           ),
           padding: EdgeInsets.zero,
         ),
-        child: Text(text, style: const TextStyle(fontSize: 13)),
+        child: Text(tr(text), style: const TextStyle(fontSize: 13)),
       );
 }
 
@@ -557,7 +558,7 @@ class _ScannerSheetState extends State<_ScannerSheet> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Camera control unavailable.')),
+          SnackBar(content: Text(tr('Camera control unavailable.'))),
         );
       }
     }
@@ -568,7 +569,7 @@ class _ScannerSheetState extends State<_ScannerSheet> {
     child: SafeArea(
       top: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 18, 24, 32),
+        padding: const EdgeInsetsDirectional.fromSTEB(24, 18, 24, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -585,19 +586,19 @@ class _ScannerSheetState extends State<_ScannerSheet> {
               children: [
                 const Icon(Icons.circle, color: _blue, size: 10),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'QR Code Scanner',
+                    tr('QR Code Scanner'),
                     style: TextStyle(fontSize: 18, color: _ink),
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Flashlight',
+                  tooltip: tr('Flashlight'),
                   icon: const Icon(Icons.flash_on_outlined),
                   onPressed: () => control(camera.toggleTorch),
                 ),
                 IconButton(
-                  tooltip: 'Switch camera',
+                  tooltip: tr('Switch camera'),
                   icon: const Icon(Icons.cameraswitch_outlined),
                   onPressed: () => control(camera.switchCamera),
                 ),
@@ -631,8 +632,8 @@ class _ScannerSheetState extends State<_ScannerSheet> {
                     child: Center(
                       child: TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          'Camera unavailable. Enter ticket manually.',
+                        child: Text(
+                          tr('Camera unavailable. Enter ticket manually.'),
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
@@ -642,8 +643,8 @@ class _ScannerSheetState extends State<_ScannerSheet> {
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
-              'Please place the code inside the\nframe for automatic scanning.',
+            Text(
+              tr('Please place the code inside the\nframe for automatic scanning.'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: _muted),
             ),

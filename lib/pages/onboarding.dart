@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class Onboarding extends StatefulWidget {
   const Onboarding({super.key});
@@ -20,7 +21,7 @@ class _OnboardingState extends State<Onboarding> {
     'Choose the service and center, pick a time that suits you, and get your digital ticket in seconds.',
     'Present your ticket at the counter and receive service in less than two minutes—with complete transparency.',
   ];
-  static const _blue = Color(0xff03a9f4);
+  static const _blue = Color(0xFF2196F3);
   void _move(int page) => _controller.animateToPage(
     page,
     duration: const Duration(milliseconds: 260),
@@ -73,18 +74,19 @@ class _OnboardingState extends State<Onboarding> {
                             child: Align(
                               alignment: Alignment.topCenter,
                               child: Padding(
-                                padding: const EdgeInsets.fromLTRB(12, 6, 6, 0),
+                                padding: const EdgeInsetsDirectional.fromSTEB(12, 6, 6, 0),
                                 child: Row(
                                   children: [
                                     if (i > 0)
                                       IconButton(
-                                        tooltip: 'Back',
+                                        tooltip: tr('Back'),
                                         onPressed: () => _move(i - 1),
                                         icon: const Icon(
                                           Icons.arrow_back_ios_new,
                                           color: Colors.black,
                                         ),
                                       ),
+                                    if (i == 0) const _LanguageSwitch(),
                                     const Spacer(),
                                     if (i < 2)
                                       TextButton(
@@ -96,7 +98,7 @@ class _OnboardingState extends State<Onboarding> {
                                         style: TextButton.styleFrom(
                                           foregroundColor: Colors.black,
                                         ),
-                                        child: const Text('Skip'),
+                                        child: Text(tr('Skip')),
                                       ),
                                   ],
                                 ),
@@ -109,7 +111,7 @@ class _OnboardingState extends State<Onboarding> {
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Semantics(
-                        label: 'Page ${i + 1} of 3',
+                        label: tr('Page ${i + 1} of 3'),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: List.generate(
@@ -139,9 +141,9 @@ class _OnboardingState extends State<Onboarding> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 8, 0),
+                      padding: const EdgeInsetsDirectional.fromSTEB(16, 20, 8, 0),
                       child: Text(
-                        _titles[i],
+                        tr(_titles[i]),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 23,
@@ -152,9 +154,9 @@ class _OnboardingState extends State<Onboarding> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(21, 24, 12, 0),
+                      padding: const EdgeInsetsDirectional.fromSTEB(21, 24, 12, 0),
                       child: Text(
-                        _descriptions[i],
+                        tr(_descriptions[i]),
                         style: const TextStyle(
                           fontSize: 17.5,
                           height: 1.48,
@@ -166,7 +168,7 @@ class _OnboardingState extends State<Onboarding> {
                       SafeArea(
                         top: false,
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 26, 24, 18),
+                          padding: const EdgeInsetsDirectional.fromSTEB(24, 26, 24, 18),
                           child: Row(
                             children: [
                               Expanded(
@@ -184,8 +186,8 @@ class _OnboardingState extends State<Onboarding> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text(
-                                    'Signin',
+                                  child: Text(
+                                    tr('Signin'),
                                     style: TextStyle(fontSize: 18),
                                   ),
                                 ),
@@ -206,8 +208,8 @@ class _OnboardingState extends State<Onboarding> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text(
-                                    'Signup',
+                                  child: Text(
+                                    tr('Signup'),
                                     style: TextStyle(fontSize: 18),
                                   ),
                                 ),
@@ -221,6 +223,73 @@ class _OnboardingState extends State<Onboarding> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// English / العربية switch on the first onboarding page. Arabic turns the
+/// whole app right-to-left; the choice is remembered on this device.
+class _LanguageSwitch extends StatelessWidget {
+  const _LanguageSwitch();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 4, top: 4),
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsetsDirectional.only(start: 8, end: 4),
+              child: Icon(Icons.language_rounded, size: 18, color: Color(0xFF2196F3)),
+            ),
+            _option('en', 'EN'),
+            _option('ar', 'عربي'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _option(String code, String label) {
+    final selected = AppLanguage.locale.value.languageCode == code;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: code == 'en' ? 'English' : 'العربية',
+      child: GestureDetector(
+        onTap: () => AppLanguage.set(code),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF2196F3) : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : const Color(0xFF475870),
+            ),
+          ),
         ),
       ),
     );

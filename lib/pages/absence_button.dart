@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/server_clock.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class AbsenceButton extends StatefulWidget {
   const AbsenceButton({
@@ -55,9 +56,9 @@ class _AbsenceButtonState extends State<AbsenceButton> {
     return OutlinedButton(
       onPressed: due != null && synced && seconds <= 0 ? widget.onAbsent : null,
       child: Text(
-        seconds > 0 && widget.onAbsent != null
+        tr(seconds > 0 && widget.onAbsent != null
             ? '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}'
-            : 'Absent',
+            : 'Absent'),
       ),
     );
   }

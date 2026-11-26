@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class EmployeeTicketResult extends StatelessWidget {
   const EmployeeTicketResult({super.key, this.match, this.failure});
@@ -32,7 +33,7 @@ class EmployeeTicketResult extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  failure ?? "Ticket matches #${match?['queuePosition'] ?? ''}",
+                  tr(failure ?? "Ticket matches #${match?['queuePosition'] ?? ''}"),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -69,9 +70,9 @@ class EmployeeTicketResult extends StatelessWidget {
   Widget _detail(String label, dynamic value) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(label, style: const TextStyle(fontSize: 12, color: Colors.teal)),
+      Text(tr(label), style: const TextStyle(fontSize: 12, color: Colors.teal)),
       Text(
-        '${value ?? '—'}',
+        tr('${value ?? '—'}'),
         style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,

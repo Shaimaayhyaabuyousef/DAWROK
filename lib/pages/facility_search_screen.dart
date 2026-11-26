@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'facility_nav.dart';
 import 'facility_scan_store.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class FacilitySearchScreen extends StatefulWidget {
   const FacilitySearchScreen({super.key});
@@ -50,7 +51,7 @@ class _FacilitySearchScreenState extends State<FacilitySearchScreen> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(29, 28, 29, 22),
+                padding: const EdgeInsetsDirectional.fromSTEB(29, 28, 29, 22),
                 child: TextField(
                   controller: query,
                   onChanged: (_) => setState(() {}),
@@ -59,7 +60,7 @@ class _FacilitySearchScreenState extends State<FacilitySearchScreen> {
                       widthFactor: 1,
                       child: WorkspaceIcon('search', color: Color(0xFF00A4ED)),
                     ),
-                    hintText: 'Full Name OR ID',
+                    hintText: tr('Full Name OR ID'),
                     hintStyle: const TextStyle(
                       color: Color(0xFFB3DFFF),
                       fontSize: 16,
@@ -88,9 +89,9 @@ class _FacilitySearchScreenState extends State<FacilitySearchScreen> {
               ),
               Expanded(
                 child: result.isEmpty
-                    ? const Center(child: Text('No matching tickets'))
+                    ? Center(child: Text(tr('No matching tickets')))
                     : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(19, 12, 19, 20),
+                        padding: const EdgeInsetsDirectional.fromSTEB(19, 12, 19, 20),
                         itemCount: result.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (_, i) =>
@@ -123,7 +124,7 @@ class FacilityVisitorCard extends StatelessWidget {
         ),
       ],
     ),
-    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+    padding: const EdgeInsetsDirectional.fromSTEB(14, 14, 14, 14),
     child: Row(
       children: [
         Expanded(
@@ -148,7 +149,7 @@ class FacilityVisitorCard extends StatelessWidget {
               ),
               const SizedBox(height: 9),
               Text(
-                visit.visitorName,
+                tr(visit.visitorName),
                 style: const TextStyle(
                   color: facilityDark,
                   fontSize: 13,
@@ -170,7 +171,7 @@ class FacilityVisitorCard extends StatelessWidget {
                             alignment: PlaceholderAlignment.middle,
                             child: WorkspaceIcon('id', color: facilityMuted),
                           ),
-                          TextSpan(text: '  ID: #${visit.maskedId}'),
+                          TextSpan(text: tr('  ID: #${visit.maskedId}')),
                         ],
                       ),
                       style: const TextStyle(
@@ -188,7 +189,7 @@ class FacilityVisitorCard extends StatelessWidget {
                               color: Color(0xFF008CD5),
                             ),
                           ),
-                          TextSpan(text: '  ~${visit.estimatedMinutes} mins'),
+                          TextSpan(text: tr('  ~${visit.estimatedMinutes} mins')),
                         ],
                       ),
                       style: const TextStyle(
@@ -218,17 +219,17 @@ class FacilityVisitorCard extends StatelessWidget {
                 radius: 20,
                 backgroundColor: const Color(0xFFD9F1FF),
                 child: Text(
-                  visit.visitorName.isEmpty
+                  tr(visit.visitorName.isEmpty
                       ? '?'
-                      : visit.visitorName.characters.first.toUpperCase(),
+                      : visit.visitorName.characters.first.toUpperCase()),
                   style: const TextStyle(color: Color(0xFF0088D0)),
                 ),
               ),
               const SizedBox(height: 7),
               Text(
-                visit.windowNumber == 0
+                tr(visit.windowNumber == 0
                     ? 'Unassigned'
-                    : 'Counter ${visit.windowNumber}',
+                    : 'Counter ${visit.windowNumber}'),
                 style: const TextStyle(color: Color(0xFF61748F), fontSize: 11),
                 textAlign: TextAlign.center,
               ),
@@ -245,6 +246,6 @@ class FacilityVisitorCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(5),
       border: Border.all(color: fg.withValues(alpha: .16)),
     ),
-    child: Text(label, style: TextStyle(color: fg, fontSize: 11)),
+    child: Text(tr(label), style: TextStyle(color: fg, fontSize: 11)),
   );
 }

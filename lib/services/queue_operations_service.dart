@@ -21,6 +21,26 @@ class QueueOperationsService {
     }
   }
 
+  /// Publishes the called position so waiting citizens can see how many
+  /// people are ahead of them. Best effort: the call itself already succeeded.
+  Future<void> _publishProgress(
+    DocumentReference<Map<String, dynamic>> qref,
+    QueryDocumentSnapshot<Map<String, dynamic>> ticket,
+  ) async {
+    final position = (ticket.data()['queuePosition'] as num?)?.toInt();
+    final day = ticket.data()['dayKey'];
+    if (position == null || day is! String) return;
+    try {
+      await qref.collection('progress').doc(day).set({
+        'position': position,
+        'ticketId': ticket.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Queue progress not published: $e');
+    }
+  }
+
   Future<String> callNext(
     String fid,
     String qid,
@@ -102,6 +122,7 @@ class QueueOperationsService {
           });
         });
         await _log(fid, 'Called', candidate.id);
+        await _publishProgress(qref, candidate);
         return 'Calling ticket #${candidate.id}';
       } on QueueClaimConflict {
         continue;

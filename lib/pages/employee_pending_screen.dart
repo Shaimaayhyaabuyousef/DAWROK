@@ -3,8 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/employee_access_service.dart';
+import 'package:first_project/l10n/app_language.dart';
 
-const _primary = Color(0xFF03A9F4);
+const _primary = Color(0xFF2196F3);
 
 /// Waiting is persisted in Firestore; this page is just a live viewer.
 /// Closing the app never cancels the request or approval.
@@ -69,7 +70,7 @@ class _EmployeePendingScreenState extends State<EmployeePendingScreen> {
               body: SafeArea(child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 27),
                 child: Column(children: [
-                  Align(alignment: Alignment.centerLeft,
+                  Align(alignment: AlignmentDirectional.centerStart,
                     child: IconButton(
                       onPressed: _logout,
                       icon: const Icon(Icons.logout, color: Color(0xFF8EA1B9)))),
@@ -83,20 +84,20 @@ class _EmployeePendingScreenState extends State<EmployeePendingScreen> {
                           : Icons.hourglass_top_rounded,
                       size: 66, color: rejected ? Colors.redAccent : _primary)),
                   const SizedBox(height: 27),
-                  Text(rejected
+                  Text(tr(rejected
                     ? 'Request Rejected'
                     : approved ? 'Approval Received'
-                    : 'Waiting for Approval',
+                    : 'Waiting for Approval'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 27, fontWeight: FontWeight.w700,
                       color: Color(0xFF24334B))),
                   const SizedBox(height: 14),
-                  Text(rejected
+                  Text(tr(rejected
                       ? 'Your facility did not approve the request. Ask the facility for a new invitation code.'
                       : approved
                         ? 'Your facility has approved you. Your employee profile will open now.'
-                        : 'Your request was sent to the facility. Once the facility accepts, your account will become available.',
+                        : 'Your request was sent to the facility. Once the facility accepts, your account will become available.'),
                     style: const TextStyle(
                       height: 1.6, fontSize: 14,
                       color: Color(0xFF8594AC)),
@@ -110,28 +111,28 @@ class _EmployeePendingScreenState extends State<EmployeePendingScreen> {
                       border: Border.all(color: const Color(0xFFD5EBFC)),
                       borderRadius: BorderRadius.circular(16)),
                     child: Column(children: [
-                      const Text('ACCOUNT STATUS',
+                      Text(tr('ACCOUNT STATUS'),
                         style: TextStyle(color: Color(0xFF92A7C1),
                           fontSize: 11, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      Text(rejected ? 'Rejected' :
-                        approved ? 'Approved' : 'Pending facility review',
+                      Text(tr(rejected ? 'Rejected' :
+                        approved ? 'Approved' : 'Pending facility review'),
                         style: TextStyle(
                           color: rejected ? Colors.redAccent : _primary,
                           fontWeight: FontWeight.w700)),
                       const SizedBox(height: 9),
-                      if (claims.isNotEmpty) Text(claims.first.data()['phone'] as String? ?? '',
+                      if (claims.isNotEmpty) Text(tr(claims.first.data()['phone'] as String? ?? ''),
                         style: const TextStyle(fontSize: 12,
                           color: Color(0xFF7487A3))),
                     ]),
                   ),
                   if (membership.hasError || joins.hasError) ...[
                     const SizedBox(height: 10),
-                    Text('Unable to check status: ${membership.error ?? joins.error}',
+                    Text(tr('Unable to check status: ${membership.error ?? joins.error}'),
                       style: const TextStyle(color: Colors.red)),
                   ],
                   const SizedBox(height: 25),
-                  const Text('You can close the application. Approval will remain saved and be checked at your next sign-in.',
+                  Text(tr('You can close the application. Approval will remain saved and be checked at your next sign-in.'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFF8CA2B8), fontSize: 12)),
@@ -145,8 +146,8 @@ class _EmployeePendingScreenState extends State<EmployeePendingScreen> {
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(13))),
-                      child: Text(rejected ? 'Return to Staff Login'
-                        : 'Check My Status'))),
+                      child: Text(tr(rejected ? 'Return to Staff Login'
+                        : 'Check My Status')))),
                   const SizedBox(height: 35),
                 ]),
               )),

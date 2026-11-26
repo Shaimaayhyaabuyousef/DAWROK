@@ -1,4 +1,5 @@
 import 'phone_login.dart';
+import 'national_id.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -34,8 +35,8 @@ class CitizenSignupService {
       if (fullName.length < 3 || fullName.length > 120) {
         throw const FormatException('Enter your full name.');
       }
-      if (!RegExp(r'^\d{9}$').hasMatch(nationalId)) {
-        throw const FormatException('Enter a nine-digit ID.');
+      if (!validNationalId(nationalId)) {
+        throw const FormatException('This ID number is not valid.');
       }
 
       final result = await _auth.createUserWithEmailAndPassword(
@@ -48,7 +49,24 @@ class CitizenSignupService {
       // One Firestore batch means the profile, self-reported ID and demo
       // progress cannot be half-written. The matching rules use getAfter().
       try {
+        // One ID number belongs to one account. Reading a claim owned by
+        // another account is denied, which means the number is taken.
+        final claimRef = _db.collection('national_id_claims').doc(nationalId);
+        try {
+          await claimRef.get();
+        } on FirebaseException catch (e) {
+          if (e.code == 'permission-denied') {
+            throw const FormatException(
+              'This ID number is already registered to another account.',
+            );
+          }
+          rethrow;
+        }
         final batch = _db.batch();
+        batch.set(claimRef, {
+          'uid': user.uid,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
         batch.set(_db.collection('users').doc(user.uid), {
           'uid': user.uid,
           'role': 'citizen',

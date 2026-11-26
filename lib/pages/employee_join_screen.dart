@@ -5,8 +5,9 @@ import 'package:flutter/services.dart';
 import '../services/facility_number.dart';
 import 'employee_login_screen.dart';
 import 'employee_register_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF243149);
 const _border = Color(0xFFE0E8F1);
 
@@ -54,7 +55,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
 
   InputDecoration _decoration(String hint, {bool shaded = false}) =>
       InputDecoration(
-        hintText: hint,
+        hintText: trOpt(hint),
         hintStyle: const TextStyle(color: Color(0xFF9AA9BD)),
         filled: true,
         fillColor: shaded ? const Color(0xFFF6F8FB) : Colors.white,
@@ -74,7 +75,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
     required Widget child,
   }) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.fromLTRB(15, 15, 15, 14),
+    padding: const EdgeInsetsDirectional.fromSTEB(15, 15, 15, 14),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -87,7 +88,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
       Row(children: [
         Icon(icon, color: _blue, size: 20),
         const SizedBox(width: 10),
-        Text(title, style: const TextStyle(
+        Text(tr(title), style: const TextStyle(
           color: Color(0xFF384960),
           fontWeight: FontWeight.w600,
           fontSize: 15,
@@ -122,7 +123,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
                 SizedBox(height: constraints.maxHeight > 700 ? 77 : 34),
                 _panel(
                   icon: Icons.apartment_outlined,
-                  title: 'Facility Number',
+                  title: tr('Facility Number'),
                   child: TextFormField(
                     controller: _facility,
                     keyboardType: TextInputType.number,
@@ -134,7 +135,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
                 const SizedBox(height: 15),
                 _panel(
                   icon: Icons.lock_outline,
-                  title: 'Employee Link Code',
+                  title: tr('Employee Link Code'),
                   child: Row(children: [
                     Expanded(child: TextFormField(
                       controller: _code,
@@ -153,14 +154,14 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(13))),
                       icon: const Icon(Icons.content_paste_outlined, size: 18),
-                      label: const Text('Paste'),
+                      label: Text(tr('Paste')),
                     ),
                   ]),
                 ),
                 const SizedBox(height: 15),
                 _panel(
                   icon: Icons.phone_iphone_outlined,
-                  title: 'Phone Number',
+                  title: tr('Phone Number'),
                   child: TextFormField(
                     controller: _phone,
                     keyboardType: TextInputType.phone,
@@ -180,12 +181,12 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15)),
                       elevation: 7,
-                      shadowColor: const Color(0x4D03A9F4),
+                      shadowColor: const Color(0x4D2196F3),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Verify & Join Facility  •  التحقق والانضمام',
+                        Text(tr('Verify & Join Facility'),
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                         SizedBox(width: 10),
                         Icon(Icons.arrow_forward, size: 21),
@@ -200,7 +201,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
                     MaterialPageRoute(builder: (_) =>
                         const EmployeeLoginScreen()),
                   ),
-                  child: const Text('Already joined? Sign in',
+                  child: Text(tr('Already joined? Sign in'),
                     style: TextStyle(color: Color(0xFF63748D))),
                 )),
                 const SizedBox(height: 25),

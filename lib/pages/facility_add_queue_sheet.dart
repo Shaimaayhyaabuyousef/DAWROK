@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'facility_queue_store.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const _blue = Color(0xFF04A7EF);
 const _lightBlue = Color(0xFF4FAAF3);
@@ -125,7 +126,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
     }
     if (facilityTimeInMinutes(_to) <= facilityTimeInMinutes(_from)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('End time must be later than start time')),
+        SnackBar(content: Text(tr('End time must be later than start time'))),
       );
       return;
     }
@@ -168,7 +169,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
             ),
             const SizedBox(height: 34),
             Text(
-              widget.editing == null ? 'Add Queue' : 'Edit Queue',
+              tr(widget.editing == null ? 'Add Queue' : 'Edit Queue'),
               style: const TextStyle(
                 color: Color(0xFF6BB8FA),
                 fontSize: 21,
@@ -178,38 +179,38 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
             const SizedBox(height: 28),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(35, 0, 35, 12),
+                padding: const EdgeInsetsDirectional.fromSTEB(35, 0, 35, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _servicePicker(availableServices.toList()),
                     if (_showServiceError) ...[
                       const SizedBox(height: 5),
-                      const Text('Please choose a service',
+                      Text(tr('Please choose a service'),
                         style: TextStyle(fontSize: 11, color: Color(0xFFD73E4B))),
                     ],
                     const SizedBox(height: 17),
-                    const Text('Capacity:', style: TextStyle(fontSize: 14.5, color: Colors.black)),
+                    Text(tr('Capacity:'), style: TextStyle(fontSize: 14.5, color: Colors.black)),
                     const SizedBox(height: 8),
                     _capacityCard(),
                     const SizedBox(height: 12),
                     Row(children: [
-                      const Expanded(child: Text('Service windows')),
+                      Expanded(child: Text(tr('Service windows'))),
                       _stepButton(Icons.remove, () => setState(() => _windowCount = math.max(0, _windowCount - 1))),
-                      Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('$_windowCount')),
+                      Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(tr('$_windowCount'))),
                       _stepButton(Icons.add, () => setState(() => _windowCount = math.min(20, _windowCount + 1)), blue: true),
                     ]),
-                    Text(_windowCount == 0 ? 'No windows — direct queue service' : 'Employees are assigned automatically to vacant windows', style: const TextStyle(color: _muted, fontSize: 12)),
+                    Text(tr(_windowCount == 0 ? 'No windows — direct queue service' : 'Employees are assigned automatically to vacant windows'), style: const TextStyle(color: _muted, fontSize: 12)),
                     const SizedBox(height: 10),
                     Row(children: [
-                      const Expanded(child: Text('Extra reward places', style: TextStyle(color: _muted))),
+                      Expanded(child: Text(tr('Extra reward places'), style: TextStyle(color: _muted))),
                       _stepButton(Icons.remove, () => setState(() => _rewardCapacity = math.max(0, _rewardCapacity - 1))),
-                      Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('$_rewardCapacity')),
+                      Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(tr('$_rewardCapacity'))),
                       _stepButton(Icons.add, () => setState(() => _rewardCapacity = math.min(1000, _rewardCapacity + 1)), blue: true),
                     ]),
                     const SizedBox(height: 17),
-                    const Text(
-                      'Approximate waiting time:',
+                    Text(
+                      tr('Approximate waiting time:'),
                       style: TextStyle(fontSize: 14.5, color: Colors.black),
                     ),
                     const SizedBox(height: 8),
@@ -221,7 +222,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
               ),
             ),
             Padding(
-              padding: EdgeInsets.fromLTRB(35, 13, 35, keyboard > 0 ? 12 : 30),
+              padding: EdgeInsetsDirectional.fromSTEB(35, 13, 35, keyboard > 0 ? 12 : 30),
               child: SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -229,7 +230,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
                   onPressed: _saving ? null : _save,
                   icon: Icon(widget.editing == null ? Icons.add : Icons.check, size: 23),
                   label: Text(
-                    widget.editing == null ? 'Create Queue' : 'Save Changes',
+                    tr(widget.editing == null ? 'Create Queue' : 'Save Changes'),
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -261,15 +262,15 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
         child: DropdownButton<String>(
           isExpanded: true,
           value: _service,
-          hint: const Text(
-            'choose the service to be organized',
+          hint: Text(
+            tr('choose the service to be organized'),
             style: TextStyle(color: _dark, fontSize: 14, fontWeight: FontWeight.w500),
             overflow: TextOverflow.ellipsis,
           ),
           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF607087)),
           items: services.map((service) => DropdownMenuItem(
             value: service,
-            child: Text(service, overflow: TextOverflow.ellipsis),
+            child: Text(tr(service), overflow: TextOverflow.ellipsis),
           )).toList(),
           onChanged: (value) => setState(() {
             _service = value;
@@ -287,11 +288,11 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
         children: [
           _circleIcon(Icons.groups_outlined),
           const SizedBox(width: 14),
-          Text('$_capacity', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _dark)),
+          Text(tr('$_capacity'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _dark)),
           const Spacer(),
-          const Flexible(
+          Flexible(
             flex: 2,
-            child: Text('Beneficiaries', style: TextStyle(fontSize: 13, color: _muted), overflow: TextOverflow.ellipsis),
+            child: Text(tr('Beneficiaries'), style: TextStyle(fontSize: 13, color: _muted), overflow: TextOverflow.ellipsis),
           ),
           const SizedBox(width: 8),
           Container(
@@ -322,7 +323,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
         padding: EdgeInsets.zero,
         splashRadius: 19,
         onPressed: onPressed,
-        tooltip: blue ? 'Increase' : 'Decrease',
+        tooltip: trOpt(blue ? 'Increase' : 'Decrease'),
       ),
     );
   }
@@ -334,9 +335,9 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
         children: [
           _circleIcon(Icons.access_time_rounded),
           const SizedBox(width: 13),
-          Text('$_waitingMinutes', style: const TextStyle(color: _dark, fontSize: 18, fontWeight: FontWeight.w700)),
+          Text(tr('$_waitingMinutes'), style: const TextStyle(color: _dark, fontSize: 18, fontWeight: FontWeight.w700)),
           const Spacer(),
-          const Text('mins', style: TextStyle(fontSize: 13, color: Color(0xFF63748E))),
+          Text(tr('mins'), style: TextStyle(fontSize: 13, color: Color(0xFF63748E))),
           const SizedBox(width: 7),
           for (final minutes in [10, 15, 30]) ...[
             _quickTimeButton(minutes),
@@ -362,7 +363,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
           border: Border.all(color: selected ? const Color(0xFFADE1FD) : _border),
         ),
         child: Text(
-          '${minutes}m',
+          tr('${minutes}m'),
           style: TextStyle(fontSize: 12, color: selected ? _blue : const Color(0xFF4D5C76), fontWeight: FontWeight.w600),
         ),
       ),
@@ -371,7 +372,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
 
   Widget _bookingWindowCard() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(17),
@@ -391,9 +392,9 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
                 child: const Icon(Icons.punch_clock_rounded, color: Color(0xFF008BD3), size: 18),
               ),
               const SizedBox(width: 6),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Available Booking Window (Hourly)',
+                  tr('Available Booking Window (Hourly)'),
                   style: TextStyle(fontSize: 12.5, color: _dark, fontWeight: FontWeight.bold),
                   maxLines: 2,
                 ),
@@ -410,7 +411,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
           ),
           const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.fromLTRB(11, 12, 11, 12),
+            padding: const EdgeInsetsDirectional.fromSTEB(11, 12, 11, 12),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -420,7 +421,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
               children: [
                 Expanded(child: _timeBox('From Time', _from, () => _pickTime(start: true))),
                 Padding(
-                  padding: const EdgeInsets.only(left: 0, right: 0, top: 22),
+                  padding: const EdgeInsetsDirectional.only(start: 0, end: 0, top: 22),
                   child: Container(
                     width: 27,
                     height: 27,
@@ -440,7 +441,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
   Widget _timeBox(String title, TimeOfDay time, VoidCallback onTap) {
     return Column(
       children: [
-        Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF657690))),
+        Text(tr(title), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF657690))),
         const SizedBox(height: 6),
         InkWell(
           onTap: onTap,
@@ -458,10 +459,10 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
               children: [
                 FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: Text(facilityTimeText(time), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _dark)),
+                  child: Text(tr(facilityTimeText(time)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _dark)),
                 ),
                 const SizedBox(height: 3),
-                Text(facilityTimeText(time), style: const TextStyle(fontSize: 10, color: Color(0xFF008FE2))),
+                Text(tr(facilityTimeText(time)), style: const TextStyle(fontSize: 10, color: Color(0xFF008FE2))),
               ],
             ),
           ),
@@ -494,9 +495,9 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    Text(tr(label), maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selected ? Colors.white : const Color(0xFF52627A))),
-                    Text(hours, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    Text(tr(hours), maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: selected ? Colors.white : const Color(0xFF52627A))),
                   ],
                 ),

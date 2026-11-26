@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'dart:math' as math;
 
 import '../services/app_auth_service.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class Splash extends StatefulWidget {
   const Splash({super.key});
@@ -82,11 +83,11 @@ class _SplashState extends State<Splash> {
                                 painter: _BrandMark(),
                               ),
                             ),
-                            const Positioned(
+                            Positioned(
                               top: 398,
                               child: Text.rich(
                                 TextSpan(
-                                  text: 'DAWROK ',
+                                  text: tr('DAWROK '),
                                   style: TextStyle(
                                     color: Color(0xff1e293b),
                                     fontSize: 24,
@@ -96,7 +97,7 @@ class _SplashState extends State<Splash> {
                                     TextSpan(
                                       text: '│ دَورْك',
                                       style: TextStyle(
-                                        color: Color(0xff03a9f4),
+                                        color: Color(0xFF2196F3),
                                       ),
                                     ),
                                   ],
@@ -107,17 +108,17 @@ class _SplashState extends State<Splash> {
                             const Positioned(
                               top: 485,
                               child: _Dots([
-                                Color(0xff03a9f4),
+                                Color(0xFF2196F3),
                                 Color(0xff38bdf8),
                                 Color(0xff10b981),
                               ]),
                             ),
-                            const Positioned(
+                            Positioned(
                               top: 544,
                               child: Row(
                                 children: [
                                   Text(
-                                    'VERIFYING SECURE CIVIL IDENTITY...',
+                                    tr('VERIFYING SECURE CIVIL IDENTITY...'),
                                     style: TextStyle(
                                       fontSize: 11,
                                       letterSpacing: .5,
@@ -129,7 +130,7 @@ class _SplashState extends State<Splash> {
                                   Icon(
                                     Icons.sync,
                                     size: 15,
-                                    color: Color(0xff03a9f4),
+                                    color: Color(0xFF2196F3),
                                   ),
                                 ],
                               ),
@@ -142,11 +143,10 @@ class _SplashState extends State<Splash> {
                                 Color(0xff004568),
                               ]),
                             ),
-                            const Positioned(
+                            Positioned(
                               bottom: 76,
                               child: Text(
-                                'جاري تهيئة خدمات المراكز والمواعيد...',
-                                textDirection: TextDirection.rtl,
+                                tr('Preparing facility services and appointments...'),
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Color(0xff454656),
@@ -231,7 +231,7 @@ class _BrandMark extends CustomPainter {
       );
     }
 
-    const blue = Color(0xff03a9f4), green = Color(0xff10b981);
+    const blue = Color(0xFF2196F3), green = Color(0xff10b981);
     for (var i = 0; i < 4; i++) {
       person(
         67,

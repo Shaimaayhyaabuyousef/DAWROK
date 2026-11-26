@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../services/citizen_account_service.dart';
 import 'citizen_ui.dart';
 import 'facilities_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class CitizenPointsScreen extends StatefulWidget {
   const CitizenPointsScreen({super.key});
@@ -39,28 +40,28 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Redeem 100 points',
+              Text(
+                tr('Redeem 100 points'),
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               ListTile(
                 leading: const Icon(Icons.event_available),
-                title: const Text('Book after normal places run out'),
-                subtitle: const Text(
-                  'Only when the facility has allocated an extra reward place.',
+                title: Text(tr('Book after normal places run out')),
+                subtitle: Text(
+                  tr('Only when the facility has allocated an extra reward place.'),
                 ),
                 onTap: () => Navigator.pop(context, 'extra'),
               ),
               ListTile(
                 leading: const Icon(Icons.priority_high),
-                title: const Text('Priority within your time slot'),
-                subtitle: const Text(
-                  'Available when a waiting ticket in the same period qualifies under the missed-attendance policy.',
+                title: Text(tr('Priority within your time slot')),
+                subtitle: Text(
+                  tr('Available when a waiting ticket in the same period qualifies under the missed-attendance policy.'),
                 ),
                 onTap: () => Navigator.pop(context, 'priority'),
               ),
-              const Text(
-                '100 points are returned if you cancel before being called or the facility cancels service.',
+              Text(
+                tr('100 points are returned if you cancel before being called or the facility cancels service.'),
                 style: TextStyle(color: Colors.blueGrey),
               ),
             ],
@@ -88,12 +89,12 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
+                tr(title),
                 style: const TextStyle(fontSize: 15, color: citizenInk),
               ),
               const SizedBox(height: 5),
               Text(
-                body,
+                tr(body),
                 style: const TextStyle(
                   fontSize: 12,
                   color: Color(0xFF71849F),
@@ -113,20 +114,20 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text(
-          'YOUR POINTS BALANCE',
+        title: Text(
+          tr('YOUR POINTS BALANCE'),
           style: TextStyle(color: citizenSoftBlue, fontSize: 20),
         ),
       ),
       body: uid == null
-          ? const Center(child: Text('Please sign in.'))
+          ? Center(child: Text(tr('Please sign in.')))
           : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: CitizenAccountService.instance.account(uid).snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError)
-                  return const Center(
+                  return Center(
                     child: Text(
-                      'Unable to load your balance. Please try again.',
+                      tr('Unable to load your balance. Please try again.'),
                     ),
                   );
                 if (!snapshot.hasData)
@@ -147,10 +148,10 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 460),
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(21, 42, 21, 30),
+                      padding: const EdgeInsetsDirectional.fromSTEB(21, 42, 21, 30),
                       children: [
                         Container(
-                          padding: const EdgeInsets.fromLTRB(18, 24, 18, 45),
+                          padding: const EdgeInsetsDirectional.fromSTEB(18, 24, 18, 45),
                           decoration: citizenPanel(
                             color: const Color(0xFFF5FBFF),
                           ),
@@ -168,7 +169,7 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                                   radius: 24,
                                 ),
                                 child: Text(
-                                  '${blocked ? '!' : '✓'} $status',
+                                  tr('${blocked ? '!' : '✓'} $status'),
                                   style: TextStyle(
                                     color: blocked
                                         ? Colors.orange.shade800
@@ -182,7 +183,7 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    '${policy.points}',
+                                    tr('${policy.points}'),
                                     style: const TextStyle(
                                       fontSize: 34,
                                       fontWeight: FontWeight.bold,
@@ -196,8 +197,8 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                                       color: const Color(0xFFF0FAFF),
                                       radius: 7,
                                     ),
-                                    child: const Text(
-                                      'PTS',
+                                    child: Text(
+                                      tr('PTS'),
                                       style: TextStyle(
                                         color: citizenBlue,
                                         fontSize: 17,
@@ -209,9 +210,9 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                               const Divider(height: 44),
                               Row(
                                 children: [
-                                  const Expanded(
+                                  Expanded(
                                     child: Text(
-                                      'Reward Booking Eligibility',
+                                      tr('Reward Booking Eligibility'),
                                       style: TextStyle(
                                         color: Color(0xFF52647C),
                                         fontSize: 12,
@@ -219,7 +220,7 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '${(progress * 100).round()}% Achieved',
+                                    tr('${(progress * 100).round()}% Achieved'),
                                     style: const TextStyle(
                                       color: citizenBlue,
                                       fontSize: 15,
@@ -243,16 +244,16 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                         const SizedBox(height: 22),
                         if (blocked) ...[
                           Text(
-                            policy.reviewRequired
+                            tr(policy.reviewRequired
                                 ? 'Booking is restricted until administration reviews your report.'
-                                : 'Booking is restricted until ${policy.blockedUntil!.toLocal()}.',
+                                : 'Booking is restricted until ${policy.blockedUntil!.toLocal()}.'),
                             style: const TextStyle(color: citizenInk),
                           ),
                           TextButton(
                             onPressed: () =>
                                 Navigator.pushNamed(context, 'citizen_report'),
-                            child: const Text(
-                              'Contact administration / Report',
+                            child: Text(
+                              tr('Contact administration / Report'),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -262,7 +263,7 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                           decoration: citizenPanel(),
                           child: Column(
                             children: [
-                              const Row(
+                              Row(
                                 children: [
                                   Icon(
                                     Icons.policy_outlined,
@@ -271,7 +272,7 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                                   SizedBox(width: 17),
                                   Expanded(
                                     child: Text(
-                                      'Terms & Compliance Policy',
+                                      tr('Terms & Compliance Policy'),
                                       style: TextStyle(fontSize: 16),
                                     ),
                                   ),
@@ -306,8 +307,8 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                               ? _redeem
                               : null,
                           icon: const Icon(Icons.calendar_today),
-                          label: const Text(
-                            'Replace with Booking',
+                          label: Text(
+                            tr('Replace with Booking'),
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -315,10 +316,10 @@ class _CitizenPointsScreenState extends State<CitizenPointsScreen> {
                           ),
                         ),
                         if (policy.points < 100)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(top: 12),
                             child: Text(
-                              'Reach 100 points to redeem a booking reward.',
+                              tr('Reach 100 points to redeem a booking reward.'),
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Colors.blueGrey,

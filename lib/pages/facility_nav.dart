@@ -1,6 +1,7 @@
 import 'workspace_style.dart';
 
 import 'package:flutter/material.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const facilityBlue = Color(0xFF4FAAF4);
 const facilityDark = Color(0xFF222E43);
@@ -48,7 +49,7 @@ class FacilityBottomNav extends StatelessWidget {
         labels.length,
         (i) => BottomNavigationBarItem(
           label: labels[i],
-          tooltip: labels[i],
+          tooltip: trOpt(labels[i]),
           icon: Padding(
             padding: const EdgeInsets.only(bottom: 3),
             child: SizedBox.square(
@@ -74,16 +75,16 @@ Future<bool> confirmFacilityAction(
     await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Confirm action'),
-        content: Text(message),
+        title: Text(tr('Confirm action')),
+        content: Text(tr(message)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
+            child: Text(tr('Cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Confirm'),
+            child: Text(tr('Confirm')),
           ),
         ],
       ),

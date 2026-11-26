@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:first_project/l10n/app_language.dart';
@@ -17,25 +18,28 @@ class TurnAlertHost extends StatefulWidget {
 }
 
 class _TurnAlertHostState extends State<TurnAlertHost> {
-  final _store = QueueBookingStore.instance;
+  // Created only when Firebase is ready (widget tests run without it).
+  QueueBookingStore? _store;
   TurnAlert? _shown;
   Timer? _hide;
 
   @override
   void initState() {
     super.initState();
-    _store.alert.addListener(_onAlert);
+    if (Firebase.apps.isNotEmpty) {
+      _store = QueueBookingStore.instance..alert.addListener(_onAlert);
+    }
   }
 
   @override
   void dispose() {
-    _store.alert.removeListener(_onAlert);
+    _store?.alert.removeListener(_onAlert);
     _hide?.cancel();
     super.dispose();
   }
 
   void _onAlert() {
-    final a = _store.alert.value;
+    final a = _store?.alert.value;
     if (a == null) return;
     HapticFeedback.heavyImpact();
     SystemSound.play(SystemSoundType.alert);

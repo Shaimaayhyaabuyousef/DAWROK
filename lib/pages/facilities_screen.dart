@@ -1,4 +1,5 @@
 import '../services/queue_schedule.dart';
+import 'citizen_facility_scanner.dart';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -39,6 +40,11 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                       setState(() => _search = v.trim().toLowerCase()),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search, color: Colors.blue),
+                    suffixIcon: IconButton(
+                      tooltip: tr('Scan facility QR'),
+                      onPressed: () => openFacilityScanner(context),
+                      icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.blue),
+                    ),
                     hintText: tr('Search facilities'),
                     filled: true,
                     fillColor: Colors.grey[100],

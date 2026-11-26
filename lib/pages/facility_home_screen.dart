@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/facility_context.dart';
+import 'facility_qr.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -68,13 +69,10 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
 
   @override
   void dispose() { _facilitySub?.cancel(); super.dispose(); }
-  int _demoSession = DateTime.now().millisecondsSinceEpoch;
 
-  // Placeholder payload. A production QR must come from a trusted server and
-  // have validation, expiry, and facility authorization behind it.
-  String get _qrPayload =>
-      'dawrok://facility/${Uri.encodeComponent(_facilityId)}'
-      '/check-in?demoSession=$_demoSession';
+  // Citizens scan this from the search bar to open the facility and join a
+  // queue. It identifies the facility only; booking rules stay in Firestore.
+  String get _qrPayload => facilityQrPayload(_facilityId);
 
   Future<void> _setOnline(bool online) async {
     if (_facilityId.isEmpty) return;
@@ -88,7 +86,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
   }
 
   void _refreshQr() {
-    setState(() => _demoSession = DateTime.now().microsecondsSinceEpoch);
+    setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(tr('QR preview refreshed'))),
     );
@@ -134,7 +132,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
               ),
               const SizedBox(height: 14),
               Text(
-                tr('Scan to check-in or manage queue'),
+                tr('Citizens scan this code to open your facility and join a queue'),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: _mutedText),
               ),
@@ -320,7 +318,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
           ),
           const SizedBox(height: 3),
           Text(
-            tr('Scan to check-in or manage queue'),
+            tr('Citizens scan this code to open your facility and join a queue'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12.5, color: _mutedText),
           ),

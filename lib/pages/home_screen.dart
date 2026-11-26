@@ -4,6 +4,7 @@ import '../services/facility_time.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'citizen_facility_scanner.dart';
 
 import '../services/citizen_account_service.dart';
 import 'citizen_ui.dart';
@@ -92,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? 'Unable to load your bookings. Please try again.'
                           : _welcomeError,
                       unread: events.hasData && events.data!.docs.isNotEmpty,
+                      onScan: () => openFacilityScanner(context),
                       onSearch: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -136,6 +138,8 @@ class CitizenHomeView extends StatelessWidget {
   final String? ticketId, error;
   final Map<String, dynamic>? booking;
   final bool loading, unread;
+  /// Opens the camera to scan a facility QR. Hidden when null.
+  final VoidCallback? onScan;
   final VoidCallback onSearch,
       onPoints,
       onNotifications,
@@ -159,6 +163,7 @@ class CitizenHomeView extends StatelessWidget {
     required this.onBookings,
     required this.onProfile,
     required this.onRetry,
+    this.onScan,
   });
   @override
   Widget build(BuildContext context) {
@@ -343,7 +348,7 @@ class CitizenHomeView extends StatelessWidget {
                       child: Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: 12,
-                          vertical: 15,
+                          vertical: onScan == null ? 15 : 11.5,
                         ),
                         child: Row(
                           children: [
@@ -356,6 +361,29 @@ class CitizenHomeView extends StatelessWidget {
                                 fontSize: 15,
                               ),
                             ),
+                            const Spacer(),
+                            if (onScan != null)
+                              Semantics(
+                                button: true,
+                                label: tr('Scan facility QR'),
+                                child: InkResponse(
+                                  onTap: onScan,
+                                  radius: 22,
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE3F2FD),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.qr_code_scanner_rounded,
+                                      color: citizenBlue,
+                                      size: 22,
+                                    ),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),

@@ -693,6 +693,7 @@ const Map<String, String> arabicStrings = {
   'Window': 'الشباك',
   'Counter': 'الشباك',
   'Dismiss': 'إغلاق',
+  'Language': 'اللغة',
   'Ticket Details': 'تفاصيل التذكرة',
   'Called to window': 'نُودي عليك إلى الشباك',
 };

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/employee_access_service.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF22334D);
 
 /// Returning staff use phone and password ONLY. The invitation code is

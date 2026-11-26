@@ -8,7 +8,7 @@ import '../services/citizen_auth_service.dart';
 import '../services/app_auth_service.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const Color _primary = Color(0xFF03A9F4);
+const Color _primary = Color(0xFF2196F3);
 
 class Login extends StatefulWidget {
   const Login({super.key});

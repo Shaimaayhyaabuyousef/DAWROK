@@ -11,7 +11,7 @@ import '../services/local_card_check.dart';
 import 'citizen_id_verification_screen.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _primary = Color(0xFF03A9F4);
+const _primary = Color(0xFF2196F3);
 const _titleBlue = Color(0xFF4FAAF4);
 const _lightBlue = Color(0xFFE3F2FC);
 const _grey = Color(0xFF8F9299);

@@ -5,7 +5,7 @@ import '../services/citizen_identity_service.dart';
 import 'queue_ticket_screen.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const citizenBlue = Color(0xFF03A9F4);
+const citizenBlue = Color(0xFF2196F3);
 const citizenSoftBlue = Color(0xFF64B9FA);
 const citizenInk = Color(0xFF192638);
 BoxDecoration citizenPanel({Color color = Colors.white, double radius = 18}) =>

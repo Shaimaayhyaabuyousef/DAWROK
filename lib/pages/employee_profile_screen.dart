@@ -13,7 +13,7 @@ import 'package:flutter/services.dart';
 import '../services/employee_access_service.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _dark = Color(0xFF22334D);
 
 /// First approval forces this page; its completion is enforced by Firestore

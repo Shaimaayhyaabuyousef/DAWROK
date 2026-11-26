@@ -7,7 +7,7 @@ import 'employee_login_screen.dart';
 import 'employee_register_screen.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF243149);
 const _border = Color(0xFFE0E8F1);
 
@@ -181,7 +181,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15)),
                       elevation: 7,
-                      shadowColor: const Color(0x4D03A9F4),
+                      shadowColor: const Color(0x4D2196F3),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,

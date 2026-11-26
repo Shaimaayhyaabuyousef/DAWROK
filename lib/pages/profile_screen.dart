@@ -10,7 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/citizen_preferences.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _primary = Color(0xFF03A9F4);
+const _primary = Color(0xFF2196F3);
 const _sky = Color(0xFF4EAAF3);
 const _outline = Color(0xFFD9F0FF);
 const _ink = Color(0xFF344258);

@@ -12,7 +12,7 @@ import '../models/citizen_registration_draft.dart';
 import 'citizen_pin_setup_screen.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _primary = Color(0xFF03A9F4);
+const _primary = Color(0xFF2196F3);
 const _ink = Color(0xFF475870);
 
 /// Step 2 checks the front of the card locally before opening PIN setup.

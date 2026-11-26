@@ -179,7 +179,7 @@ class _PurposeCard extends StatelessWidget {
       ),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x0603A9F4),
+          color: Color(0x062196F3),
           blurRadius: 10,
           offset: Offset(0, 4),
         ),

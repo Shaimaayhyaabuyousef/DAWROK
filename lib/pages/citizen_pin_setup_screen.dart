@@ -5,7 +5,7 @@ import '../models/citizen_registration_draft.dart';
 import '../services/citizen_signup_service.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF19283F);
 
 /// Step 3 of 3: PIN setup for the demo device only.

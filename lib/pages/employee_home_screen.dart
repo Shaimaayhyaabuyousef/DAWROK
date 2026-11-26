@@ -10,7 +10,7 @@ import 'employee_scanner_screen.dart';
 import 'employee_profile_screen.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF27344D);
 const _muted = Color(0xFF899BB4);
 const _outline = Color(0xFFE0E9F2);

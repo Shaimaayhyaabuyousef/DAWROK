@@ -21,7 +21,7 @@ class _OnboardingState extends State<Onboarding> {
     'Choose the service and center, pick a time that suits you, and get your digital ticket in seconds.',
     'Present your ticket at the counter and receive service in less than two minutes—with complete transparency.',
   ];
-  static const _blue = Color(0xff03a9f4);
+  static const _blue = Color(0xFF2196F3);
   void _move(int page) => _controller.animateToPage(
     page,
     duration: const Duration(milliseconds: 260),

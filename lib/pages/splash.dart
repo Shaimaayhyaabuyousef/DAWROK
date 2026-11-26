@@ -97,7 +97,7 @@ class _SplashState extends State<Splash> {
                                     TextSpan(
                                       text: '│ دَورْك',
                                       style: TextStyle(
-                                        color: Color(0xff03a9f4),
+                                        color: Color(0xFF2196F3),
                                       ),
                                     ),
                                   ],
@@ -108,7 +108,7 @@ class _SplashState extends State<Splash> {
                             const Positioned(
                               top: 485,
                               child: _Dots([
-                                Color(0xff03a9f4),
+                                Color(0xFF2196F3),
                                 Color(0xff38bdf8),
                                 Color(0xff10b981),
                               ]),
@@ -130,7 +130,7 @@ class _SplashState extends State<Splash> {
                                   Icon(
                                     Icons.sync,
                                     size: 15,
-                                    color: Color(0xff03a9f4),
+                                    color: Color(0xFF2196F3),
                                   ),
                                 ],
                               ),
@@ -231,7 +231,7 @@ class _BrandMark extends CustomPainter {
       );
     }
 
-    const blue = Color(0xff03a9f4), green = Color(0xff10b981);
+    const blue = Color(0xFF2196F3), green = Color(0xff10b981);
     for (var i = 0; i < 4; i++) {
       person(
         67,

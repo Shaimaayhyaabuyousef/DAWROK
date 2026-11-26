@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/citizen_preferences.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _primary = Color(0xFF03A9F4);
+const _primary = Color(0xFF2196F3);
 const _softBlue = Color(0xFF64B9FA);
 const _ink = Color(0xFF182235);
 const _muted = Color(0xFF71849F);
@@ -304,6 +304,10 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                       decoration: _panelStyle(dark),
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
                       child: Column(children: [
+                        _actionRow(dark: dark, icon: Icons.language_rounded,
+                          title: '${tr('Language')} · ${AppLanguage.isArabic ? 'العربية' : 'English'}',
+                          onTap: () => AppLanguage.set(AppLanguage.isArabic ? 'en' : 'ar')),
+                        _divider(dark),
                         _actionRow(dark: dark, icon: Icons.chat_bubble_outline,
                           title: tr('Report'), onTap: _report),
                         _divider(dark),

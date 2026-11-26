@@ -14,7 +14,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/employee_work_service.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF28374E);
 const _muted = Color(0xFF71829B);
 

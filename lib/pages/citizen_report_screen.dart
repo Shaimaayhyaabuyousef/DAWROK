@@ -9,7 +9,7 @@ import '../services/report_photo.dart';
 import '../services/report_dictation.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF202C3E);
 const _muted = Color(0xFF94A5BF);
 const _line = Color(0xFFDDF2FF);
@@ -252,7 +252,7 @@ class _ReportScreenState extends State<ReportScreen> {
     boxShadow: shadow
         ? const [
             BoxShadow(
-              color: Color(0x0D03A9F4),
+              color: Color(0x0D2196F3),
               blurRadius: 5,
               offset: Offset(0, 2),
             ),
@@ -613,7 +613,7 @@ class _ReportScreenState extends State<ReportScreen> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x4003A9F4),
+              color: Color(0x402196F3),
               offset: Offset(0, 7),
               blurRadius: 12,
             ),

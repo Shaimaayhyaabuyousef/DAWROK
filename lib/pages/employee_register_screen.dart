@@ -5,7 +5,7 @@ import '../services/employee_access_service.dart';
 import '../services/staff_pairing_service.dart';
 import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF22334D);
 
 /// An employee reaches this screen only after entering a facility number,

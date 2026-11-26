@@ -62,6 +62,9 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() => _error = _authMessage(e));
+    } on FormatException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error =

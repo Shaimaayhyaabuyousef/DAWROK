@@ -1,3 +1,4 @@
+import '../services/national_id.dart';
 import '../services/phone_login.dart';
 import 'dart:math' as math;
 
@@ -66,6 +67,10 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
     }
     if (!RegExp(r'^\d{9}$').hasMatch(nationalId)) {
       _notice('Enter your nine-digit ID number.');
+      return;
+    }
+    if (!validNationalId(nationalId)) {
+      _notice('This ID number is not valid. Check the digits and try again.');
       return;
     }
     if (validateMobile(phone) case final String message) {

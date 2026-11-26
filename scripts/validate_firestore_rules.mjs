@@ -210,6 +210,32 @@ try {
   if (rejectedMembership.exists) throw new Error('Rejected employee has membership!');
   console.log('Employee rejection and denied membership tests passed.');
 
+  // One national ID per citizen account (signup batch).
+  const signup = async (uid, nid) => {
+    const db = testEnv.authenticatedContext(uid, { email: `${uid}@x.test` }).firestore();
+    const b = db.batch();
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    b.set(db.doc(`national_id_claims/${nid}`), { uid, createdAt: ts });
+    b.set(db.doc(`users/${uid}`), { uid, role: 'citizen', displayName: 'Citizen', email: `${uid}@x.test`, phone: '0590000000', address: '', photoUrl: '', providers: ['password'], createdAt: ts });
+    b.set(db.doc(`citizen_identity/${uid}`), { userId: uid, nationalId: nid, status: 'self_reported', createdAt: ts });
+    b.set(db.doc(`demo_identity_checks/${uid}`), { userId: uid, mode: 'demo_only', status: 'demo_ready', submittedAt: ts });
+    return b.commit();
+  };
+  await assertSucceeds(signup('citizen-a', '000000018'));
+  await assertFails(signup('citizen-b', '000000018'));
+  await assertSucceeds(testEnv.authenticatedContext('citizen-a').firestore().doc('national_id_claims/000000018').get());
+  await assertFails(testEnv.authenticatedContext('citizen-b').firestore().doc('national_id_claims/000000018').get());
+  await assertSucceeds(testEnv.authenticatedContext('citizen-b').firestore().doc('national_id_claims/000000026').get());
+  {
+    const db = testEnv.authenticatedContext('citizen-c', { email: 'c@x.test' }).firestore();
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    const b = db.batch();
+    b.set(db.doc(`users/citizen-c`), { uid: 'citizen-c', role: 'citizen', displayName: 'Citizen', email: 'c@x.test', phone: '0590000000', address: '', photoUrl: '', providers: ['password'], createdAt: ts });
+    b.set(db.doc(`citizen_identity/citizen-c`), { userId: 'citizen-c', nationalId: '000000034', status: 'self_reported', createdAt: ts });
+    await assertFails(b.commit());
+  }
+  console.log('National ID claim uniqueness tests passed.');
+
   console.log('Staff invitation, approval and required profile tests passed.');
 
   console.log('Facility owner queue transaction and listing permissions passed.');

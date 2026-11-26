@@ -533,7 +533,19 @@ service cloud.firestore {
         && request.resource.data.nationalId is string
         && request.resource.data.nationalId.matches('^[0-9]{9}$')
         && request.resource.data.status == 'self_reported'
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/national_id_claims/$(request.resource.data.nationalId)).data.uid == uid;
+    }
+    // One national ID number per citizen account. The document ID is the
+    // number; only its owner can read it, and it can never be moved.
+    match /national_id_claims/{nid} {
+      allow get: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
+      allow list, update, delete: if false;
+      allow create: if signedIn() && nid.matches('^[0-9]{9}$')
+        && request.resource.data.keys().hasOnly(['uid','createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/citizen_identity/$(request.auth.uid)).data.nationalId == nid;
     }
     match /demo_identity_checks/{uid} {
       allow get: if isSelf(uid);

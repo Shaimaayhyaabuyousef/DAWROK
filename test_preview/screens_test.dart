@@ -56,6 +56,7 @@ void main() {
       onBookings: () {},
       onProfile: () {},
       onRetry: () {},
+      onScan: () {},
     ),
     'ticket': () => QueueTicketScreen(
       ticketNumber: 'A1B2C3',

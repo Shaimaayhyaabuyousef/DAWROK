@@ -25,9 +25,10 @@ jobs:
       - name: Tests
         if: always()
         run: |
+          set +e
           flutter test --reporter expanded > test.txt 2>&1; code=$?
           tail -5 test.txt
-          grep -nE 'FAILED|Error:|Expected:|Actual:|error:' test.txt | head -40 > tfail.txt || true
+          grep -nE 'FAILED|\[E\]|Error:|Expected:|Actual:|error:|Which:' test.txt | head -60 > tfail.txt || true
           split -l 10 tfail.txt tchunk_ || true
           for f in tchunk_*; do [ -f "$f" ] && echo "::error title=test::$(sed ':a;N;$!ba;s/\n/%0A/g' "$f")"; done
           echo "::notice title=test-summary::$(tail -2 test.txt | tr '\n' ' ')"
@@ -46,6 +47,7 @@ jobs:
       - run: npm install --prefix scripts --no-save @firebase/rules-unit-testing@latest
       - name: Rules
         run: |
+          set +e
           npx --yes firebase-tools@latest emulators:exec --project demo-dawrok --only firestore 'node scripts/validate_firestore_rules.mjs' > rules.txt 2>&1; code=$?
           grep -nEi 'error|fail|assert|denied|✗' rules.txt | head -30 > rf.txt || true
           [ -s rf.txt ] && echo "::error title=rules::$(sed ':a;N;$!ba;s/\n/%0A/g' rf.txt)"

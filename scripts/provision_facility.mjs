@@ -1,3 +1,4 @@
+import {loginId, localMobile} from './phone_login.mjs';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { allocateFacilityNumber } from './facility_numbers.mjs';
 import { getAuth } from 'firebase-admin/auth';
@@ -7,11 +8,11 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 // passwords or staff private data into this repository.
 // DAWROK_FACILITY_PASSWORD comes from an environment variable, not CLI args.
 // Example:
-// node scripts/provision_facility.mjs owner@example.com "Example Clinic" medical
-const [email, name, categoryId] = process.argv.slice(2);
+// node scripts/provision_facility.mjs 059XXXXXXX "Example Clinic" medical
+const [phone, name, categoryId] = process.argv.slice(2);
 const password = process.env.DAWROK_FACILITY_PASSWORD;
-if (!email || !name || !categoryId || !password || password.length < 12) {
-  throw new Error('Usage: DAWROK_FACILITY_PASSWORD=<strong secret> node scripts/provision_facility.mjs <email> <name> <categoryId>');
+if (!phone || !name || !categoryId || !password || password.length < 12) {
+  throw new Error('Usage: DAWROK_FACILITY_PASSWORD=<strong secret> node scripts/provision_facility.mjs <phone> <name> <categoryId>');
 }
 initializeApp({ credential: applicationDefault() });
 const db = getFirestore();
@@ -20,7 +21,7 @@ if (!category.exists || category.data()?.isActive !== true) {
   throw new Error('Create and activate this facility category first.');
 }
 const user = await getAuth().createUser({
-  email: email.trim().toLowerCase(), password, displayName: name.trim(),
+  email: loginId(phone), password, displayName: name.trim(),
 });
 try {
   const facilityNumber = await db.runTransaction(async tx => {
@@ -28,11 +29,11 @@ try {
     const facility = db.collection('facilities').doc(number);
     tx.create(facility, {
       facilityNumber: number, ownerUid: user.uid, name: name.trim(), categoryId,
-      phone: '', address: '', isActive: true, isOnline: false,
+      phone: localMobile(phone), address: '', isActive: true, isOnline: false,
       nextWindowNumber: 0, createdAt: FieldValue.serverTimestamp(),
     });
     tx.create(db.collection('users').doc(user.uid), {
-      uid: user.uid, email: email.trim().toLowerCase(), role: 'facility',
+      uid: user.uid, email: loginId(phone), phone: localMobile(phone), role: 'facility',
       status: 'active', facilityId: facility.id, displayName: name.trim(),
       createdAt: FieldValue.serverTimestamp(),
     });

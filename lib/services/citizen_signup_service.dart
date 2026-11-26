@@ -1,3 +1,4 @@
+import 'phone_login.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -5,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/citizen_registration_draft.dart';
 
-/// Create citizens after the 3 signup steps, using their REAL email/password.
+/// Create citizens after the 3 signup steps, using their phone and password.
 /// No ID photographs are uploaded. The typed ID is self-reported, NOT verified.
 class CitizenSignupService {
   CitizenSignupService._();
@@ -14,20 +15,6 @@ class CitizenSignupService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-
-  static String normalizePhone(String input) {
-    var digits = input.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.startsWith('00970')) {
-      digits = digits.substring(5);
-    } else if (digits.startsWith('970')) {
-      digits = digits.substring(3);
-    }
-    if (digits.startsWith('0')) digits = digits.substring(1);
-    if (!RegExp(r'^5[69][0-9]{7}$').hasMatch(digits)) {
-      throw const FormatException('Enter a valid 059 or 056 phone number.');
-    }
-    return '0$digits';
-  }
 
   Future<void> complete({
     required String pin,
@@ -39,14 +26,11 @@ class CitizenSignupService {
 
     User? user;
     if (draft != null) {
-      final email = draft.email.trim().toLowerCase();
+      final email = mobileLoginId(draft.phone);
       final fullName = draft.fullName.trim();
       final nationalId = draft.nationalId.trim();
-      final phone = normalizePhone(draft.phone);
+      final phone = localMobile(draft.phone)!;
 
-      if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
-        throw const FormatException('Enter a valid email address.');
-      }
       if (fullName.length < 3 || fullName.length > 120) {
         throw const FormatException('Enter your full name.');
       }

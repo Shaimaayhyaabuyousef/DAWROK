@@ -1,3 +1,4 @@
+import 'phone_login.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -25,14 +26,14 @@ class EmployeeAccessService {
     return 'employee_login_screen';
   }
 
-  /// Returning employees always sign in using email and password only.
+  /// Returning employees always sign in using phone and password only.
   /// A link code is never required for login and is never re-submitted here.
   Future<String> signIn({
-    required String email,
+    required String phone,
     required String password,
   }) async {
     final result = await _auth.signInWithEmailAndPassword(
-      email: email.trim(),
+      email: mobileLoginId(phone),
       password: password,
     );
     if (result.user == null) throw StateError('Could not sign in.');
@@ -40,13 +41,13 @@ class EmployeeAccessService {
   }
 
   Future<void> authenticateForJoin({
-    required String email,
+    required String phone,
     required String password,
     required bool existingAccount,
   }) async {
     final result = existingAccount
-        ? await _auth.signInWithEmailAndPassword(email: email.trim(), password: password)
-        : await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
+        ? await _auth.signInWithEmailAndPassword(email: mobileLoginId(phone), password: password)
+        : await _auth.createUserWithEmailAndPassword(email: mobileLoginId(phone), password: password);
     if (result.user == null) throw StateError('Could not authenticate the employee account.');
   }
 

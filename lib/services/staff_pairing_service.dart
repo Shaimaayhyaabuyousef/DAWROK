@@ -55,7 +55,7 @@ class StaffPairingService {
       throw StateError('Sign in with an employee account before using the code.');
     }
     if (user.email == null || user.email!.isEmpty) {
-      throw StateError('An email-based Firebase Auth account is required.');
+      throw StateError('Sign in with your phone number and password.');
     }
     final hash = digest(displayedCode);
     final invite = await _db.collection('staff_invites').doc(hash).get(

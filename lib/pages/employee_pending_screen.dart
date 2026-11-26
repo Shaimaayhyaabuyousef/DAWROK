@@ -120,7 +120,7 @@ class _EmployeePendingScreenState extends State<EmployeePendingScreen> {
                           color: rejected ? Colors.redAccent : _primary,
                           fontWeight: FontWeight.w700)),
                       const SizedBox(height: 9),
-                      Text(user.email ?? '',
+                      if (claims.isNotEmpty) Text(claims.first.data()['phone'] as String? ?? '',
                         style: const TextStyle(fontSize: 12,
                           color: Color(0xFF7487A3))),
                     ]),

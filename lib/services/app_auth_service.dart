@@ -1,3 +1,4 @@
+import 'phone_login.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'citizen_identity_service.dart';
@@ -13,12 +14,12 @@ class AppAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Future<String> signInWithEmail({
-    required String email,
+  Future<String> signInWithPhone({
+    required String phone,
     required String password,
   }) async {
     final credential = await _auth.signInWithEmailAndPassword(
-      email: email.trim(),
+      email: mobileLoginId(phone),
       password: password,
     );
 

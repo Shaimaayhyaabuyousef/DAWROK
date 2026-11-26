@@ -161,9 +161,9 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
         if (isPending) ...[
           if (s.linkCode != null) _inviteCard(context, s),
           if (s.hasJoinRequest) ...[
-            if (s.requesterEmail != null) Padding(
+            if (s.requesterPhone != null) Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text('Request from: ${s.requesterEmail}',
+              child: Text('Request from: ${s.requesterPhone}',
                 style: const TextStyle(fontSize: 12, color: facilityMuted))),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
               _action('Reject', Icons.cancel_outlined,

@@ -1,3 +1,4 @@
+import '../services/phone_login.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -6,7 +7,7 @@ import '../services/employee_access_service.dart';
 const _blue = Color(0xFF03A9F4);
 const _ink = Color(0xFF22334D);
 
-/// Returning staff use email and password ONLY. The invitation code is
+/// Returning staff use phone and password ONLY. The invitation code is
 /// entered on EmployeeJoinScreen when first requesting facility access.
 class EmployeeLoginScreen extends StatefulWidget {
   const EmployeeLoginScreen({super.key});
@@ -17,7 +18,7 @@ class EmployeeLoginScreen extends StatefulWidget {
 
 class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
   final _form = GlobalKey<FormState>();
-  final _email = TextEditingController();
+  final _phone = TextEditingController();
   final _password = TextEditingController();
   bool _showPassword = false;
   bool _busy = false;
@@ -25,7 +26,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
 
   @override
   void dispose() {
-    _email.dispose();
+    _phone.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -38,7 +39,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
     });
     try {
       final destination = await EmployeeAccessService.instance.signIn(
-        email: _email.text,
+        phone: _phone.text,
         password: _password.text,
       );
       if (!mounted) return;
@@ -56,7 +57,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
       if (mounted) {
         setState(() => _error = switch (e.code) {
           'invalid-credential' || 'wrong-password' || 'user-not-found' =>
-            'Incorrect email or password.',
+            'Incorrect phone number or password.',
           'too-many-requests' => 'Too many attempts. Try again later.',
           _ => e.message ?? e.code,
         });
@@ -119,7 +120,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
                       fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   const Text(
-                    'Sign in with your email and password. '
+                    'Sign in with your phone number and password. '
                     'Your facility approval is saved in Firebase.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Color(0xFF7C8DA7),
@@ -127,13 +128,12 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
                   ),
                   const SizedBox(height: 34),
                   TextFormField(
-                    controller: _email,
+                    controller: _phone,
                     enabled: !_busy,
-                    keyboardType: TextInputType.emailAddress,
+                    keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
-                    decoration: _decoration('Email Address', Icons.email_outlined),
-                    validator: (v) => (v ?? '').trim().contains('@')
-                      ? null : 'Enter your email',
+                    decoration: _decoration('Phone Number', Icons.phone_outlined),
+                    validator: validateMobile,
                   ),
                   const SizedBox(height: 14),
                   TextFormField(

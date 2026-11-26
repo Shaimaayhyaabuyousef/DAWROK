@@ -1,3 +1,4 @@
+import '../services/phone_login.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -28,7 +29,6 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
   final _name = TextEditingController();
   final _id = TextEditingController();
   final _phone = TextEditingController();
-  final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
 
@@ -41,7 +41,6 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
     _name.dispose();
     _id.dispose();
     _phone.dispose();
-    _email.dispose();
     _password.dispose();
     _confirm.dispose();
     super.dispose();
@@ -59,7 +58,6 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
     final fullName = _name.text.trim();
     final nationalId = cardDigits(_id.text.trim());
     final phone = _phone.text.trim();
-    final email = _email.text.trim();
     final password = _password.text;
 
     if (fullName.length < 3) {
@@ -70,14 +68,8 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
       _notice('Enter your nine-digit ID number.');
       return;
     }
-    final compactPhone = phone.replaceAll(RegExp(r'[\s\-()]'), '');
-    if (!RegExp(r'^(?:0|\+970|00970)?5[69]\d{7}$')
-        .hasMatch(compactPhone)) {
-      _notice('Enter a valid 059 or 056 mobile number.');
-      return;
-    }
-    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
-      _notice('Please enter a valid email address.');
+    if (validateMobile(phone) case final String message) {
+      _notice(message);
       return;
     }
     if (password.length < 8) {
@@ -97,7 +89,6 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
       fullName: fullName,
       nationalId: nationalId,
       phone: phone,
-      email: email,
       password: password,
     );
 
@@ -331,20 +322,8 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                         ),
                       ),
                     ),
-                    // Email is required because authentication uses Email/Password.
                     _position(
                       top: 366,
-                      scale: scale,
-                      child: _field(
-                        controller: _email,
-                        hint: 'Email Address',
-                        icon: Icons.email_outlined,
-                        keyboard: TextInputType.emailAddress,
-                        height: 40 * scale,
-                      ),
-                    ),
-                    _position(
-                      top: 416,
                       scale: scale,
                       child: _field(
                         controller: _password,
@@ -363,7 +342,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       ),
                     ),
                     _position(
-                      top: 466,
+                      top: 416,
                       scale: scale,
                       child: _field(
                         controller: _confirm,
@@ -385,7 +364,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       ),
                     ),
                     _position(
-                      top: 516,
+                      top: 466,
                       scale: scale,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -433,7 +412,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       ),
                     ),
                     _position(
-                      top: 560,
+                      top: 510,
                       scale: scale,
                       child: SizedBox(
                         height: 53 * scale,
@@ -460,7 +439,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       ),
                     ),
                     _position(
-                      top: 677,
+                      top: 627,
                       scale: scale,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -488,7 +467,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       ),
                     ),
                     _position(
-                      top: 703,
+                      top: 653,
                       scale: scale,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,

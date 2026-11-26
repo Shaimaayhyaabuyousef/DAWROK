@@ -20,14 +20,14 @@ class FacilityStaff {
   String? linkCode;
   DateTime? codeExpiresAt;
   String joinStatus;
-  String? requesterEmail, requestStatus;
+  String? requesterPhone, requestStatus;
   FacilityStaff({
     required this.id, required this.name, required this.nationalId,
     required this.window, required this.role, required this.state,
     this.description = '', this.photoUrl, this.inviteHash,
     this.linkedUid, this.joinStatus = 'legacy',
     this.linkCode, this.codeExpiresAt,
-    this.requesterEmail, this.requestStatus,
+    this.requesterPhone, this.requestStatus,
   });
   bool get hasJoinRequest => requestStatus == 'requested';
 }
@@ -77,7 +77,7 @@ class FacilityStaffStore extends ChangeNotifier {
         : 'Awaiting vacant service position';
       final claim = item.inviteHash == null ? null : _requests[item.inviteHash];
       item.requestStatus = claim?['status'] as String?;
-      item.requesterEmail = claim?['employeeEmail'] as String?;
+      item.requesterPhone = claim?['phone'] as String?;
     }
     notifyListeners();
   }

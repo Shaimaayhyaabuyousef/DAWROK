@@ -470,7 +470,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const SizedBox(height: 16),
                               _idCard(dark),
                               const SizedBox(height: 16),
-                              _editableCard(label: 'Phone', controller: _phone,
+                              _editableCard(label: 'Contact phone', controller: _phone,
                                 dark: dark, icon: Icons.phone_outlined,
                                 keyboard: TextInputType.phone),
                               const SizedBox(height: 16),

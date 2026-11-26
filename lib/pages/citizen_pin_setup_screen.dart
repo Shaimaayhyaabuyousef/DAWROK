@@ -74,7 +74,7 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
   String _authMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':
-        return 'An account with this email already exists. Return to Signin.';
+        return 'An account with this phone number already exists. Return to Signin.';
       case 'weak-password':
         return 'Choose a stronger password.';
       case 'network-request-failed':

@@ -1,3 +1,4 @@
+import '../services/phone_login.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -45,7 +46,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
         builder: (_) => EmployeeRegisterScreen(
           facilityNumber: normalizeFacilityNumber(_facility.text),
           invitationCode: _code.text.trim(),
-          contactPhone: _phone.text.trim(),
+          contactPhone: localMobile(_phone.text)!,
         ),
       ),
     );
@@ -164,9 +165,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
                     controller: _phone,
                     keyboardType: TextInputType.phone,
                     decoration: _decoration('+970 59 XXX XXXX', shaded: true),
-                    validator: (v) => RegExp(r'^\+?[0-9\s-]{8,20}$')
-                        .hasMatch((v ?? '').trim())
-                      ? null : 'Enter a valid phone number',
+                    validator: validateMobile,
                   ),
                 ),
                 const SizedBox(height: 49),

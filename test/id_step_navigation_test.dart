@@ -55,7 +55,6 @@ void main() {
             draft: CitizenRegistrationDraft(
               fullName: 'Test',
               nationalId: '123456789',
-              email: 'test@example.test',
               phone: '0590000000',
               password: 'testing',
             ),

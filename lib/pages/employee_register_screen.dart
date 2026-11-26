@@ -30,7 +30,6 @@ class EmployeeRegisterScreen extends StatefulWidget {
 
 class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
   final _form = GlobalKey<FormState>();
-  final _email = TextEditingController();
   final _password = TextEditingController();
   bool _existingAccount = false;
   bool _busy = false;
@@ -39,7 +38,6 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
 
   @override
   void dispose() {
-    _email.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -49,7 +47,7 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
     setState(() { _busy = true; _error = null; });
     try {
       await EmployeeAccessService.instance.authenticateForJoin(
-        email: _email.text,
+        phone: widget.contactPhone,
         password: _password.text,
         existingAccount: _existingAccount,
       );
@@ -68,10 +66,10 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
       if (mounted) {
         setState(() => _error = switch (e.code) {
           'email-already-in-use' =>
-            'This email already has an account. Select "I already have an account".',
+            'This phone number already has an account. Select "I already have an account".',
           'weak-password' => 'Choose a password with at least 6 characters.',
           'invalid-credential' || 'wrong-password' || 'user-not-found' =>
-            'Incorrect account email or password.',
+            'Incorrect phone number or password.',
           _ => e.message ?? e.code,
         });
       }
@@ -167,15 +165,8 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
                   Expanded(child: _mode('Existing account', true)),
                 ]),
                 const SizedBox(height: 22),
-                TextFormField(
-                  controller: _email,
-                  enabled: !_busy,
-                  textInputAction: TextInputAction.next,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: _decoration('Email Address', Icons.email_outlined),
-                  validator: (v) => (v ?? '').trim().contains('@')
-                    ? null : 'Enter your email',
-                ),
+                TextFormField(initialValue: widget.contactPhone, readOnly: true,
+                  decoration: _decoration('Phone Number', Icons.phone_outlined)),
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _password,
@@ -219,7 +210,7 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
                 const SizedBox(height: 18),
                 const Text(
                   'Your request stays saved in Firebase. After approval, '
-                  'future sign-ins require email and password only.',
+                  'future sign-ins require your phone number and password only.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Color(0xFF8C9CB4),
                     fontSize: 12, height: 1.5),

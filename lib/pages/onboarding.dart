@@ -258,8 +258,8 @@ class _LanguageSwitch extends StatelessWidget {
               padding: EdgeInsetsDirectional.only(start: 8, end: 4),
               child: Icon(Icons.language_rounded, size: 18, color: Color(0xFF2196F3)),
             ),
-            _option('en', 'English'),
-            _option('ar', 'العربية'),
+            _option('en', 'EN'),
+            _option('ar', 'عربي'),
           ],
         ),
       ),
@@ -271,11 +271,13 @@ class _LanguageSwitch extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      label: code == 'en' ? 'English' : 'العربية',
       child: GestureDetector(
         onTap: () => AppLanguage.set(code),
+        behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
           decoration: BoxDecoration(
             color: selected ? const Color(0xFF2196F3) : Colors.transparent,
             borderRadius: BorderRadius.circular(18),

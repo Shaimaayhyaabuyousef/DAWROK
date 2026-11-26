@@ -49,11 +49,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<Locale>(
       valueListenable: AppLanguage.locale,
-      builder: (context, locale, _) => _app(context, locale),
+      builder: (context, locale, _) => app(context, locale),
     );
   }
 
-  Widget _app(BuildContext context, Locale locale) {
+  /// The MaterialApp for [locale]; also used by tests.
+  MaterialApp app(BuildContext context, Locale locale) {
     // Rebuild every open screen so its tr() texts follow the new language.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       void rebuild(Element el) {

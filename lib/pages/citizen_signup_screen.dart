@@ -138,17 +138,15 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
     Widget? suffix,
     Widget? prefix,
   }) {
-    return Container(
-      height: height,
-      padding: EdgeInsets.all(featured ? 2 : 0),
-      decoration: BoxDecoration(
-        color: featured ? const Color(0xFFF0FAFF) : Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(
-          color: featured ? const Color(0xFF60C8F7) : _lightBlue,
-          width: featured ? 2 : 1,
-        ),
+    final outline = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13),
+      borderSide: BorderSide(
+        color: featured ? const Color(0xFF60C8F7) : _lightBlue,
+        width: featured ? 2 : 1,
       ),
+    );
+    return SizedBox(
+      height: height,
       child: TextField(
         controller: controller,
         keyboardType: keyboard,
@@ -171,21 +169,10 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           filled: true,
           fillColor: featured ? const Color(0xFFF0FAFF) : Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: featured
-                ? const BorderSide(color: Color(0xFF79D1FA), width: 1)
-                : BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: featured
-                ? const BorderSide(color: Color(0xFF79D1FA), width: 1)
-                : BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: _primary, width: 1.5),
+          border: outline,
+          enabledBorder: outline,
+          focusedBorder: outline.copyWith(
+            borderSide: const BorderSide(color: _primary, width: 2),
           ),
         ),
       ),

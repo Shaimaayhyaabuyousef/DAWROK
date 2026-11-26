@@ -58,7 +58,7 @@ class WhoWeAreScreen extends StatelessWidget {
                 textDirection: TextDirection.ltr,
                 children: [
                   Text(
-                    tr('دَوْرَك'),
+                    'دَوْرُك',
                     textDirection: TextDirection.rtl,
                     style: TextStyle(
                       fontSize: 30,
@@ -83,17 +83,17 @@ class WhoWeAreScreen extends StatelessWidget {
               const SizedBox(height: 5),
               _PurposeCard(
                 title: tr('OUR MISSION'),
-                subtitle: tr('Equitable Queue & Dispensing Dignity'),
+                subtitle: tr('Fair queues and dignified service'),
                 icon: Icons.my_location_outlined,
                 highlighted: true,
-                body: tr('Dorak transforms fragmented humanitarian queues into digital, transparent, and fair distribution flows. We safeguard citizen dignity by eradicating chaotic crowding and guaranteeing verified relief delivery.'),
+                body: tr('DAWROK turns crowded waiting lines into organized digital queues for any facility: banks, clinics, service centers and distribution points. Everyone gets a clear turn, a fair order and a dignified wait.'),
               ),
               const SizedBox(height: 16),
               _PurposeCard(
                 title: tr('OUR VISION'),
-                subtitle: tr('Digital Coordination Everywhere'),
+                subtitle: tr('A turn for everyone, everywhere'),
                 icon: Icons.visibility_outlined,
-                body: tr('A seamless humanitarian logistics ecosystem where beneficiaries access aid instantly with minimal wait times, fully backed by real-time inventory tracking and community verification.'),
+                body: tr('A connected service network where people book from their phone, arrive on time and are served at the right window, while facilities run their queues transparently.'),
               ),
               const SizedBox(height: 17),
               Text(

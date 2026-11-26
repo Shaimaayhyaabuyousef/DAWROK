@@ -146,8 +146,7 @@ class _SplashState extends State<Splash> {
                             Positioned(
                               bottom: 76,
                               child: Text(
-                                tr('جاري تهيئة خدمات المراكز والمواعيد...'),
-                                textDirection: TextDirection.rtl,
+                                tr('Preparing facility services and appointments...'),
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Color(0xff454656),

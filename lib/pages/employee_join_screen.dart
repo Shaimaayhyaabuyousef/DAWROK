@@ -186,7 +186,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(tr('Verify & Join Facility  •  التحقق والانضمام'),
+                        Text(tr('Verify & Join Facility'),
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                         SizedBox(width: 10),
                         Icon(Icons.arrow_forward, size: 21),

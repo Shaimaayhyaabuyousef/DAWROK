@@ -25,7 +25,7 @@ class AppAuthService {
 
     final user = credential.user;
     if (user == null) {
-      throw StateError('تعذّر إكمال تسجيل الدخول.');
+      throw StateError('Could not complete sign-in.');
     }
 
     try {
@@ -52,7 +52,7 @@ class AppAuthService {
     final token = await user.getIdTokenResult();
     final claimRole = token.claims?['role'];
     if (claimRole != null && claimRole != role) {
-      throw StateError('صلاحية الحساب لا تطابق بياناته.');
+      throw StateError('The account permission does not match its profile.');
     }
 
     if (role == 'citizen') {
@@ -67,16 +67,16 @@ class AppAuthService {
 
     if (role == 'facility') {
       if (data['status'] != 'active') {
-        throw StateError('حساب المنشأة غير مفعّل.');
+        throw StateError('This facility account is not active.');
       }
       final facilityId = data['facilityId'];
       if (facilityId is! String || facilityId.trim().isEmpty) {
-        throw StateError('لم يُربط هذا الحساب بمنشأة بعد.');
+        throw StateError('This account is not linked to a facility yet.');
       }
       return 'facility_home_screen';
     }
 
-    throw StateError('نوع الحساب غير مدعوم في شاشة الدخول.');
+    throw StateError('This account type cannot sign in here.');
   }
 
   /// Used by Splash to restore a previously signed-in citizen or facility.

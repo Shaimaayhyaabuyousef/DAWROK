@@ -4,32 +4,32 @@ String citizenAuthErrorMessage(Object error) {
   if (error is FirebaseAuthException) {
     switch (error.code) {
       case 'email-already-in-use':
-        return 'رقم الهاتف هذا مستخدم مسبقًا.';
+        return 'This phone number is already in use.';
       case 'invalid-email':
-        return 'صيغة رقم الهاتف غير صحيحة.';
+        return 'The phone number format is not valid.';
       case 'weak-password':
-        return 'كلمة المرور ضعيفة. استخدم 6 أحرف على الأقل.';
+        return 'The password is weak. Use at least 6 characters.';
       case 'wrong-password':
       case 'invalid-credential':
       case 'user-not-found':
-        return 'رقم الهاتف أو كلمة المرور غير صحيحة.';
+        return 'Incorrect phone number or password.';
       case 'account-exists-with-different-credential':
-        return 'لديك حساب بالطريقة الأخرى. سجّل الدخول بها أولاً ثم اربط الحسابات لاحقًا.';
+        return 'You already have an account with another sign-in method. Sign in with it first.';
       case 'operation-not-allowed':
-        return 'طريقة الدخول هذه غير مفعلة في Firebase Console.';
+        return 'This sign-in method is not enabled.';
       case 'network-request-failed':
-        return 'تحقق من اتصال الإنترنت وحاول مجددًا.';
+        return 'Check your internet connection and try again.';
       case 'too-many-requests':
-        return 'محاولات كثيرة. حاول لاحقًا.';
+        return 'Too many attempts. Try again later.';
       case 'popup-blocked':
-        return 'اسمح بالنوافذ المنبثقة لإكمال تسجيل الدخول.';
+        return 'Allow pop-ups to complete sign-in.';
       default:
-        return 'فشلت المصادقة: ${error.code}';
+        return 'Authentication failed: ${error.code}';
     }
   }
   if (error is FirebaseException && error.code == 'permission-denied') {
-    return 'تعذّر حفظ بيانات المواطن. راجع قواعد Firestore وصلاحيات الحساب.';
+    return 'Could not save the citizen profile. Check the account permissions.';
   }
   if (error is StateError) return error.message.toString();
-  return 'حدث خطأ أثناء تسجيل الدخول. ${error.toString()}';
+  return 'Something went wrong while signing in. ${error.toString()}';
 }

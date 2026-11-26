@@ -457,9 +457,9 @@ class _ReportScreenState extends State<ReportScreen> {
                   border: InputBorder.none,
                   counterText: '',
                   contentPadding: EdgeInsets.zero,
-                  hintText: _kind == ReportKind.app
+                  hintText: trOpt(_kind == ReportKind.app
                       ? 'Please describe the issue you experienced with the app in detail...'
-                      : 'Please describe the incident, distribution delay, or facility irregularity in detail...',
+                      : 'Please describe the incident, distribution delay, or facility irregularity in detail...'),
                   hintStyle: const TextStyle(
                     color: Color(0xFF9DAEC7),
                     fontSize: 15,
@@ -522,9 +522,9 @@ class _ReportScreenState extends State<ReportScreen> {
                 ),
                 const Spacer(),
                 IconButton(
-                  tooltip: _listening
+                  tooltip: trOpt(_listening
                       ? 'Stop voice input'
-                      : 'Dictate description',
+                      : 'Dictate description'),
                   onPressed: _locked ? null : _dictate,
                   icon: Icon(
                     _listening ? Icons.stop_circle_outlined : Icons.mic_none,

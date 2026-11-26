@@ -239,7 +239,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
       contentPadding: const EdgeInsets.symmetric(vertical: 6),
       prefixIconConstraints: const BoxConstraints(minWidth: 30),
       prefixIcon: icon == null ? null : Icon(icon, color: _blue, size: 18),
-      hintText: placeholder,
+      hintText: trOpt(placeholder),
       hintStyle: const TextStyle(color: Color(0xFF9EACC0)),
       border: const UnderlineInputBorder(
         borderSide: BorderSide(color: Color(0xFF64C8FC)),

@@ -213,7 +213,7 @@ class _LoginState extends State<Login> {
   }
 
   InputDecoration _decoration(String hint, IconData icon) => InputDecoration(
-    hintText: hint,
+    hintText: trOpt(hint),
     hintStyle: const TextStyle(color: _primary),
     suffixIcon: Icon(icon, color: _primary),
     filled: true,

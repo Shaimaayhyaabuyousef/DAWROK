@@ -55,7 +55,7 @@ class _EmployeeJoinScreenState extends State<EmployeeJoinScreen> {
 
   InputDecoration _decoration(String hint, {bool shaded = false}) =>
       InputDecoration(
-        hintText: hint,
+        hintText: trOpt(hint),
         hintStyle: const TextStyle(color: Color(0xFF9AA9BD)),
         filled: true,
         fillColor: shaded ? const Color(0xFFF6F8FB) : Colors.white,

@@ -166,7 +166,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
         onSubmitted: action == TextInputAction.done ? (_) => _next() : null,
         style: const TextStyle(fontSize: 15.5, color: Color(0xFF23354A)),
         decoration: InputDecoration(
-          hintText: hint,
+          hintText: trOpt(hint),
           hintStyle: const TextStyle(color: _grey, fontSize: 15.5),
           prefixIcon: prefix,
           suffixIcon: suffix ?? Icon(icon, color: featured ? _titleBlue : _grey, size: 23),

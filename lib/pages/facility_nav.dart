@@ -49,7 +49,7 @@ class FacilityBottomNav extends StatelessWidget {
         labels.length,
         (i) => BottomNavigationBarItem(
           label: labels[i],
-          tooltip: labels[i],
+          tooltip: trOpt(labels[i]),
           icon: Padding(
             padding: const EdgeInsets.only(bottom: 3),
             child: SizedBox.square(

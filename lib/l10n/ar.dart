@@ -1,5 +1,4 @@
 // Arabic UI strings. Keys are the English source strings used in the code.
-// Generated from the app's English UI text; keep keys identical to the code.
 // ignore_for_file: lines_longer_than_80_chars
 
 const Map<String, String> arabicStrings = {
@@ -700,9 +699,10 @@ const Map<String, String> arabicStrings = {
 
 /// Strings that contain values. Keys are regular expressions over the
 /// final English text; \$1, \$2 receive the captured (translated) values.
+/// Ticket IDs are wrapped in left-to-right isolates so '#' stays attached.
 const Map<String, String> arabicPatterns = {
   r'\s*(\d+) Beneficiaries in queue': r'  $1 مستفيد في الطابور',
-  r'(\s*)ID: #(.*)': r'$1الهوية: #$2',
+  r'(\s*)ID: #(.*)': r'$1الهوية: ⁦#$2⁩',
   r'(\s*)~(\d+) mins': r'$1~$2 دقيقة',
   r' Its appointment is at (.+)\.': r' موعدها $1.',
   r'(Good morning|Good afternoon|Good evening), (.+)': r'$1، $2',
@@ -722,7 +722,7 @@ const Map<String, String> arabicPatterns = {
   r'Something went wrong while signing in\. (.*)': r'حدث خطأ أثناء تسجيل الدخول. $1',
   r'Booking is temporarily restricted until (.+)\.': r'الحجز مقيّد مؤقتًا حتى $1.',
   r'Booking is restricted until (.+)\.': r'الحجز مقيّد حتى $1.',
-  r'Calling ticket #(.+)': r'جارٍ استدعاء التذكرة #$1',
+  r'Calling ticket #(.+)': r'جارٍ استدعاء التذكرة ⁦#$1⁩',
   r'Cannot reach Firestore right now\. Check the connection and retry\.(.*)': r'تعذّر الاتصال بالخادم الآن. تحقّق من الاتصال وأعد المحاولة.$1',
   r'Check-in saved\. Audit write failed: (.+)': r'حُفظ الحضور، وتعذّر تسجيله في السجل: $1',
   r'Could not finish\. Retry to continue: (.+)': r'تعذّر الإكمال. أعد المحاولة للمتابعة: $1',
@@ -747,25 +747,25 @@ const Map<String, String> arabicPatterns = {
   r'Hours: (.+) - (.+)': r'ساعات العمل: $1 - $2',
   r'ID: (.*)': r'الهوية: $1',
   r'Page (\d) of 3': r'الصفحة $1 من 3',
-  r'Queue #(\d+)': r'طابور #$1',
+  r'Queue #(\d+)': r'طابور ⁦#$1⁩',
   r'Queue (\S+) • (.+)': r'طابور $1 • $2',
   r'Quota Capacity \((\d+)/(\d+) claimed\)': r'السعة ($1/$2 محجوز)',
   r'Reference: (.+)': r'المرجع: $1',
-  r'Remove Queue #(\d+)\? This cannot be undone\.': r'حذف الطابور #$1؟ لا يمكن التراجع عن ذلك.',
+  r'Remove Queue #(\d+)\? This cannot be undone\.': r'حذف الطابور ⁦#$1⁩؟ لا يمكن التراجع عن ذلك.',
   r'Request from: (.+)': r'طلب من: $1',
   r'Scheduled • (.+)': r'مجدول • $1',
   r'Send your join request to (.+)\?': r'إرسال طلب الانضمام إلى $1؟',
   r'Service: (.+)': r'الخدمة: $1',
   r'Share this code securely with (.+)\. The employee uses it to request access to your facility\.': r'شارك هذا الرمز بأمان مع $1. يستخدمه الموظف لطلب الانضمام إلى منشأتك.',
   r'The next ticket is scheduled for (.+)\.': r'موعد التذكرة التالية $1.',
-  r'This is ticket #(\S+), not #(\S+)\.(.*) Please wait for the called turn\.': r'هذه التذكرة #$1 وليست #$2.$3 يرجى انتظار الدور المنادى عليه.',
-  r'Ticket #(\S+) · (.+)': r'التذكرة #$1 · $2',
-  r'Ticket #(\S+) • (.*)': r'التذكرة #$1 • $2',
-  r'Ticket #(\S+)': r'التذكرة #$1',
+  r'This is ticket #(\S+), not #(\S+)\.(.*) Please wait for the called turn\.': r'هذه التذكرة ⁦#$1⁩ وليست ⁦#$2⁩.$3 يرجى انتظار الدور المنادى عليه.',
+  r'Ticket #(\S+) · (.+)': r'التذكرة ⁦#$1⁩ · $2',
+  r'Ticket #(\S+) • (.*)': r'التذكرة ⁦#$1⁩ • $2',
+  r'Ticket #(\S+)': r'التذكرة ⁦#$1⁩',
   r'Ticket (\S+) · Window (\d+)': r'التذكرة $1 · الشباك $2',
   r'Ticket (\S+) · (Direct service|Window assigned when called)': r'التذكرة $1 · $2',
   r'Ticket (\S+)': r'التذكرة $1',
-  r'Ticket matches #(.*)': r'التذكرة مطابقة #$1',
+  r'Ticket matches #(.*)': r'التذكرة مطابقة ⁦#$1⁩',
   r'Ticket updated: (.+)': r'تم تحديث التذكرة: $1',
   r'Unable to check status: (.+)': r'تعذّر التحقق من الحالة: $1',
   r'Unable to load queues: (.+)': r'تعذّر تحميل الطوابير: $1',

@@ -72,7 +72,7 @@ class _EmployeeLoginScreenState extends State<EmployeeLoginScreen> {
   }
 
   InputDecoration _decoration(String label, IconData icon) => InputDecoration(
-    labelText: label,
+    labelText: trOpt(label),
     prefixIcon: Icon(icon, color: _blue),
     filled: true,
     fillColor: const Color(0xFFF9FCFF),

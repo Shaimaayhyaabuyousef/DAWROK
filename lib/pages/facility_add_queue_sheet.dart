@@ -323,7 +323,7 @@ class _QueueSheetContentState extends State<_QueueSheetContent> {
         padding: EdgeInsets.zero,
         splashRadius: 19,
         onPressed: onPressed,
-        tooltip: blue ? 'Increase' : 'Decrease',
+        tooltip: trOpt(blue ? 'Increase' : 'Decrease'),
       ),
     );
   }

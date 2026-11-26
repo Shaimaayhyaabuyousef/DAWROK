@@ -65,3 +65,6 @@ String tr(String text) {
   if (_cache.length < 2000) _cache[text] = result;
   return result;
 }
+
+/// [tr] for optional texts such as hints, labels and tooltips.
+String? trOpt(String? text) => text == null ? null : tr(text);

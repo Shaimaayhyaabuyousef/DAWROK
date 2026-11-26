@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/employee_access_service.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const _blue = Color(0xFF03A9F4);
 const _dark = Color(0xFF22334D);
@@ -50,7 +51,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to save photo on this device.')),
+          SnackBar(content: Text(tr('Unable to save photo on this device.'))),
         );
       }
     }
@@ -101,7 +102,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Could not load profile: $e')));
+        ).showSnackBar(SnackBar(content: Text(tr('Could not load profile: $e'))));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -149,14 +150,14 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
       if (!mounted) return;
       if (widget.embedded && destination == 'employee_home_screen') {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Changes saved.')));
+            .showSnackBar(SnackBar(content: Text(tr('Changes saved.'))));
         return;
       }
       Navigator.pushNamedAndRemoveUntil(context, destination, (_) => false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to save employee profile: $e')),
+          SnackBar(content: Text(tr('Unable to save employee profile: $e'))),
         );
       }
     } finally {
@@ -192,7 +193,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
           children: [
             Expanded(
               child: Text(
-                label,
+                tr(label),
                 style: const TextStyle(
                   color: Color(0xFF3A4B62),
                   fontSize: 13,
@@ -208,7 +209,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  badge,
+                  tr(badge),
                   style: TextStyle(
                     color: badgeColor,
                     fontSize: 12,
@@ -273,16 +274,16 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
+                    padding: const EdgeInsetsDirectional.fromSTEB(22, 4, 22, 16),
                     child: Form(
                       key: _form,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Align(
-                            alignment: Alignment.topRight,
+                            alignment: AlignmentDirectional.topEnd,
                             child: IconButton(
-                              tooltip: 'Settings',
+                              tooltip: tr('Settings'),
                               onPressed: _saving
                                   ? null
                                   : () => Navigator.pushNamed(
@@ -319,9 +320,9 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                                           ),
                                   ),
                                 ),
-                                Positioned(
+                                PositionedDirectional(
                                   bottom: 0,
-                                  right: 0,
+                                  end: 0,
                                   child: Container(
                                     width: 37,
                                     height: 37,
@@ -334,7 +335,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                                       ),
                                     ),
                                     child: IconButton(
-                                      tooltip: 'Change photo on this device',
+                                      tooltip: tr('Change photo on this device'),
                                       padding: EdgeInsets.zero,
                                       onPressed: _pickPhoto,
                                       icon: const Icon(
@@ -350,7 +351,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                           ),
                           const SizedBox(height: 16),
                           _profileCard(
-                            label: 'Name Of Staff',
+                            label: tr('Name Of Staff'),
                             badge: 'Required',
                             child: _valueInput(_fullName, 'Full Name'),
                           ),
@@ -362,7 +363,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                                       .doc(uid)
                                       .snapshots(),
                             builder: (context, membership) => _profileCard(
-                              label: 'ID',
+                              label: tr('ID'),
                               badge: '✓ Registered',
                               badgeColor: const Color(0xFF00A678),
                               child: Row(
@@ -374,9 +375,9 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                                   const SizedBox(width: 9),
                                   Expanded(
                                     child: Text(
-                                      membership.data?.data()?['staffId']
+                                      tr(membership.data?.data()?['staffId']
                                               as String? ??
-                                          '—',
+                                          '—'),
                                       style: const TextStyle(
                                         color: _dark,
                                         fontSize: 14,
@@ -395,8 +396,8 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Copied'),
+                                              SnackBar(
+                                                content: Text(tr('Copied')),
                                               ),
                                             );
                                       }
@@ -405,14 +406,14 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                                       Icons.copy_outlined,
                                       size: 16,
                                     ),
-                                    label: const Text('Copy'),
+                                    label: Text(tr('Copy')),
                                   ),
                                 ],
                               ),
                             ),
                           ),
                           _profileCard(
-                            label: 'Phone',
+                            label: tr('Phone'),
                             child: _valueInput(
                               _phone,
                               'Phone Number',
@@ -421,7 +422,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                             ),
                           ),
                           _profileCard(
-                            label: 'Address',
+                            label: tr('Address'),
                             child: _valueInput(
                               _address,
                               'Address',
@@ -430,7 +431,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                           ),
                           if (!widget.embedded || _emergencyPhone.text.isEmpty)
                             _profileCard(
-                              label: 'Emergency Phone',
+                              label: tr('Emergency Phone'),
                               child: _valueInput(
                                 _emergencyPhone,
                                 'Emergency Phone',
@@ -454,8 +455,8 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                                   ? const CircularProgressIndicator(
                                       color: Colors.white,
                                     )
-                                  : const Text(
-                                      'Save Changes',
+                                  : Text(
+                                      tr('Save Changes'),
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,

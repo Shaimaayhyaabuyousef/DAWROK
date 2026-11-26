@@ -10,6 +10,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import 'facility_queues_screen.dart';
 import 'facility_nav.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 // Home Facility - Dawrok
 // This screen is a UI prototype. Its online status and QR session are local
@@ -61,7 +62,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
         if (mounted) setState(() { _online = doc.data()?['isOnline'] == true; });
       });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr(e.toString()))));
     }
   }
 
@@ -82,14 +83,14 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
           .update({'isOnline': online});
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())));
+        SnackBar(content: Text(tr(e.toString()))));
     }
   }
 
   void _refreshQr() {
     setState(() => _demoSession = DateTime.now().microsecondsSinceEpoch);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('QR preview refreshed')),
+      SnackBar(content: Text(tr('QR preview refreshed'))),
     );
   }
 
@@ -100,7 +101,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
+          padding: const EdgeInsetsDirectional.fromSTEB(20, 18, 20, 26),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -108,7 +109,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      widget.qrTitle,
+                      tr(widget.qrTitle),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: _darkText,
@@ -118,7 +119,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Close',
+                    tooltip: tr('Close'),
                     onPressed: () => Navigator.pop(dialogContext),
                     icon: const Icon(Icons.close, color: _darkText),
                   ),
@@ -132,8 +133,8 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Scan to check-in or manage queue',
+              Text(
+                tr('Scan to check-in or manage queue'),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: _mutedText),
               ),
@@ -169,12 +170,12 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
         body: SafeArea(
           bottom: false,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+            padding: const EdgeInsetsDirectional.fromSTEB(18, 18, 18, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Home Facility',
+                Text(
+                  tr('Home Facility'),
                   style: TextStyle(
                     color: _titleBlue,
                     fontSize: 24,
@@ -233,7 +234,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
               TextSpan(
                 style: const TextStyle(fontSize: 14, color: _darkText),
                 children: [
-                  const TextSpan(text: 'System status: '),
+                  TextSpan(text: tr('System status: ')),
                   TextSpan(
                     text: _online ? 'Online' : 'Offline',
                     style: TextStyle(
@@ -248,7 +249,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
           ),
           Transform.scale(
             scale: 0.85,
-            alignment: Alignment.centerRight,
+            alignment: AlignmentDirectional.centerEnd,
             child: CupertinoSwitch(
               value: _online,
               activeTrackColor: _primaryBlue,
@@ -274,13 +275,13 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
           ),
         ],
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.circle, size: 9, color: Colors.white),
           SizedBox(width: 10),
           Text(
-            'Activation & Operation',
+            tr('Activation & Operation'),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w400,
@@ -294,7 +295,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
 
   Widget _buildQrCard() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 17),
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 20, 16, 17),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: _softBorder, width: 1),
@@ -310,7 +311,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
       child: Column(
         children: [
           Text(
-            widget.qrTitle,
+            tr(widget.qrTitle),
             style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w400,
@@ -318,8 +319,8 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
             ),
           ),
           const SizedBox(height: 3),
-          const Text(
-            'Scan to check-in or manage queue',
+          Text(
+            tr('Scan to check-in or manage queue'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12.5, color: _mutedText),
           ),
@@ -337,7 +338,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
               TextButton.icon(
                 onPressed: _refreshQr,
                 icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Refresh'),
+                label: Text(tr('Refresh')),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF697D9A),
                   textStyle: const TextStyle(fontSize: 14),
@@ -352,7 +353,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
               TextButton.icon(
                 onPressed: _showEnlargedQr,
                 icon: const Icon(Icons.fullscreen_rounded, size: 19),
-                label: const Text('Enlarge'),
+                label: Text(tr('Enlarge')),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF697D9A),
                   textStyle: const TextStyle(fontSize: 14),
@@ -398,7 +399,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
             ),
             const SizedBox(width: 9),
             Text(
-              _online ? 'Work stoppage' : 'Resume work',
+              tr(_online ? 'Work stoppage' : 'Resume work'),
               style: const TextStyle(fontSize: 15),
             ),
           ],
@@ -439,24 +440,24 @@ class _FacilityOverviewState extends State<_FacilityOverview> {
     const labels = ['Queues', 'Total bookings', 'Completed'];
     const icons = [Icons.format_list_numbered, Icons.confirmation_number_outlined, Icons.task_alt];
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 12, 14),
       decoration: BoxDecoration(color: const Color(0xfff5fbff), borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _softBorder)),
       child: FutureBuilder<List<int>>(future: _counts, builder: (context, snapshot) => Column(children: [
         Row(children: [
-          const Expanded(child: Text('Facility overview', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _darkText))),
-          IconButton(tooltip: 'Refresh totals', iconSize: 18, onPressed: snapshot.connectionState == ConnectionState.waiting
+          Expanded(child: Text(tr('Facility overview'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _darkText))),
+          IconButton(tooltip: tr('Refresh totals'), iconSize: 18, onPressed: snapshot.connectionState == ConnectionState.waiting
             ? null : () => setState(() => _counts = _load()), icon: const Icon(Icons.refresh)),
         ]),
         if (snapshot.hasError)
-          const Text('Totals unavailable. Tap refresh to try again.', style: TextStyle(fontSize: 13))
+          Text(tr('Totals unavailable. Tap refresh to try again.'), style: TextStyle(fontSize: 13))
         else
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: List.generate(3, (i) => Expanded(
             child: Column(children: [
               Icon(icons[i], size: 19, color: const Color(0xff087cc2)),
               const SizedBox(height: 4),
-              Text(snapshot.hasData ? snapshot.data![i].toString() : '—', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: _darkText)),
-              Text(labels[i], textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Color(0xff526780))),
+              Text(tr(snapshot.hasData ? snapshot.data![i].toString() : '—'), style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: _darkText)),
+              Text(tr(labels[i]), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Color(0xff526780))),
             ]),
           ))),
       ])),

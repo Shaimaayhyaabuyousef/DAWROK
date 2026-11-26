@@ -5,6 +5,7 @@ import 'facility_nav.dart';
 import 'facility_staff_store.dart';
 import 'facility_add_staff_screen.dart';
 import 'facility_staff_code_dialog.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class FacilityStaffScreen extends StatefulWidget {
   const FacilityStaffScreen({super.key});
@@ -23,7 +24,7 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not load staff from Firebase: $e')),
+            SnackBar(content: Text(tr('Could not load staff from Firebase: $e'))),
           );
         }
       }
@@ -35,11 +36,11 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
     body: SafeArea(bottom: false, child: AnimatedBuilder(
       animation: FacilityStaffStore.instance,
       builder: (context, _) => Column(children: [
-        Expanded(child: ListView(padding: const EdgeInsets.fromLTRB(19, 45, 19, 20), children: [
+        Expanded(child: ListView(padding: const EdgeInsetsDirectional.fromSTEB(19, 45, 19, 20), children: [
           if (FacilityStaffStore.instance.error != null) ...[
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: SelectableText(FacilityStaffStore.instance.error!,
+              child: SelectableText(tr(FacilityStaffStore.instance.error!),
                 style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
             ),
           ],
@@ -53,7 +54,7 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
           SizedBox(height: 54, child: ElevatedButton.icon(
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FacilityAddStaffScreen())),
             style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-            icon: const Icon(Icons.add_circle_outline, size: 24), label: const Text('Add Staff Member', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)))),
+            icon: const Icon(Icons.add_circle_outline, size: 24), label: Text(tr('Add Staff Member'), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)))),
         ])),
       ]),
     )),
@@ -64,7 +65,7 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
     try { await action(); }
     catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())));
+        SnackBar(content: Text(tr(e.toString()))));
     }
   }
   Future<void> _reissue(BuildContext context, FacilityStaff staff) async {
@@ -80,7 +81,7 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
       );
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
+        SnackBar(content: Text(tr('$e'))),
       );
     }
   }
@@ -93,7 +94,7 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 10, 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF0F9FF),
         border: Border.all(color: const Color(0xFFBDE6FF)),
@@ -103,26 +104,26 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
         Row(children: [
           const Icon(Icons.key_outlined, color: Color(0xFF008DD8), size: 18),
           const SizedBox(width: 7),
-          const Expanded(child: Text('Employee Link Code',
+          Expanded(child: Text(tr('Employee Link Code'),
               style: TextStyle(color: facilityDark,
                 fontWeight: FontWeight.w600, fontSize: 13))),
-          Text(expired ? 'Expired' : 'Valid for 24h',
+          Text(tr(expired ? 'Expired' : 'Valid for 24h'),
             style: TextStyle(fontSize: 11,
               color: expired ? Colors.redAccent : const Color(0xFF007CB2))),
         ]),
         const SizedBox(height: 8),
         Row(children: [
-          Expanded(child: SelectableText(code,
+          Expanded(child: SelectableText(tr(code),
             style: const TextStyle(color: facilityDark,
               fontWeight: FontWeight.bold, fontSize: 15))),
           IconButton(
-            tooltip: 'Copy employee link code',
+            tooltip: tr('Copy employee link code'),
             visualDensity: VisualDensity.compact,
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: code));
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Code copied to clipboard')),
+                  SnackBar(content: Text(tr('Code copied to clipboard'))),
                 );
               }
             },
@@ -131,7 +132,7 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
           ),
         ]),
         if (expired)
-          const Text('Generate a new code before the employee joins.',
+          Text(tr('Generate a new code before the employee joins.'),
             style: TextStyle(color: Colors.redAccent, fontSize: 11)),
       ]),
     );
@@ -146,24 +147,24 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(s.name, style: const TextStyle(color: facilityDark, fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(tr(s.name), style: const TextStyle(color: facilityDark, fontSize: 17, fontWeight: FontWeight.bold)),
             const SizedBox(height: 5),
             if (!isPending) Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 10, children: [
-              Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3), decoration: BoxDecoration(color: active ? const Color(0xFFECFFF4) : const Color(0xFFFFF3E6), border: Border.all(color: active ? const Color(0xFF9EF4C8) : const Color(0xFFFFD9A2)), borderRadius: BorderRadius.circular(5)), child: Text(active ? 'Active' : 'Stopped', style: TextStyle(color: active ? const Color(0xFF008A60) : const Color(0xFFD57A00), fontSize: 12))),
-              Text(s.window, style: const TextStyle(color: Color(0xFF60738E), fontSize: 13)),
+              Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3), decoration: BoxDecoration(color: active ? const Color(0xFFECFFF4) : const Color(0xFFFFF3E6), border: Border.all(color: active ? const Color(0xFF9EF4C8) : const Color(0xFFFFD9A2)), borderRadius: BorderRadius.circular(5)), child: Text(tr(active ? 'Active' : 'Stopped'), style: TextStyle(color: active ? const Color(0xFF008A60) : const Color(0xFFD57A00), fontSize: 12))),
+              Text(tr(s.window), style: const TextStyle(color: Color(0xFF60738E), fontSize: 13)),
             ]),
           ])),
-          Container(height: 65, width: 65, decoration: BoxDecoration(color: const Color(0xFFE2F4FF), border: Border.all(color: const Color(0xFFA7E3FF), width: 2), borderRadius: BorderRadius.circular(12)), child: Center(child: Text(_initials(s.name), style: const TextStyle(fontSize: 21, color: Color(0xFF008FD3))))),
+          Container(height: 65, width: 65, decoration: BoxDecoration(color: const Color(0xFFE2F4FF), border: Border.all(color: const Color(0xFFA7E3FF), width: 2), borderRadius: BorderRadius.circular(12)), child: Center(child: Text(tr(_initials(s.name)), style: const TextStyle(fontSize: 21, color: Color(0xFF008FD3))))),
         ]),
         const SizedBox(height: 10),
-        Text(s.description.isNotEmpty ? s.description : _roleDescription(s.role), style: const TextStyle(color: Color(0xFF485971), height: 1.55, fontSize: 13)),
+        Text(tr(s.description.isNotEmpty ? s.description : _roleDescription(s.role)), style: const TextStyle(color: Color(0xFF485971), height: 1.55, fontSize: 13)),
         const Divider(height: 25, color: Color(0xFFE5EBF1)),
         if (isPending) ...[
           if (s.linkCode != null) _inviteCard(context, s),
           if (s.hasJoinRequest) ...[
             if (s.requesterPhone != null) Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text('Request from: ${s.requesterPhone}',
+              child: Text(tr('Request from: ${s.requesterPhone}'),
                 style: const TextStyle(fontSize: 12, color: facilityMuted))),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
               _action('Reject', Icons.cancel_outlined,
@@ -175,10 +176,10 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
                 () => _write(context, () => FacilityStaffStore.instance.approve(s))),
             ]),
           ] else ...[
-            const Text('Waiting for the employee to enter their invitation code.',
+            Text(tr('Waiting for the employee to enter their invitation code.'),
               style: TextStyle(fontSize: 12, color: facilityMuted)),
             const SizedBox(height: 9),
-            Align(alignment: Alignment.centerRight,
+            Align(alignment: AlignmentDirectional.centerEnd,
               child: _action(s.linkCode == null ? 'New Code' : 'Regenerate Code', Icons.key_outlined,
                 const Color(0xFF007AB6), const Color(0xFFE8F5FF),
                 () => _reissue(context, s))),
@@ -197,16 +198,16 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
               ? _write(context, () => FacilityStaffStore.instance.changeState(s, active ? StaffState.suspended : StaffState.active))
               : _reissue(context, s),
             style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFC86B00), backgroundColor: const Color(0xFFFFFBEB), side: const BorderSide(color: Color(0xFFF7D86E)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9))),
-            icon: Icon(active ? Icons.block : Icons.check_circle_outline, size: 16), label: Text(s.joinStatus == 'approved'
+            icon: Icon(active ? Icons.block : Icons.check_circle_outline, size: 16), label: Text(tr(s.joinStatus == 'approved'
               ? (active ? 'Removal of validity' : 'Restore validity')
-              : 'Generate New Code'),
+              : 'Generate New Code')),
           )),
         ],
       ]),
     );
   }
   Widget _action(String label, IconData icon, Color fg, Color bg, VoidCallback callback) =>
-    SizedBox(height: 35, child: OutlinedButton.icon(onPressed: callback, style: OutlinedButton.styleFrom(backgroundColor: bg, foregroundColor: fg, side: BorderSide(color: fg.withValues(alpha: .2)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)), padding: const EdgeInsets.symmetric(horizontal: 10)), icon: Icon(icon, size: 17), label: Text(label)));
+    SizedBox(height: 35, child: OutlinedButton.icon(onPressed: callback, style: OutlinedButton.styleFrom(backgroundColor: bg, foregroundColor: fg, side: BorderSide(color: fg.withValues(alpha: .2)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)), padding: const EdgeInsets.symmetric(horizontal: 10)), icon: Icon(icon, size: 17), label: Text(tr(label))));
   String _initials(String name) => name.split(' ').where((s) => s.isNotEmpty).take(2).map((s) => s[0]).join().toUpperCase();
   String _roleDescription(StaffRole role) => switch (role) {
     StaffRole.windowOfficer => 'Window Officer: Handles queue intake and customer check-ins.',

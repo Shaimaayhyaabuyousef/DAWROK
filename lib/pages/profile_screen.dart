@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/citizen_preferences.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const _primary = Color(0xFF03A9F4);
 const _sky = Color(0xFF4EAAF3);
@@ -109,7 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _message(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text(tr(message))),
     );
   }
 
@@ -245,8 +246,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Positioned(
-              left: 0,
+            PositionedDirectional(
+              start: 0,
               top: 0,
               child: Container(
                 width: 146,
@@ -259,8 +260,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: picture,
               ),
             ),
-            Positioned(
-              right: 1,
+            PositionedDirectional(
+              end: 1,
               bottom: 7,
               child: Material(
                 color: _primary,
@@ -311,7 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isDense: true,
         prefixIcon: icon == null ? null : Icon(icon, size: 20, color: _primary),
         prefixIconConstraints: const BoxConstraints(minWidth: 34, minHeight: 30),
-        hintText: 'Tap to edit',
+        hintText: tr('Tap to edit'),
         hintStyle: TextStyle(
           color: dark ? Colors.white54 : const Color(0xFF9AA9BD),
           fontSize: 16,
@@ -333,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final fg = dark ? Colors.white : _ink;
     return Container(
       constraints: const BoxConstraints(minHeight: 94),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 9),
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 14, 9),
       decoration: _cardDecoration(dark),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -341,7 +342,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(label, style: TextStyle(
+              Expanded(child: Text(tr(label), style: TextStyle(
                 fontSize: 14, fontWeight: FontWeight.w700, color: fg,
               ))),
               if (requiredField)
@@ -351,7 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: dark ? const Color(0xFF25455B) : const Color(0xFFF0F9FF),
                     borderRadius: BorderRadius.circular(7),
                   ),
-                  child: const Text('Required',
+                  child: Text(tr('Required'),
                     style: TextStyle(color: _primary, fontSize: 12)),
                 ),
             ],
@@ -380,18 +381,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final exists = (_originalId ?? '').isNotEmpty;
     return Container(
       constraints: const BoxConstraints(minHeight: 100),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 14, 10),
       decoration: _cardDecoration(dark),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(children: [
-            Expanded(child: Text('ID', style: TextStyle(
+            Expanded(child: Text(tr('ID'), style: TextStyle(
               fontSize: 14, fontWeight: FontWeight.w700, color: fg))),
             Icon(Icons.info_outline, color: _primary, size: 16),
             const SizedBox(width: 5),
-            const Text('Not verified', style: TextStyle(
+            Text(tr('Not verified'), style: TextStyle(
               color: _primary, fontSize: 12)),
           ]),
           const SizedBox(height: 8),
@@ -399,9 +400,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Row(children: [
               const Icon(Icons.badge_outlined, size: 19, color: Color(0xFF95A9C4)),
               const SizedBox(width: 7),
-              Expanded(child: Text(_maskedId, style: TextStyle(color: fg, fontSize: 15))),
+              Expanded(child: Text(tr(_maskedId), style: TextStyle(color: fg, fontSize: 15))),
               TextButton(onPressed: _copyId,
-                child: const Text('Copy', style: TextStyle(color: _primary))),
+                child: Text(tr('Copy'), style: TextStyle(color: _primary))),
             ])
           else
             TextField(
@@ -413,11 +414,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               enabled: !_saving,
               style: TextStyle(color: fg, fontSize: 16),
               decoration: _fieldDecoration(dark, icon: Icons.badge_outlined)
-                  .copyWith(hintText: 'Add your 9-digit ID once', counterText: ''),
+                  .copyWith(hintText: tr('Add your 9-digit ID once'), counterText: ''),
             ),
           if (_identityError != null) ...[
             const SizedBox(height: 3),
-            Text(_identityError!, style: const TextStyle(
+            Text(tr(_identityError!), style: const TextStyle(
               fontSize: 11, color: Color(0xFFCC4D34))),
           ],
           const Divider(height: 1, color: Color(0xFFDDE7F0)),
@@ -442,19 +443,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 : _error != null
                     ? Center(child: Padding(
                         padding: const EdgeInsets.all(25),
-                        child: Text(_error!, textAlign: TextAlign.center,
+                        child: Text(tr(_error!), textAlign: TextAlign.center,
                           style: TextStyle(color: fg)),
                       ))
                     : Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 460),
                           child: ListView(
-                            padding: const EdgeInsets.fromLTRB(26, 10, 26, 19),
+                            padding: const EdgeInsetsDirectional.fromSTEB(26, 10, 26, 19),
                             children: [
                               Align(
-                                alignment: Alignment.centerRight,
+                                alignment: AlignmentDirectional.centerEnd,
                                 child: IconButton(
-                                  tooltip: 'Settings',
+                                  tooltip: tr('Settings'),
                                   onPressed: () => Navigator.pushNamed(
                                     context, 'citizen_settings'),
                                   icon: Icon(Icons.settings_outlined,
@@ -464,17 +465,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const SizedBox(height: 14),
                               _avatar(),
                               const SizedBox(height: 20),
-                              _editableCard(label: 'Name Of citizen',
+                              _editableCard(label: tr('Name Of citizen'),
                                 controller: _name, dark: dark, icon: Icons.person_outline,
                                 requiredField: true),
                               const SizedBox(height: 16),
                               _idCard(dark),
                               const SizedBox(height: 16),
-                              _editableCard(label: 'Contact phone', controller: _phone,
+                              _editableCard(label: tr('Contact phone'), controller: _phone,
                                 dark: dark, icon: Icons.phone_outlined,
                                 keyboard: TextInputType.phone),
                               const SizedBox(height: 16),
-                              _editableCard(label: 'Address', controller: _address,
+                              _editableCard(label: tr('Address'), controller: _address,
                                 dark: dark, icon: Icons.location_on_outlined),
                               const SizedBox(height: 16),
                               SizedBox(
@@ -493,7 +494,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ? const SizedBox(width: 21, height: 21,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2.5, color: Colors.white))
-                                      : const Text('Save Changes',
+                                      : Text(tr('Save Changes'),
                                           style: TextStyle(fontSize: 18,
                                             fontWeight: FontWeight.w600)),
                                 ),

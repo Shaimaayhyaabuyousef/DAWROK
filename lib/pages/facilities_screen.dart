@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'center_details_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class FacilitiesScreen extends StatefulWidget {
   final String reward;
@@ -38,7 +39,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                       setState(() => _search = v.trim().toLowerCase()),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search, color: Colors.blue),
-                    hintText: 'Search facilities',
+                    hintText: tr('Search facilities'),
                     filled: true,
                     fillColor: Colors.grey[100],
                     border: OutlineInputBorder(
@@ -98,9 +99,9 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Sort: ', style: TextStyle(color: Colors.grey[600])),
-                      const Text(
-                        'Closest geographically',
+                      Text(tr('Sort: '), style: TextStyle(color: Colors.grey[600])),
+                      Text(
+                        tr('Closest geographically'),
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const Icon(Icons.keyboard_arrow_down, size: 18),
@@ -115,7 +116,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError)
-                      return const Text('Unable to load facilities.');
+                      return Text(tr('Unable to load facilities.'));
                     if (!snapshot.hasData)
                       return const Center(child: CircularProgressIndicator());
                     final filtered = snapshot.data!.docs.where((d) {
@@ -128,10 +129,10 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                       return matchesCategory && name.contains(_search);
                     }).toList();
                     if (filtered.isEmpty) {
-                      return const Padding(
+                      return Padding(
                         padding: EdgeInsets.symmetric(vertical: 50),
                         child: Center(
-                          child: Text('No facilities available yet.'),
+                          child: Text(tr('No facilities available yet.')),
                         ),
                       );
                     }
@@ -220,7 +221,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
           ),
           const SizedBox(width: 6),
           Text(
-            label,
+            tr(label),
             style: TextStyle(
               color: selected ? Colors.white : Colors.grey[700],
               fontWeight: FontWeight.bold,
@@ -309,7 +310,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                name,
+                                tr(name),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -334,8 +335,8 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                                   color: Colors.blue[50],
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Text(
-                                  'Medical',
+                                child: Text(
+                                  tr('Medical'),
                                   style: TextStyle(
                                     color: Colors.blue,
                                     fontSize: 11,
@@ -347,7 +348,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                         ),
                         if (status != null)
                           Text(
-                            status,
+                            tr(status),
                             style: TextStyle(color: Colors.grey[600]),
                           ),
                         Row(
@@ -358,7 +359,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                               size: 14,
                             ),
                             const SizedBox(width: 4),
-                            Text(rating),
+                            Text(tr(rating)),
                           ],
                         ),
                       ],
@@ -390,11 +391,11 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Address',
+                                tr('Address'),
                                 style: TextStyle(color: Colors.grey[600]),
                               ),
                               Text(
-                                address,
+                                tr(address),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -403,9 +404,9 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        const Flexible(
+                        Flexible(
                           child: Text(
-                            'Booking available',
+                            tr('Booking available'),
                             textAlign: TextAlign.end,
                             style: TextStyle(color: Colors.grey, fontSize: 11),
                           ),
@@ -419,7 +420,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                         children: [
                           Flexible(
                             child: Text(
-                              'Quota Capacity ($claimed/$capacity claimed)',
+                              tr('Quota Capacity ($claimed/$capacity claimed)'),
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 12,
@@ -427,7 +428,7 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                             ),
                           ),
                           Text(
-                            '${((claimed / capacity) * 100).round()}% Filled',
+                            tr('${((claimed / capacity) * 100).round()}% Filled'),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
@@ -455,11 +456,11 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'From',
+                              tr('From'),
                               style: TextStyle(color: Colors.grey[600]),
                             ),
                             Text(
-                              from,
+                              tr(from),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue,
@@ -478,11 +479,11 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'To',
+                              tr('To'),
                               style: TextStyle(color: Colors.grey[600]),
                             ),
                             Text(
-                              to,
+                              tr(to),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -501,10 +502,10 @@ class _FacilitiesScreenState extends State<FacilitiesScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Align(
-                alignment: Alignment.centerRight,
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
                 child: Text(
-                  'Tap to view details',
+                  tr('Tap to view details'),
                   style: TextStyle(
                     color: Colors.blue,
                     fontSize: 11,

@@ -9,6 +9,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../models/citizen_registration_draft.dart';
 import '../services/local_card_check.dart';
 import 'citizen_id_verification_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const _primary = Color(0xFF03A9F4);
 const _titleBlue = Color(0xFF4FAAF4);
@@ -49,7 +50,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
 
   void _notice(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text(tr(message))),
     );
   }
 
@@ -116,12 +117,12 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(description),
+        title: Text(tr(title)),
+        content: Text(tr(description)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
+            child: Text(tr('OK')),
           ),
         ],
       ),
@@ -190,10 +191,10 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
     required Widget child,
     bool fullWidth = true,
   }) {
-    return Positioned(
+    return PositionedDirectional(
       top: top * scale,
-      left: fullWidth ? 27 * scale : 0,
-      right: fullWidth ? 27 * scale : 0,
+      start: fullWidth ? 27 * scale : 0,
+      end: fullWidth ? 27 * scale : 0,
       child: child,
     );
   }
@@ -216,8 +217,8 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                 height: canvasHeight,
                 child: Stack(
                   children: [
-                    Positioned(
-                      left: 17 * scale,
+                    PositionedDirectional(
+                      start: 17 * scale,
                       top: 6 * scale,
                       child: IconButton(
                         onPressed: _back,
@@ -243,7 +244,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       scale: scale,
                       fullWidth: false,
                       child: Text(
-                        'Signup',
+                        tr('Signup'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: _titleBlue,
@@ -256,7 +257,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       top: 179,
                       scale: scale,
                       child: Text(
-                        'Full Name',
+                        tr('Full Name'),
                         style: TextStyle(
                           fontSize: 13.5 * scale,
                           color: const Color(0xFF0087D0),
@@ -268,7 +269,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       scale: scale,
                       child: _field(
                         controller: _name,
-                        hint: 'User Name',
+                        hint: tr('User Name'),
                         icon: Icons.person_outline_rounded,
                         height: 52 * scale,
                         featured: true,
@@ -279,7 +280,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       scale: scale,
                       child: _field(
                         controller: _id,
-                        hint: 'ID',
+                        hint: tr('ID'),
                         icon: Icons.badge_outlined,
                         keyboard: TextInputType.number,
                         formatters: [
@@ -294,7 +295,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       scale: scale,
                       child: _field(
                         controller: _phone,
-                        hint: 'Mobile phone',
+                        hint: tr('Mobile phone'),
                         icon: Icons.phone_outlined,
                         keyboard: TextInputType.phone,
                         height: 40 * scale,
@@ -306,7 +307,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                               right: BorderSide(color: _lightBlue),
                             ),
                           ),
-                          child: Text('+970',
+                          child: Text(tr('+970'),
                               style: TextStyle(
                                 color: _grey,
                                 fontSize: 14.5 * scale,
@@ -319,7 +320,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       scale: scale,
                       child: _field(
                         controller: _password,
-                        hint: 'Password',
+                        hint: tr('Password'),
                         icon: Icons.lock_outline_rounded,
                         obscure: _hidePassword,
                         height: 40 * scale,
@@ -338,7 +339,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       scale: scale,
                       child: _field(
                         controller: _confirm,
-                        hint: 'Confirm Password',
+                        hint: tr('Confirm Password'),
                         icon: Icons.lock_reset_outlined,
                         obscure: _hideConfirm,
                         action: TextInputAction.done,
@@ -377,7 +378,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                             child: Wrap(
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                Text('I agree to the ',
+                                Text(tr('I agree to the '),
                                   style: TextStyle(
                                     fontSize: 13 * scale,
                                     color: _ink,
@@ -389,7 +390,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                                     'Your ID number is saved to your account. The card photo is examined on this device to compare the number and layout. This is a visual check only.',
                                   ),
                                   child: Text(
-                                    'Terms and Conditions',
+                                    tr('Terms and Conditions'),
                                     style: TextStyle(
                                       fontSize: 13 * scale,
                                       color: const Color(0xFF0087D0),
@@ -421,7 +422,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text('Signup',
+                              Text(tr('Signup'),
                                   style: TextStyle(fontSize: 22 * scale)),
                               SizedBox(width: 10 * scale),
                               Icon(Icons.arrow_forward_rounded, size: 23 * scale),
@@ -436,7 +437,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('Are you Staff? ',
+                          Text(tr('Are you Staff? '),
                               style: TextStyle(color: const Color(0xFF70829D),
                                   fontSize: 13.5 * scale)),
                           GestureDetector(
@@ -447,7 +448,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                               'is not configured yet.',
                             ),
                             child: Text(
-                              'Join with code',
+                              tr('Join with code'),
                               style: TextStyle(
                                 fontSize: 13.5 * scale,
                                 color: const Color(0xFF0087D0),
@@ -464,7 +465,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('Already have account? ',
+                          Text(tr('Already have account? '),
                               style: TextStyle(
                                 color: _ink,
                                 fontSize: 13 * scale,
@@ -472,7 +473,7 @@ class _CitizenSignUpScreenState extends State<CitizenSignUpScreen> {
                           GestureDetector(
                             onTap: () => Navigator.of(context)
                                 .pushReplacementNamed('login'),
-                            child: Text('Signin',
+                            child: Text(tr('Signin'),
                               style: TextStyle(
                                 fontSize: 13.5 * scale,
                                 color: const Color(0xFF19283F),

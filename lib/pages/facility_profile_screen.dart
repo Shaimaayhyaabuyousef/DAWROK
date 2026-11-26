@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/facility_context.dart';
 import 'package:flutter/services.dart';
 import 'facility_nav.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class FacilityProfileScreen extends StatefulWidget {
   const FacilityProfileScreen({super.key});
@@ -41,7 +42,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
       });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())));
+        SnackBar(content: Text(tr(e.toString()))));
     }
   }
 
@@ -57,7 +58,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
     if (!loaded || name.text.trim().isEmpty ||
         phone.text.trim().isEmpty || address.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all required fields')));
+        SnackBar(content: Text(tr('Please complete all required fields'))));
       return;
     }
     try {
@@ -68,23 +69,23 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
         'address': address.text.trim(),
       });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Facility updated in Firebase.')));
+        SnackBar(content: Text(tr('Facility updated in Firebase.'))));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())));
+        SnackBar(content: Text(tr(e.toString()))));
     }
   }
 
   void _copyId() {
     Clipboard.setData(ClipboardData(text: facilityNumber!));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Facility number copied')),
+      SnackBar(content: Text(tr('Facility number copied'))),
     );
   }
 
   void _showComingSoon(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text(tr(message))),
     );
   }
 
@@ -95,12 +96,12 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(26, 24, 26, 22),
+          padding: const EdgeInsetsDirectional.fromSTEB(26, 24, 26, 22),
           children: [
             Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: IconButton(
-                tooltip: 'Settings',
+                tooltip: tr('Settings'),
                 onPressed: () => Navigator.pushNamed(context, 'app_settings'),
                 icon: const Icon(
                   Icons.settings_outlined,
@@ -131,14 +132,14 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
                       color: Color(0xFF88C9F3),
                     ),
                   ),
-                  Positioned(
-                    right: -5,
+                  PositionedDirectional(
+                    end: -5,
                     bottom: 2,
                     child: CircleAvatar(
                       radius: 19,
                       backgroundColor: const Color(0xFF00A7EB),
                       child: IconButton(
-                        tooltip: 'Change photo',
+                        tooltip: tr('Change photo'),
                         padding: EdgeInsets.zero,
                         onPressed: () => _showComingSoon(
                           'Photo picker is not connected yet',
@@ -156,7 +157,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
             ),
             const SizedBox(height: 26),
             _box(
-              title: 'Name Of Facility',
+              title: tr('Name Of Facility'),
               badge: 'Required',
               child: TextField(
                 controller: name,
@@ -179,7 +180,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
             ),
             const SizedBox(height: 15),
             _box(
-              title: 'Facility Number',
+              title: tr('Facility Number'),
               badge: facilityNumber == null ? null : '✔ Registered',
               child: Row(
                 children: [
@@ -191,7 +192,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      facilityNumber ?? (loaded ? 'Awaiting number from admin' : 'Loading…'),
+                      tr(facilityNumber ?? (loaded ? 'Awaiting number from admin' : 'Loading…')),
                       style: const TextStyle(
                         fontSize: 17,
                         color: facilityDark,
@@ -200,14 +201,14 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
                   ),
                   TextButton(
                     onPressed: facilityNumber == null ? null : _copyId,
-                    child: const Text('Copy'),
+                    child: Text(tr('Copy')),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 15),
             _box(
-              title: 'Phone Of Facility',
+              title: tr('Phone Of Facility'),
               child: TextField(
                 controller: phone,
                 keyboardType: TextInputType.phone,
@@ -227,7 +228,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
             ),
             const SizedBox(height: 15),
             _box(
-              title: 'Address Of Facility',
+              title: tr('Address Of Facility'),
               child: TextField(
                 controller: address,
                 decoration: const InputDecoration(
@@ -256,8 +257,8 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Save Changes',
+                child: Text(
+                  tr('Save Changes'),
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -278,7 +279,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
     required Widget child,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(15, 14, 15, 12),
+      padding: const EdgeInsetsDirectional.fromSTEB(15, 14, 15, 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(17),
         border: Border.all(color: const Color(0xFFD3ECFC)),
@@ -298,7 +299,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
             children: [
               Expanded(
                 child: Text(
-                  title,
+                  tr(title),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF394962),
@@ -308,7 +309,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
               ),
               if (badge != null)
                 Text(
-                  badge,
+                  tr(badge),
                   style: TextStyle(
                     color: badge.contains('Registered')
                         ? const Color(0xFF009B72)

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../services/citizen_account_service.dart';
 import 'citizen_ui.dart';
 import 'facilities_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null)
-      return const Scaffold(body: Center(child: Text('Please sign in.')));
+      return Scaffold(body: Center(child: Text(tr('Please sign in.'))));
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: CitizenAccountService.instance.account(user.uid).snapshots(),
       builder: (context, account) =>
@@ -174,7 +175,7 @@ class CitizenHomeView extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 16, 24),
               children: [
                 Row(
                   children: [
@@ -191,9 +192,9 @@ class CitizenHomeView extends StatelessWidget {
                               radius: 14,
                               backgroundColor: citizenBlue,
                               child: Text(
-                                name.isEmpty
+                                tr(name.isEmpty
                                     ? 'C'
-                                    : name.characters.first.toUpperCase(),
+                                    : name.characters.first.toUpperCase()),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 13,
@@ -206,15 +207,15 @@ class CitizenHomeView extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Welcome back,',
+                                  Text(
+                                    tr('Welcome back,'),
                                     style: TextStyle(
                                       color: Color(0xFF71849F),
                                       fontSize: 12,
                                     ),
                                   ),
                                   Text(
-                                    '$greeting, $name',
+                                    tr('$greeting, $name'),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -252,7 +253,7 @@ class CitizenHomeView extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      '${points ?? '—'} Pts',
+                                      tr('${points ?? '—'} Pts'),
                                       style: const TextStyle(
                                         color: Color(0xFF008ED3),
                                         fontSize: 11,
@@ -268,7 +269,7 @@ class CitizenHomeView extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Notifications',
+                      tooltip: tr('Notifications'),
                       onPressed: onNotifications,
                       icon: Badge(
                         isLabelVisible: unread,
@@ -286,13 +287,13 @@ class CitizenHomeView extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          error!,
+                          tr(error!),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
                       TextButton(
                         onPressed: onRetry,
-                        child: const Text('Retry'),
+                        child: Text(tr('Retry')),
                       ),
                     ],
                   ),
@@ -309,11 +310,11 @@ class CitizenHomeView extends StatelessWidget {
                       color: const Color(0xFFF5FBFF),
                       radius: 13,
                     ),
-                    child: const Column(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Explore the facilities',
+                          tr('Explore the facilities'),
                           style: TextStyle(
                             color: citizenSoftBlue,
                             fontSize: 21,
@@ -321,7 +322,7 @@ class CitizenHomeView extends StatelessWidget {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Find a facility and book your turn',
+                          tr('Find a facility and book your turn'),
                           style: TextStyle(color: citizenInk, fontSize: 14),
                         ),
                       ],
@@ -339,7 +340,7 @@ class CitizenHomeView extends StatelessWidget {
                     child: InkWell(
                       onTap: onSearch,
                       borderRadius: BorderRadius.circular(13),
-                      child: const Padding(
+                      child: Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 15,
@@ -349,7 +350,7 @@ class CitizenHomeView extends StatelessWidget {
                             Icon(Icons.search, color: citizenBlue, size: 27),
                             SizedBox(width: 16),
                             Text(
-                              'Search facilities',
+                              tr('Search facilities'),
                               style: TextStyle(
                                 color: Colors.grey,
                                 fontSize: 15,
@@ -362,10 +363,10 @@ class CitizenHomeView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Padding(
-                  padding: EdgeInsets.only(left: 10),
+                Padding(
+                  padding: EdgeInsetsDirectional.only(start: 10),
                   child: Text(
-                    'Your active booking',
+                    tr('Your active booking'),
                     style: TextStyle(color: citizenSoftBlue, fontSize: 21),
                   ),
                 ),
@@ -386,8 +387,8 @@ class CitizenHomeView extends StatelessWidget {
                           size: 36,
                         ),
                         const SizedBox(height: 14),
-                        const Text(
-                          'Your next turn starts here',
+                        Text(
+                          tr('Your next turn starts here'),
                           style: TextStyle(
                             color: citizenInk,
                             fontSize: 18,
@@ -395,8 +396,8 @@ class CitizenHomeView extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Explore nearby facilities and book your turn when you need it.',
+                        Text(
+                          tr('Explore nearby facilities and book your turn when you need it.'),
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Color(0xFF71849F)),
                         ),
@@ -405,7 +406,7 @@ class CitizenHomeView extends StatelessWidget {
                             foregroundColor: citizenBlue,
                           ),
                           onPressed: onSearch,
-                          child: const Text('Explore facilities →'),
+                          child: Text(tr('Explore facilities →')),
                         ),
                       ],
                     ),
@@ -444,7 +445,7 @@ class CitizenHomeView extends StatelessWidget {
               children: [
                 Expanded(
                   child: Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -454,8 +455,8 @@ class CitizenHomeView extends StatelessWidget {
                         color: Colors.white24,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Text(
-                        'ACTIVE RESERVATION',
+                      child: Text(
+                        tr('ACTIVE RESERVATION'),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -475,7 +476,7 @@ class CitizenHomeView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    time == null ? '—' : citizenTime(FacilityTime.wall(time)),
+                    tr(time == null ? '—' : citizenTime(FacilityTime.wall(time))),
                     style: const TextStyle(
                       color: Color(0xFF008ED3),
                       fontWeight: FontWeight.bold,
@@ -487,12 +488,12 @@ class CitizenHomeView extends StatelessWidget {
             ),
             const SizedBox(height: 7),
             Text(
-              data['service'] as String? ?? 'Your reservation',
+              tr(data['service'] as String? ?? 'Your reservation'),
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
             const SizedBox(height: 52),
             Text(
-              'Ticket #$ticketId • ${data['facilityName'] ?? ''}',
+              tr('Ticket #$ticketId • ${data['facilityName'] ?? ''}'),
               style: const TextStyle(color: Color(0xFFC0EDFF), fontSize: 14),
             ),
             const Divider(height: 34, color: Colors.white30),
@@ -502,16 +503,16 @@ class CitizenHomeView extends StatelessWidget {
                 const SizedBox(width: 7),
                 Expanded(
                   child: Text(
-                    data['status'] == 'called'
+                    tr(data['status'] == 'called'
                         ? 'Your turn • Ready'
                         : data['checkedIn'] == true
                         ? 'Checked in • Waiting'
-                        : 'Scheduled • Waiting',
+                        : 'Scheduled • Waiting'),
                     style: const TextStyle(color: Colors.white, fontSize: 13),
                   ),
                 ),
-                const Text(
-                  'View',
+                Text(
+                  tr('View'),
                   style: TextStyle(color: Color(0xFFC0EDFF), fontSize: 12),
                 ),
               ],

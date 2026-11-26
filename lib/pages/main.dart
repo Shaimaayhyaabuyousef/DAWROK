@@ -1,6 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:first_project/firebase_options.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:first_project/l10n/app_language.dart';
+
+import 'turn_alert_banner.dart';
 
 import 'active_queues_screen.dart';
 import 'citizen_id_verification_screen.dart';
@@ -34,6 +38,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await AppLanguage.load();
   runApp(const MyApp());
 }
 
@@ -42,11 +47,36 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<Locale>(
+      valueListenable: AppLanguage.locale,
+      builder: (context, locale, _) => _app(context, locale),
+    );
+  }
+
+  Widget _app(BuildContext context, Locale locale) {
+    // Rebuild every open screen so its tr() texts follow the new language.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      void rebuild(Element el) {
+        el.markNeedsBuild();
+        el.visitChildren(rebuild);
+      }
+      (context as Element).visitChildren(rebuild);
+    });
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      locale: locale,
+      supportedLocales: AppLanguage.supported,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Inter',
+        // Arabic letters are not in Inter; they use IBM Plex Sans Arabic,
+        // while digits and Latin text keep the Inter design.
+        fontFamilyFallback: const ['IBMPlexSansArabic'],
         scaffoldBackgroundColor: Colors.white,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF2196F3),
@@ -58,7 +88,7 @@ class MyApp extends StatelessWidget {
       builder: (context, child) => MediaQuery.withClampedTextScaling(
         minScaleFactor: 0.9,
         maxScaleFactor: 1.0,
-        child: child!,
+        child: TurnAlertHost(child: child!),
       ),
       home: const Splash(),
       routes: {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 /// Introductory copy above the existing add button on an empty facility list.
 class FacilityEmptyState extends StatelessWidget {
@@ -19,7 +20,7 @@ class FacilityEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+    padding: const EdgeInsetsDirectional.fromSTEB(16, 48, 16, 24),
     child: Column(
       children: [
         CircleAvatar(
@@ -29,7 +30,7 @@ class FacilityEmptyState extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         Text(
-          title,
+          tr(title),
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontFamily: 'Inter',
@@ -40,7 +41,7 @@ class FacilityEmptyState extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          description,
+          tr(description),
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontFamily: 'Inter',

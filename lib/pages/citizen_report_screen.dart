@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/report_service.dart';
 import '../services/report_photo.dart';
 import '../services/report_dictation.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const _blue = Color(0xFF03A9F4);
 const _ink = Color(0xFF202C3E);
@@ -87,22 +88,22 @@ class _ReportScreenState extends State<ReportScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(20),
               child: Text(
-                'Select the type of report',
+                tr('Select the type of report'),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.bug_report_outlined, color: _blue),
-              title: const Text('Report an issue with the app'),
+              title: Text(tr('Report an issue with the app')),
               onTap: () => Navigator.pop(context, ReportKind.app),
             ),
             if (_author!.role == ReporterRole.citizen)
               ListTile(
                 leading: const Icon(Icons.storefront_outlined, color: _blue),
-                title: const Text('Facility Report'),
+                title: Text(tr('Facility Report')),
                 onTap: () => Navigator.pop(context, ReportKind.facility),
               ),
           ],
@@ -136,12 +137,12 @@ class _ReportScreenState extends State<ReportScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choose from gallery'),
+              title: Text(tr('Choose from gallery')),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Take a photo'),
+              title: Text(tr('Take a photo')),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
           ],
@@ -266,7 +267,7 @@ class _ReportScreenState extends State<ReportScreen> {
       surfaceTintColor: Colors.white,
       centerTitle: true,
       leading: IconButton(
-        tooltip: 'Back',
+        tooltip: tr('Back'),
         onPressed: _busy ? null : () => Navigator.maybePop(context),
         icon: const Icon(
           Icons.arrow_back_ios_new,
@@ -274,8 +275,8 @@ class _ReportScreenState extends State<ReportScreen> {
           size: 24,
         ),
       ),
-      title: const Text(
-        'Report',
+      title: Text(
+        tr('Report'),
         style: TextStyle(
           color: Color(0xFF64B9FA),
           fontSize: 22,
@@ -293,8 +294,8 @@ class _ReportScreenState extends State<ReportScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(_loadError!, textAlign: TextAlign.center),
-                      TextButton(onPressed: _load, child: const Text('Retry')),
+                      Text(tr(_loadError!), textAlign: TextAlign.center),
+                      TextButton(onPressed: _load, child: Text(tr('Retry'))),
                     ],
                   ),
                 )
@@ -308,7 +309,7 @@ class _ReportScreenState extends State<ReportScreen> {
     ),
   );
   Widget _form() => ListView(
-    padding: const EdgeInsets.fromLTRB(12, 45, 12, 30),
+    padding: const EdgeInsetsDirectional.fromSTEB(12, 45, 12, 30),
     children: [
       Material(
         color: Colors.transparent,
@@ -336,7 +337,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    _label,
+                    tr(_label),
                     style: const TextStyle(
                       color: _ink,
                       fontSize: 15,
@@ -357,10 +358,10 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
       if (_kind == ReportKind.facility) ...[
         const SizedBox(height: 9),
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text(
-            'FACILITY NAME',
+            tr('FACILITY NAME'),
             style: TextStyle(
               color: Color(0xFF39485F),
               fontSize: 13,
@@ -376,10 +377,10 @@ class _ReportScreenState extends State<ReportScreen> {
             child: Container(
               height: 65,
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               decoration: _panel(shadow: true),
               child: Text(
-                _facility?.name ?? 'facility name',
+                tr(_facility?.name ?? 'facility name'),
                 style: TextStyle(
                   color: _facility == null ? Colors.grey : _ink,
                   fontSize: 14,
@@ -395,9 +396,9 @@ class _ReportScreenState extends State<ReportScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
-                'DESCRIPTION',
+                tr('DESCRIPTION'),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -406,7 +407,7 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             Text(
-              '${_description.text.runes.length} / 500',
+              tr('${_description.text.runes.length} / 500'),
               style: const TextStyle(
                 color: _muted,
                 fontSize: 11,
@@ -419,7 +420,7 @@ class _ReportScreenState extends State<ReportScreen> {
       const SizedBox(height: 8),
       Container(
         margin: const EdgeInsets.symmetric(horizontal: 7),
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+        padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 14, 10),
         decoration: _panel(),
         child: Column(
           children: [
@@ -479,11 +480,11 @@ class _ReportScreenState extends State<ReportScreen> {
                       fit: BoxFit.cover,
                     ),
                   ),
-                  Positioned(
-                    right: 0,
+                  PositionedDirectional(
+                    end: 0,
                     top: 0,
                     child: IconButton(
-                      tooltip: 'Remove photo',
+                      tooltip: tr('Remove photo'),
                       onPressed: _locked
                           ? null
                           : () => setState(() => _photo = null),
@@ -502,11 +503,11 @@ class _ReportScreenState extends State<ReportScreen> {
                   onPressed: _locked ? null : _addPhoto,
                   icon: const Icon(Icons.camera_alt_outlined, size: 18),
                   label: Text(
-                    _picking
+                    tr(_picking
                         ? 'Adding…'
                         : _photo == null
                         ? 'Add Photo'
-                        : 'Change Photo',
+                        : 'Change Photo'),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF008FD4),
@@ -534,10 +535,10 @@ class _ReportScreenState extends State<ReportScreen> {
               ],
             ),
             if (_listening)
-              const Align(
-                alignment: Alignment.centerLeft,
+              Align(
+                alignment: AlignmentDirectional.centerStart,
                 child: Text(
-                  'Listening… tap stop when finished.',
+                  tr('Listening… tap stop when finished.'),
                   style: TextStyle(color: _blue, fontSize: 11),
                 ),
               ),
@@ -565,9 +566,9 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Report Anonymously',
+                tr('Report Anonymously'),
                 style: TextStyle(
                   color: Color(0xFF39485F),
                   fontSize: 13,
@@ -590,18 +591,18 @@ class _ReportScreenState extends State<ReportScreen> {
         ),
       ),
       if (_anonymous)
-        const Padding(
-          padding: EdgeInsets.fromLTRB(18, 8, 18, 0),
+        Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(18, 8, 18, 0),
           child: Text(
-            'Your identity is hidden from the facility. Administration can access your account to follow up.',
+            tr('Your identity is hidden from the facility. Administration can access your account to follow up.'),
             style: TextStyle(color: _muted, fontSize: 10, height: 1.35),
           ),
         ),
       if (_error != null)
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+          padding: const EdgeInsetsDirectional.fromSTEB(14, 14, 14, 0),
           child: Text(
-            _error!,
+            tr(_error!),
             style: const TextStyle(color: Color(0xFFB42318), fontSize: 12),
           ),
         ),
@@ -632,7 +633,7 @@ class _ReportScreenState extends State<ReportScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                _busy ? 'Sending…' : 'Send Report',
+                tr(_busy ? 'Sending…' : 'Send Report'),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -663,8 +664,8 @@ class _ReportScreenState extends State<ReportScreen> {
       children: [
         const Icon(Icons.check_circle_outline, size: 56, color: _blue),
         const SizedBox(height: 20),
-        const Text(
-          'Report sent successfully',
+        Text(
+          tr('Report sent successfully'),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -672,18 +673,18 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Administration will review your report.',
+        Text(
+          tr('Administration will review your report.'),
           textAlign: TextAlign.center,
           style: TextStyle(color: _muted),
         ),
         const SizedBox(height: 10),
-        SelectableText('Reference: $_sent', textAlign: TextAlign.center),
+        SelectableText(tr('Reference: $_sent'), textAlign: TextAlign.center),
         const SizedBox(height: 24),
         FilledButton(
           onPressed: () => Navigator.maybePop(context),
           style: FilledButton.styleFrom(backgroundColor: _blue),
-          child: const Text('Done'),
+          child: Text(tr('Done')),
         ),
       ],
     ),
@@ -709,7 +710,7 @@ class _FacilityPickerState extends State<_FacilityPicker> {
   @override
   Widget build(BuildContext context) => SafeArea(
     child: Padding(
-      padding: EdgeInsets.fromLTRB(
+      padding: EdgeInsetsDirectional.fromSTEB(
         20,
         20,
         20,
@@ -721,8 +722,8 @@ class _FacilityPickerState extends State<_FacilityPicker> {
           children: [
             TextField(
               autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'Search facilities',
+              decoration: InputDecoration(
+                hintText: tr('Search facilities'),
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: (value) =>
@@ -738,7 +739,7 @@ class _FacilityPickerState extends State<_FacilityPicker> {
                         onPressed: () => setState(
                           () => _facilities = widget.repository.facilities(),
                         ),
-                        child: const Text('Unable to load facilities. Retry'),
+                        child: Text(tr('Unable to load facilities. Retry')),
                       ),
                     );
                   if (!snapshot.hasData)
@@ -747,12 +748,12 @@ class _FacilityPickerState extends State<_FacilityPicker> {
                       .where((f) => f.name.toLowerCase().contains(_query))
                       .toList();
                   if (rows.isEmpty)
-                    return const Center(child: Text('No matching facilities.'));
+                    return Center(child: Text(tr('No matching facilities.')));
                   return ListView(
                     children: rows
                         .map(
                           (f) => ListTile(
-                            title: Text(f.name),
+                            title: Text(tr(f.name)),
                             onTap: () => Navigator.pop(context, f),
                           ),
                         )

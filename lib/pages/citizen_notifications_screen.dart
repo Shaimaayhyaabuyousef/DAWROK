@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/citizen_account_service.dart';
 import 'citizen_ui.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class CitizenNotificationsScreen extends StatelessWidget {
   const CitizenNotificationsScreen({super.key});
@@ -14,7 +15,7 @@ class CitizenNotificationsScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(backgroundColor: Colors.white),
       body: uid == null
-          ? const Center(child: Text('Please sign in.'))
+          ? Center(child: Text(tr('Please sign in.')))
           : Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
@@ -25,9 +26,9 @@ class CitizenNotificationsScreen extends StatelessWidget {
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError)
-                      return const Center(
+                      return Center(
                         child: Text(
-                          'Unable to load notifications. Please try again.',
+                          tr('Unable to load notifications. Please try again.'),
                         ),
                       );
                     if (!snapshot.hasData)
@@ -35,11 +36,11 @@ class CitizenNotificationsScreen extends StatelessWidget {
                     return ListView(
                       padding: const EdgeInsets.all(18),
                       children: [
-                        const Row(
+                        Row(
                           children: [
                             Expanded(
                               child: Text(
-                                'Recent Notifications',
+                                tr('Recent Notifications'),
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -47,7 +48,7 @@ class CitizenNotificationsScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Account updates',
+                              tr('Account updates'),
                               style: TextStyle(
                                 color: Colors.blueGrey,
                                 fontSize: 11,
@@ -57,9 +58,9 @@ class CitizenNotificationsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 14),
                         if (snapshot.data!.docs.isEmpty)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.all(32),
-                            child: Text('No notifications yet.'),
+                            child: Text(tr('No notifications yet.')),
                           ),
                         ...snapshot.data!.docs.map((event) {
                           final d = event.data();
@@ -122,11 +123,11 @@ class CitizenNotificationsScreen extends StatelessWidget {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              type == 'welcome'
+                                              tr(type == 'welcome'
                                                   ? 'Welcome'
                                                   : type == 'booking'
                                                   ? 'Booking confirmation'
-                                                  : 'Commitment & Points',
+                                                  : 'Commitment & Points'),
                                               style: TextStyle(
                                                 color: color,
                                                 fontWeight: FontWeight.w600,
@@ -144,7 +145,7 @@ class CitizenNotificationsScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 7),
                                       Text(
-                                        title,
+                                        tr(title),
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -153,7 +154,7 @@ class CitizenNotificationsScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        body,
+                                        tr(body),
                                         style: const TextStyle(
                                           color: Color(0xFF52647C),
                                           height: 1.5,
@@ -166,7 +167,7 @@ class CitizenNotificationsScreen extends StatelessWidget {
                                             top: 10,
                                           ),
                                           child: Text(
-                                            '${date.day}/${date.month}/${date.year} • ${citizenTime(date)}',
+                                            tr('${date.day}/${date.month}/${date.year} • ${citizenTime(date)}'),
                                             style: const TextStyle(
                                               color: Colors.blueGrey,
                                               fontSize: 11,
@@ -220,20 +221,20 @@ class CitizenNotificationsScreen extends StatelessWidget {
                                             if (context.mounted)
                                               ScaffoldMessenger.of(context)
                                                   .showSnackBar(
-                                                    const SnackBar(
+                                                    SnackBar(
                                                       content: Text(
-                                                        'Unable to open this update. Please try again.',
+                                                        tr('Unable to open this update. Please try again.'),
                                                       ),
                                                     ),
                                                   );
                                           }
                                         },
                                         child: Text(
-                                          type == 'booking'
+                                          tr(type == 'booking'
                                               ? 'Ticket Details →'
                                               : type == 'welcome'
                                               ? 'Explore facilities →'
-                                              : 'View points →',
+                                              : 'View points →'),
                                         ),
                                       ),
                                     ],

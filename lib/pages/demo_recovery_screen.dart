@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../services/phone_login.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 /// Local rehearsal only. This screen has no Authentication or Firestore access.
 class DemoRecoveryScreen extends StatefulWidget {
@@ -54,9 +55,9 @@ class _DemoRecoveryScreenState extends State<DemoRecoveryScreen> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'Demo complete. Contact the administrator to reset your account password.',
+          tr('Demo complete. Contact the administrator to reset your account password.'),
         ),
       ),
     );
@@ -74,7 +75,7 @@ class _DemoRecoveryScreenState extends State<DemoRecoveryScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.white,
     appBar: AppBar(
-      title: Text(_code == null ? 'Forget Password' : 'Enter Security PIN'),
+      title: Text(tr(_code == null ? 'Forget Password' : 'Enter Security PIN')),
       centerTitle: true,
     ),
     body: SafeArea(
@@ -88,16 +89,16 @@ class _DemoRecoveryScreenState extends State<DemoRecoveryScreen> {
                 TextField(
                   controller: _phone,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Mobile phone',
+                  decoration: InputDecoration(
+                    labelText: tr('Mobile phone'),
                     border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 32),
-                FilledButton(onPressed: _send, child: const Text('Send')),
+                FilledButton(onPressed: _send, child: Text(tr('Send'))),
                 const SizedBox(height: 16),
-                const Text(
-                  'Demo code on this device • valid for 1 minute. For a real password reset, contact the administrator.',
+                Text(
+                  tr('Demo code on this device • valid for 1 minute. For a real password reset, contact the administrator.'),
                   textAlign: TextAlign.center,
                 ),
               ] else ...[
@@ -107,14 +108,14 @@ class _DemoRecoveryScreenState extends State<DemoRecoveryScreen> {
                   color: Colors.lightBlue,
                 ),
                 const SizedBox(height: 22),
-                Text('Demo PIN: $_code', textAlign: TextAlign.center),
-                Text('Expires in $_seconds s', textAlign: TextAlign.center),
+                Text(tr('Demo PIN: $_code'), textAlign: TextAlign.center),
+                Text(tr('Expires in $_seconds s'), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 Text(
-                  List.generate(
+                  tr(List.generate(
                     4,
                     (i) => i < _entry.length ? '●' : '○',
-                  ).join('  '),
+                  ).join('  ')),
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 24),
                 ),
@@ -153,23 +154,23 @@ class _DemoRecoveryScreenState extends State<DemoRecoveryScreen> {
                             _entry += key;
                           }
                         }),
-                        child: Text(key, style: const TextStyle(fontSize: 20)),
+                        child: Text(tr(key), style: const TextStyle(fontSize: 20)),
                       ),
                   ],
                 ),
                 FilledButton(
                   onPressed: _entry.length == 4 ? _verify : null,
-                  child: const Text('Verify demo PIN'),
+                  child: Text(tr('Verify demo PIN')),
                 ),
                 if (_seconds == 0)
                   TextButton(
                     onPressed: _send,
-                    child: const Text('Request new code'),
+                    child: Text(tr('Request new code')),
                   ),
               ],
               if (_error != null)
                 Text(
-                  _error!,
+                  tr(_error!),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.red),
                 ),

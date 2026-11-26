@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'facility_nav.dart';
 import 'package:flutter/services.dart';
 import 'facility_staff_store.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class FacilityAddStaffScreen extends StatefulWidget {
   final FacilityStaff? editing;
@@ -68,7 +69,7 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
         return;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Employee details saved.')),
+          SnackBar(content: Text(tr('Employee details saved.'))),
         );
       }
       // Return to the existing Staff cards; the new code is read from
@@ -102,12 +103,12 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
           builder: (dialogContext) => AlertDialog(
             backgroundColor: Colors.white,
             titleTextStyle: const TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: facilityDark),
-            title: const Text('Employee was not added'),
-            content: SelectableText(message),
+            title: Text(tr('Employee was not added')),
+            content: SelectableText(tr(message)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('OK'),
+                child: Text(tr('OK')),
               ),
             ],
           ),
@@ -119,16 +120,16 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
   }
   @override Widget build(BuildContext context) => WorkspaceStyle(child: Scaffold(
     backgroundColor: Colors.white,
-    body: SafeArea(child: SingleChildScrollView(padding: EdgeInsets.fromLTRB(26, (61.0 - MediaQuery.paddingOf(context).top).clamp(0.0, 61.0), 26, 30), child: Form(
+    body: SafeArea(child: SingleChildScrollView(padding: EdgeInsetsDirectional.fromSTEB(26, (61.0 - MediaQuery.paddingOf(context).top).clamp(0.0, 61.0), 26, 30), child: Form(
       key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        IconButton(tooltip: 'Back', alignment: Alignment.centerLeft, padding: EdgeInsets.zero,
+        IconButton(tooltip: tr('Back'), alignment: AlignmentDirectional.centerStart, padding: EdgeInsets.zero,
           onPressed: () => Navigator.pop(context), icon: const WorkspaceIcon('back')),
         AbsorbPointer(absorbing: _issued != null, child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFEDF3F9)), borderRadius: BorderRadius.circular(24), boxShadow: const [BoxShadow(color: Color(0x090B2439), blurRadius: 5, offset: Offset(0, 2))]), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Staff Full Name', style: TextStyle(fontSize: 20, color: facilityDark)),
+          Text(tr('Staff Full Name'), style: TextStyle(fontSize: 20, color: facilityDark)),
           const SizedBox(height: 6),
           _entry(name, 'name', 'Staff full name'),
           const SizedBox(height: 14),
-          const Text('Assigned Role', style: TextStyle(fontSize: 20, color: facilityDark)),
+          Text(tr('Assigned Role'), style: TextStyle(fontSize: 20, color: facilityDark)),
           const SizedBox(height: 6),
           Row(children: [
             _role(StaffRole.windowOfficer, 'officer', 'Window\nOfficer'),
@@ -140,28 +141,28 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
           const SizedBox(height: 16),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('National / Emp ID', style: TextStyle(fontSize: 11)),
+              Text(tr('National / Emp ID'), style: TextStyle(fontSize: 11)),
               const SizedBox(height: 4),
               _entry(id, 'id', 'Employee ID', optional: true),
             ])),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Station / Window', style: TextStyle(fontSize: 11)),
+              Text(tr('Station / Window'), style: TextStyle(fontSize: 11)),
               const SizedBox(height: 4),
               InputDecorator(
                 decoration: InputDecoration(isDense: true, enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: facilityBorder)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
-                child: const Row(children: [WorkspaceIcon('station'), SizedBox(width: 6), Expanded(child: Text('Automatic', style: TextStyle(fontSize: 12)))]),
+                child: Row(children: [WorkspaceIcon('station'), SizedBox(width: 6), Expanded(child: Text(tr('Automatic'), style: TextStyle(fontSize: 12)))]),
               ),
             ])),
           ]),
           const SizedBox(height: 12),
           if (_saveError != null) ...[
-            Text(_saveError!, style: const TextStyle(
+            Text(tr(_saveError!), style: const TextStyle(
               color: Color(0xFFC62828), fontSize: 12)),
             const SizedBox(height: 12),
           ],
-          SizedBox(width: double.infinity, height: 42, child: ElevatedButton.icon(onPressed: _working || _issued != null ? null : _generate, style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, side: BorderSide.none, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: const WorkspaceIcon('key', color: Colors.white), label: Text(_working ? 'Saving...' : _issued != null ? 'Link Code Generated' : 'Generate Link Code', style: const TextStyle(fontSize: 12)))),
+          SizedBox(width: double.infinity, height: 42, child: ElevatedButton.icon(onPressed: _working || _issued != null ? null : _generate, style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, side: BorderSide.none, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: const WorkspaceIcon('key', color: Colors.white), label: Text(tr(_working ? 'Saving...' : _issued != null ? 'Link Code Generated' : 'Generate Link Code'), style: const TextStyle(fontSize: 12)))),
         ]))),
         if (_issued case final issued?) ...[
           const SizedBox(height: 16),
@@ -184,32 +185,32 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('Active Pairing Code', style: TextStyle(fontSize: 14, color: facilityDark)),
+        Text(tr('Active Pairing Code'), style: TextStyle(fontSize: 14, color: facilityDark)),
         const Divider(height: 22, color: facilityBorder),
-        SelectableText('Facility number: ${issued.facilityNumber}', textAlign: TextAlign.center),
+        SelectableText(tr('Facility number: ${issued.facilityNumber}'), textAlign: TextAlign.center),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(color: const Color(0xFF0F172A), borderRadius: BorderRadius.circular(14)),
           child: Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('STAFF LINK PASSCODE', style: TextStyle(color: Color(0xFF70D8FF), fontSize: 10)),
-              SelectableText(issued.code, style: const TextStyle(color: Colors.white, fontSize: 14)),
+              Text(tr('STAFF LINK PASSCODE'), style: TextStyle(color: Color(0xFF70D8FF), fontSize: 10)),
+              SelectableText(tr(issued.code), style: const TextStyle(color: Colors.white, fontSize: 14)),
             ])),
             TextButton.icon(
               style: TextButton.styleFrom(foregroundColor: Colors.white),
               icon: const Icon(Icons.copy_outlined, size: 15),
-              label: const Text('Copy'),
+              label: Text(tr('Copy')),
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: issued.code));
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Code copied to clipboard')));
+                  SnackBar(content: Text(tr('Code copied to clipboard'))));
               },
             ),
           ]),
         ),
         const SizedBox(height: 10),
-        Text('Expires $expiryLabel', textAlign: TextAlign.center,
+        Text(tr('Expires $expiryLabel'), textAlign: TextAlign.center,
           style: const TextStyle(color: facilityMuted, fontSize: 11)),
       ]),
     );
@@ -220,5 +221,5 @@ class _FacilityAddStaffScreenState extends State<FacilityAddStaffScreen> {
     decoration: InputDecoration(prefixIconConstraints: const BoxConstraints(minWidth: 36), prefixIcon: Center(widthFactor: 1, child: WorkspaceIcon(asset, color: facilityMuted)), hintText: hint, isDense: true, filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10), border: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: facilityBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: facilityBorder))),
   );
   Widget _role(StaffRole value, String asset, String label) => Expanded(child: InkWell(
-    onTap: () => setState(() => role = value), child: Container(constraints: const BoxConstraints(minHeight: 76), padding: const EdgeInsets.symmetric(vertical: 5), decoration: BoxDecoration(color: role == value ? const Color(0xFFEDF8FF) : const Color(0xFFF7F9FC), border: Border.all(color: role == value ? const Color(0xFF00A6EE) : facilityBorder, width: role == value ? 2 : 1), borderRadius: BorderRadius.circular(13)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [WorkspaceIcon(asset, color: role == value ? const Color(0xFF007BBD) : facilityMuted), const SizedBox(height: 5), Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: role == value ? const Color(0xFF007BBD) : facilityDark))]))));
+    onTap: () => setState(() => role = value), child: Container(constraints: const BoxConstraints(minHeight: 76), padding: const EdgeInsets.symmetric(vertical: 5), decoration: BoxDecoration(color: role == value ? const Color(0xFFEDF8FF) : const Color(0xFFF7F9FC), border: Border.all(color: role == value ? const Color(0xFF00A6EE) : facilityBorder, width: role == value ? 2 : 1), borderRadius: BorderRadius.circular(13)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [WorkspaceIcon(asset, color: role == value ? const Color(0xFF007BBD) : facilityMuted), const SizedBox(height: 5), Text(tr(label), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: role == value ? const Color(0xFF007BBD) : facilityDark))]))));
 }

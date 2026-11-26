@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const _blue = Color(0xFF008FD4);
 const _ink = Color(0xFF182235);
@@ -18,7 +19,7 @@ class WhoWeAreScreen extends StatelessWidget {
       surfaceTintColor: Colors.white,
       centerTitle: true,
       leading: IconButton(
-        tooltip: 'Back',
+        tooltip: tr('Back'),
         onPressed: () => Navigator.maybePop(context),
         icon: const Icon(
           Icons.arrow_back_ios_new,
@@ -26,8 +27,8 @@ class WhoWeAreScreen extends StatelessWidget {
           size: 24,
         ),
       ),
-      title: const Text(
-        'Who are we?',
+      title: Text(
+        tr('Who are we?'),
         style: TextStyle(
           color: Color(0xFF64B9FA),
           fontSize: 22,
@@ -41,23 +42,23 @@ class WhoWeAreScreen extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 9, 24, 32),
+            padding: const EdgeInsetsDirectional.fromSTEB(24, 9, 24, 32),
             children: [
               Center(
                 child: SvgPicture.asset(
                   'assets/images/about_logo.svg',
                   width: 116,
                   height: 116,
-                  semanticsLabel: 'DAWROK smart queue logo',
+                  semanticsLabel: tr('DAWROK smart queue logo'),
                 ),
               ),
               const SizedBox(height: 15),
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 textDirection: TextDirection.ltr,
                 children: [
                   Text(
-                    'دَوْرَك',
+                    tr('دَوْرَك'),
                     textDirection: TextDirection.rtl,
                     style: TextStyle(
                       fontSize: 30,
@@ -70,8 +71,8 @@ class WhoWeAreScreen extends StatelessWidget {
                   Icon(Icons.circle, size: 8, color: Color(0xFF007B6C)),
                 ],
               ),
-              const Text(
-                'DAWROK • Smart Queue',
+              Text(
+                tr('DAWROK • Smart Queue'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF7C7D8B),
@@ -80,23 +81,23 @@ class WhoWeAreScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 5),
-              const _PurposeCard(
-                title: 'OUR MISSION',
-                subtitle: 'Equitable Queue & Dispensing Dignity',
+              _PurposeCard(
+                title: tr('OUR MISSION'),
+                subtitle: tr('Equitable Queue & Dispensing Dignity'),
                 icon: Icons.my_location_outlined,
                 highlighted: true,
-                body: 'Dorak transforms fragmented humanitarian queues into digital, transparent, and fair distribution flows. We safeguard citizen dignity by eradicating chaotic crowding and guaranteeing verified relief delivery.',
+                body: tr('Dorak transforms fragmented humanitarian queues into digital, transparent, and fair distribution flows. We safeguard citizen dignity by eradicating chaotic crowding and guaranteeing verified relief delivery.'),
               ),
               const SizedBox(height: 16),
-              const _PurposeCard(
-                title: 'OUR VISION',
-                subtitle: 'Digital Coordination Everywhere',
+              _PurposeCard(
+                title: tr('OUR VISION'),
+                subtitle: tr('Digital Coordination Everywhere'),
                 icon: Icons.visibility_outlined,
-                body: 'A seamless humanitarian logistics ecosystem where beneficiaries access aid instantly with minimal wait times, fully backed by real-time inventory tracking and community verification.',
+                body: tr('A seamless humanitarian logistics ecosystem where beneficiaries access aid instantly with minimal wait times, fully backed by real-time inventory tracking and community verification.'),
               ),
               const SizedBox(height: 17),
-              const Text(
-                'Core Values & Principles',
+              Text(
+                tr('Core Values & Principles'),
                 style: TextStyle(
                   color: _ink,
                   fontSize: 13,
@@ -111,18 +112,18 @@ class WhoWeAreScreen extends StatelessWidget {
                   final stacked =
                       MediaQuery.textScalerOf(context).scale(13) > 19 ||
                       constraints.maxWidth < 290;
-                  const cards = [
+                  final  cards = [
                     _ValueCard(
-                      label: 'Transparency',
+                      label: tr('Transparency'),
                       icon: Icons.shield_outlined,
                     ),
                     _ValueCard(
-                      label: 'Dignity',
+                      label: tr('Dignity'),
                       icon: Icons.favorite_border,
                       color: Color(0xFF00A884),
                       background: Color(0xFFD0FBE9),
                     ),
-                    _ValueCard(label: 'Speed', icon: Icons.bolt_outlined),
+                    _ValueCard(label: tr('Speed'), icon: Icons.bolt_outlined),
                   ];
                   if (stacked) {
                     return Column(
@@ -205,7 +206,7 @@ class _PurposeCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    tr(title),
                     style: const TextStyle(
                       color: _ink,
                       fontSize: 13,
@@ -214,7 +215,7 @@ class _PurposeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    subtitle,
+                    tr(subtitle),
                     style: const TextStyle(
                       color: _blue,
                       fontSize: 11,
@@ -229,7 +230,7 @@ class _PurposeCard extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          body,
+          tr(body),
           style: const TextStyle(
             color: _body,
             fontSize: 12,
@@ -260,8 +261,8 @@ class _ValueCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: _border),
       gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+        begin: AlignmentDirectional.topStart,
+        end: AlignmentDirectional.bottomEnd,
         colors: [Colors.white, Color(0xFFF7FAFD)],
       ),
       boxShadow: const [
@@ -282,7 +283,7 @@ class _ValueCard extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         Text(
-          label,
+          tr(label),
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: _ink,

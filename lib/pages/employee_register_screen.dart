@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../services/employee_access_service.dart';
 import '../services/staff_pairing_service.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const _blue = Color(0xFF03A9F4);
 const _ink = Color(0xFF22334D);
@@ -86,16 +87,16 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
     return await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirm facility'),
-        content: Text('Send your join request to $name?'),
+        title: Text(tr('Confirm facility')),
+        content: Text(tr('Send your join request to $name?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(tr('Cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Send request'),
+            child: Text(tr('Send request')),
           ),
         ],
       ),
@@ -123,7 +124,7 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
     backgroundColor: Colors.white,
     body: SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(25, 15, 25, 40),
+        padding: const EdgeInsetsDirectional.fromSTEB(25, 15, 25, 40),
         child: Center(child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 440),
           child: Form(
@@ -132,7 +133,7 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   child: IconButton(
                     onPressed: _busy ? null : () => Navigator.pop(context),
                     icon: const Icon(Icons.arrow_back_ios_new, color: _ink),
@@ -146,14 +147,14 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
                     color: _blue, size: 43),
                 ),
                 const SizedBox(height: 20),
-                const Text('Request to Join Facility',
+                Text(tr('Request to Join Facility'),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: _ink, fontSize: 26,
                     fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
-                const Text(
-                  'Your facility number and link code were entered in the previous step. '
-                  'Provide your account details to submit the request for approval.',
+                Text(
+                  tr('Your facility number and link code were entered in the previous step. '
+                  'Provide your account details to submit the request for approval.'),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Color(0xFF7C8DA7),
                     fontSize: 13, height: 1.5),
@@ -186,7 +187,7 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 14),
-                  SelectableText(_error!,
+                  SelectableText(tr(_error!),
                     style: const TextStyle(color: Colors.redAccent)),
                 ],
                 const SizedBox(height: 28),
@@ -202,15 +203,15 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
                     ),
                     child: _busy
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Verify invitation',
+                      : Text(tr('Verify invitation'),
                         style: TextStyle(fontSize: 16,
                           fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(height: 18),
-                const Text(
-                  'Your request stays saved in Firebase. After approval, '
-                  'future sign-ins require your phone number and password only.',
+                Text(
+                  tr('Your request stays saved in Firebase. After approval, '
+                  'future sign-ins require your phone number and password only.'),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Color(0xFF8C9CB4),
                     fontSize: 12, height: 1.5),
@@ -240,7 +241,7 @@ class _EmployeeRegisterScreenState extends State<EmployeeRegisterScreen> {
             ? _blue : const Color(0xFFDDE9F2)),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(label, style: TextStyle(
+      child: Text(tr(label), style: TextStyle(
         color: _existingAccount == existing
           ? _blue : const Color(0xFF7C8DA7),
         fontWeight: FontWeight.w600,

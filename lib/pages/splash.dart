@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'dart:math' as math;
 
 import '../services/app_auth_service.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class Splash extends StatefulWidget {
   const Splash({super.key});
@@ -82,11 +83,11 @@ class _SplashState extends State<Splash> {
                                 painter: _BrandMark(),
                               ),
                             ),
-                            const Positioned(
+                            Positioned(
                               top: 398,
                               child: Text.rich(
                                 TextSpan(
-                                  text: 'DAWROK ',
+                                  text: tr('DAWROK '),
                                   style: TextStyle(
                                     color: Color(0xff1e293b),
                                     fontSize: 24,
@@ -112,12 +113,12 @@ class _SplashState extends State<Splash> {
                                 Color(0xff10b981),
                               ]),
                             ),
-                            const Positioned(
+                            Positioned(
                               top: 544,
                               child: Row(
                                 children: [
                                   Text(
-                                    'VERIFYING SECURE CIVIL IDENTITY...',
+                                    tr('VERIFYING SECURE CIVIL IDENTITY...'),
                                     style: TextStyle(
                                       fontSize: 11,
                                       letterSpacing: .5,
@@ -142,10 +143,10 @@ class _SplashState extends State<Splash> {
                                 Color(0xff004568),
                               ]),
                             ),
-                            const Positioned(
+                            Positioned(
                               bottom: 76,
                               child: Text(
-                                'جاري تهيئة خدمات المراكز والمواعيد...',
+                                tr('جاري تهيئة خدمات المراكز والمواعيد...'),
                                 textDirection: TextDirection.rtl,
                                 style: TextStyle(
                                   fontSize: 14,

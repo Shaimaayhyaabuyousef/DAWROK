@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class CitizenBottomNav extends StatelessWidget {
   const CitizenBottomNav({
@@ -78,7 +79,7 @@ class CitizenBottomNav extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
-                                    labels[i],
+                                    tr(labels[i]),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(fontSize: 12, color: blue),

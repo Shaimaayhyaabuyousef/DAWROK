@@ -44,6 +44,7 @@ dependencies:
   flutter_facebook_auth: ^7.3.2
   mobile_scanner: ^7.5.0
   image_picker: ^1.2.4
+  google_mlkit_document_scanner: ^0.7.2
   speech_to_text: ^7.5.0
   image: ^4.8.0
   firebase_storage: ^14.0.1

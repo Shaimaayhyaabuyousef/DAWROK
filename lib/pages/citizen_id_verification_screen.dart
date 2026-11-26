@@ -4,7 +4,9 @@ import '../services/citizen_identity_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart' show PlatformException;
+import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 
 import '../models/citizen_registration_draft.dart';
 import 'citizen_pin_setup_screen.dart';
@@ -14,10 +16,14 @@ const _ink = Color(0xFF475870);
 
 /// Step 2 checks the front of the card locally before opening PIN setup.
 class CitizenIdVerificationScreen extends StatefulWidget {
-  const CitizenIdVerificationScreen({super.key, this.draft});
+  const CitizenIdVerificationScreen({super.key, this.draft, this.scanCard});
 
   /// Data received from step 1; optional for resuming an existing account.
   final CitizenRegistrationDraft? draft;
+
+  /// Replaces the ML Kit scanner in tests. Returns the cropped card image,
+  /// or null when the user cancels.
+  final Future<XFile?> Function()? scanCard;
 
   @override
   State<CitizenIdVerificationScreen> createState() =>
@@ -26,7 +32,24 @@ class CitizenIdVerificationScreen extends StatefulWidget {
 
 class _CitizenIdVerificationScreenState
     extends State<CitizenIdVerificationScreen> {
-  final _picker = ImagePicker();
+  // ML Kit document scanner: finds the card edges, crops and straightens it
+  // on the device (Google Play services). Gallery import goes through the
+  // same crop step, so the reader always receives the card alone.
+  DocumentScanner? _scanner;
+
+  Future<XFile?> _scanWithMlKit() async {
+    final scanner = _scanner ??= DocumentScanner(
+      options: DocumentScannerOptions(
+        documentFormats: const {DocumentFormat.jpeg},
+        mode: ScannerMode.base,
+        pageLimit: 1,
+        isGalleryImport: true,
+      ),
+    );
+    final result = await scanner.scanDocument();
+    final List<String> paths = [...?result.images];
+    return paths.isEmpty ? null : XFile(paths.first);
+  }
   Uint8List? _preview;
   String? _error;
   bool _busy = false;
@@ -35,24 +58,9 @@ class _CitizenIdVerificationScreenState
   CardCheck? _result;
 
   @override
-  void initState() {
-    super.initState();
-    if (_supported) _recoverLostPhoto();
-  }
-
-  Future<void> _recoverLostPhoto() async {
-    _busy = true;
-    try {
-      final response = await _picker.retrieveLostData();
-      if (response.files case final List<XFile> files when files.isNotEmpty) {
-        await _checkFile(files.first);
-      }
-    } catch (_) {
-      if (mounted)
-        setState(() => _error = 'Please select the front of the card again.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+  void dispose() {
+    _scanner?.close();
+    super.dispose();
   }
 
   Future<void> _checkFile(XFile file) async {
@@ -80,7 +88,7 @@ class _CitizenIdVerificationScreenState
     }
   }
 
-  Future<void> _choose(ImageSource source) async {
+  Future<void> _scan() async {
     if (_busy || !_supported) return;
     setState(() {
       _busy = true;
@@ -89,14 +97,15 @@ class _CitizenIdVerificationScreenState
       _preview = null;
     });
     try {
-      final file = await _picker.pickImage(
-        source: source,
-        preferredCameraDevice: CameraDevice.rear,
-        maxWidth: 2200,
-        imageQuality: 92,
-        requestFullMetadata: false,
-      );
-      if (file != null && mounted) await _checkFile(file);
+      final card = await (widget.scanCard ?? _scanWithMlKit)();
+      if (card != null && mounted) await _checkFile(card);
+    } on PlatformException catch (e) {
+      // Cancelling the scanner is not an error.
+      if (mounted && !(e.message ?? '').toLowerCase().contains('cancel'))
+        setState(
+          () => _error =
+              'The scanner is not available. Update Google Play services and try again.',
+        );
     } catch (_) {
       if (mounted)
         setState(
@@ -119,7 +128,7 @@ class _CitizenIdVerificationScreenState
       CardCheck.layout => 'Could not recognize the card layout. Photograph the full front upright, filling the frame.',
       CardCheck.unreadable => 'Could not read one clear nine-digit ID. Retake the photo without glare.',
       CardCheck.match => 'Card layout and ID number matched.',
-      null => 'Take a photo or choose a clear image of the front of your card.',
+      null => 'Scan the front of your card. The scanner finds its edges and crops it for you.',
     };
   }
 
@@ -306,7 +315,7 @@ class _CitizenIdVerificationScreenState
             ),
             const SizedBox(height: 9),
             const Text(
-              'Photograph the front of your Palestinian ID horizontally. Fill the frame and keep the title, number and field labels visible.',
+              'Scan the front of your Palestinian ID. The scanner finds the card edges, then crops and straightens it. Keep the title, number and field labels free of glare.',
               style: TextStyle(color: _ink, fontSize: 15, height: 1.45),
             ),
             const SizedBox(height: 22),
@@ -343,16 +352,10 @@ class _CitizenIdVerificationScreenState
             Row(
               children: [
                 _photoButton(
-                  'Camera',
-                  Icons.refresh,
-                  () => _choose(ImageSource.camera),
+                  'Scan card',
+                  Icons.document_scanner_outlined,
+                  _scan,
                   filled: true,
-                ),
-                const SizedBox(width: 11),
-                _photoButton(
-                  'Gallery',
-                  Icons.image_outlined,
-                  () => _choose(ImageSource.gallery),
                 ),
               ],
             ),

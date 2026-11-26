@@ -6,31 +6,20 @@ import 'package:first_project/pages/citizen_pin_setup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 
-class TestPicker extends ImagePickerPlatform {
-  @override
-  Future<LostDataResponse> getLostData() async => LostDataResponse();
-  @override
-  Future<XFile?> getImageFromSource({
-    required ImageSource source,
-    ImagePickerOptions options = const ImagePickerOptions(),
-  }) async => XFile.fromData(
-    base64Decode(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ahkAAAAASUVORK5CYII=',
-    ),
-    mimeType: 'image/png',
-    name: 'card.png',
-  );
-}
+Future<XFile?> fakeScan() async => XFile.fromData(
+  base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ahkAAAAASUVORK5CYII=',
+  ),
+  mimeType: 'image/png',
+  name: 'card.png',
+);
 
 void main() {
   testWidgets(
     'a rejected photo stays in step two and a successful retry opens PIN',
     (tester) async {
-      final original = ImagePickerPlatform.instance;
-      ImagePickerPlatform.instance = TestPicker();
-      addTearDown(() => ImagePickerPlatform.instance = original);
       const channel = MethodChannel('dawrok/id_reader');
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -50,9 +39,10 @@ void main() {
       );
       addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
       await tester.pumpWidget(
-        const MaterialApp(
+        MaterialApp(
           home: CitizenIdVerificationScreen(
-            draft: CitizenRegistrationDraft(
+            scanCard: fakeScan,
+            draft: const CitizenRegistrationDraft(
               fullName: 'Test',
               nationalId: '123456789',
               phone: '0590000000',
@@ -62,7 +52,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final button = find.text('Gallery');
+      final button = find.text('Scan card');
       await tester.scrollUntilVisible(button, 160);
       await tester.tap(button);
       await tester.pumpAndSettle();

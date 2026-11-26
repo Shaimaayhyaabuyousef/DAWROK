@@ -52,7 +52,7 @@ class MainActivity : FlutterActivity() {
         val api = TessBaseAPI()
         try {
             // Cache language models only. The document bitmap stays in memory.
-            val root = File(noBackupFilesDir, "id-ocr-v1")
+            val root = File(noBackupFilesDir, "id-ocr-v2")
             val data = File(root, "tessdata").apply { mkdirs() }
             for (language in listOf("ara", "heb", "eng")) {
                 val file = File(data, "$language.traineddata")
@@ -93,6 +93,24 @@ class MainActivity : FlutterActivity() {
                     lines.add(mapOf("text" to text, "y" to rect.exactCenterY() / image.height.toDouble()))
                 }
             }
+            // Digits-only pass for the nine-digit ID number: the Latin model
+            // restricted to 0-9 reads printed numerals more reliably than the
+            // mixed Arabic/Hebrew pass.
+            val digits = TessBaseAPI()
+            try {
+                if (digits.init(root.absolutePath + "/", "eng")) {
+                    digits.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, "0123456789 ")
+                    digits.setPageSegMode(TessBaseAPI.PageSegMode.PSM_RAW_LINE)
+                    digits.setImage(image)
+                    for (rect in printedRows(image)) {
+                        digits.setRectangle(rect.left, rect.top, rect.width(), rect.height())
+                        val text = digits.getUTF8Text()?.trim().orEmpty()
+                        if (text.count { it.isDigit() } >= 9 && digits.meanConfidence() >= 60) {
+                            lines.add(mapOf("text" to text, "y" to rect.exactCenterY() / image.height.toDouble()))
+                        }
+                    }
+                }
+            } finally { digits.recycle() }
             return mapOf("aspect" to image.width.toDouble() / image.height, "lines" to lines)
         } finally {
             api.recycle()

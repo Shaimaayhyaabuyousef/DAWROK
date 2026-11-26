@@ -49,6 +49,14 @@ try{
  const winner=b.windowNumber===1?'one':'two',other=b.windowNumber===1?'two':'one';
  await assertFails(client(other).doc('bookings/race').update({checkedIn:true}));
  await assertSucceeds(client(winner).doc('bookings/race').update({checkedIn:true}));
+ await env.withSecurityRulesDisabled(c=>c.firestore().doc('bookings/race').update({queuePosition:3,dayKey:'20261126'}));
+ const progress=db=>db.doc('facilities/windows/queues/multi/progress/20261126');
+ await assertSucceeds(progress(client(winner)).set({position:3,ticketId:'race',updatedAt:stamp()}));
+ await assertFails(progress(client(winner)).set({position:9,ticketId:'race',updatedAt:stamp()}));
+ await assertFails(progress(client(other)).set({position:3,ticketId:'race',updatedAt:stamp()}));
+ await assertFails(client('queueCitizen').doc('facilities/windows/queues/multi/progress/20261126').set({position:1,ticketId:'race',updatedAt:stamp()}));
+ assert.equal((await assertSucceeds(progress(client('queueCitizen')).get())).data().position,3);
+ console.log('Queue progress tests passed.');
  await ticket('busy');await assertFails(call(winner,'busy','multi',b.windowNumber));
  await assertFails(client(winner).doc('bookings/race').update({status:'waiting',windowNumber:0,postponements:1,postponedAt:stamp()}));
  await assertSucceeds(postpone(winner,'race','multi',b.windowNumber));

@@ -48,7 +48,7 @@ jobs:
       - name: Rules
         run: |
           set +e
-          npx --yes firebase-tools@latest emulators:exec --project demo-dawrok --only firestore 'node scripts/validate_firestore_rules.mjs' > rules.txt 2>&1; code=$?
+          npx --yes firebase-tools@latest emulators:exec --project demo-dawrok --only firestore 'node scripts/validate_firestore_rules.mjs && node scripts/validate_queue_windows.mjs' > rules.txt 2>&1; code=$?
           grep -nEi 'error|fail|assert|denied|✗' rules.txt | head -30 > rf.txt || true
           [ -s rf.txt ] && echo "::error title=rules::$(sed ':a;N;$!ba;s/\n/%0A/g' rf.txt)"
           tail -5 rules.txt

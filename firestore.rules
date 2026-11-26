@@ -121,6 +121,14 @@ service cloud.firestore {
       return entry.bookingId == bid && entry.points == points && entry.reason == reason && entry.createdAt == request.time;
     }
 
+    function validProgress(fid,qid,day,p) {
+      let b = get(bookingPath(p.ticketId)).data;
+      return p.keys().hasOnly(['position','ticketId','updatedAt'])
+        && p.updatedAt == request.time && p.position is int && p.ticketId is string
+        && b.facilityId == fid && b.queueId == qid && b.dayKey == day
+        && b.status == 'called' && b.queuePosition == p.position
+        && laneOperator(b,b.windowNumber);
+    }
     function lanePath(fid,qid,w) {
       return /databases/$(database)/documents/facilities/$(fid)/queues/$(qid)/lanes/$(w);
     }
@@ -696,6 +704,12 @@ service cloud.firestore {
           allow create: if citizen() && validOffer(fid,qid,id,request.resource.data);
           allow delete: if signedIn() && (getAfter(bookingPath(id)).data.status in ['called','cancelled']
             || getAfter(bookingPath(id)).data.get('priorityBuyer','') != '');
+        }
+        // Last called queue position of the day, for "people ahead".
+        match /progress/{day} {
+          allow get: if signedIn();
+          allow list, delete: if false;
+          allow create, update: if validProgress(fid,qid,day,request.resource.data);
         }
         match /days/{day} {
           allow get: if facilityOwner(fid) || citizen();

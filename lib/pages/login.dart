@@ -87,7 +87,7 @@ class _LoginState extends State<Login> {
                 ),
                 Center(
                   child: SvgPicture.asset(
-                    'assets/images/logo.svg',
+                    'assets\images\logo.svg',
                     width: 84,
                     height: 84,
                   ),

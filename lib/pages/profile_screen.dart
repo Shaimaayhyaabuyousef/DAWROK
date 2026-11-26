@@ -1,3 +1,4 @@
+import 'citizen_bottom_nav.dart';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -425,50 +426,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _navItem({required IconData icon, required VoidCallback onPressed}) =>
-      IconButton(onPressed: onPressed,
-        icon: Icon(icon, color: _primary, size: 29),
-        padding: const EdgeInsets.all(12),
-      );
-
-  Widget _bottomBar(bool dark) => SafeArea(
-        top: false,
-        child: Container(
-          height: 76,
-          decoration: BoxDecoration(
-            color: dark ? const Color(0xFF172437) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            border: Border.all(
-              color: dark ? const Color(0xFF34445A) : const Color(0xFFF0F0F0),
-            ),
-            boxShadow: const [
-              BoxShadow(color: Color(0x07000000), blurRadius: 9, offset: Offset(0, -2)),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _navItem(icon: Icons.home_outlined, onPressed: () => _navigate(0)),
-              _navItem(icon: Icons.tune, onPressed: () => _navigate(1)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  color: dark ? const Color(0xFF25455B) : const Color(0xFFE8F7FF),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.person_rounded, color: _primary, size: 22),
-                    const SizedBox(width: 6),
-                    Text('Profile', style: TextStyle(color: _primary, fontSize: 14)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -546,7 +503,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
           ),
-          bottomNavigationBar: _bottomBar(dark),
+          bottomNavigationBar: CitizenBottomNav(selected: 2, onTap: _navigate, dark: dark),
         );
       },
     );

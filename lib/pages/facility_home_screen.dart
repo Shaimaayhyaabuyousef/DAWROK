@@ -55,8 +55,10 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
   Future<void> _loadFacility() async {
     try {
       final id = await FacilityContext.instance.requireFacilityId();
+      if (!mounted) return;
+      setState(() => _facilityId = id);
       _facilitySub = FirebaseFirestore.instance.collection('facilities').doc(id).snapshots().listen((doc) {
-        if (mounted) setState(() { _facilityId = id; _online = doc.data()?['isOnline'] == true; });
+        if (mounted) setState(() { _online = doc.data()?['isOnline'] == true; });
       });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -167,7 +169,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
         body: SafeArea(
           bottom: false,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 60, 22, 28),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -182,7 +184,9 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
                 ),
                 const SizedBox(height: 17),
                 _buildStatusCard(),
-                const SizedBox(height: 47),
+                const SizedBox(height: 16),
+                if (_facilityId.isNotEmpty) _FacilityOverview(key: ValueKey(_facilityId), id: _facilityId),
+                const SizedBox(height: 16),
                 Center(child: _buildActivationChip()),
                 const SizedBox(height: 19),
                 _buildQrCard(),
@@ -192,7 +196,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
             ),
           ),
         ),
-        bottomNavigationBar: _buildBottomNavigation(),
+        bottomNavigationBar: FacilityBottomNav(selected: 0, onTap: _onBottomTab),
       ),
     );
   }
@@ -403,62 +407,59 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
     );
   }
 
-  Widget _buildBottomNavigation() {
-    const icons = <IconData>[
-      Icons.bar_chart_rounded,
-      Icons.receipt_long_outlined,
-      Icons.groups_outlined,
-      Icons.search_rounded,
-      Icons.account_circle_outlined,
-    ];
+}
 
-    const labels = <String>[
-      'Home',
-      'Bookings',
-      'Customers',
-      'Search',
-      'Profile',
-    ];
+class _FacilityOverview extends StatefulWidget {
+  const _FacilityOverview({super.key, required this.id});
+  final String id;
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: 65,
-        color: Colors.white,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(icons.length, (index) {
-            final selected = index == 0;
-            return Semantics(
-              button: true,
-              label: labels[index],
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => _onBottomTab(index),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Center(
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: selected ? const Color(0xFF65B8F8) : null,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Icon(
-                        icons[index],
-                        color: selected ? Colors.white : _titleBlue,
-                        size: 27,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
+  @override
+  State<_FacilityOverview> createState() => _FacilityOverviewState();
+}
+
+class _FacilityOverviewState extends State<_FacilityOverview> {
+  late Future<List<int>> _counts = _load();
+
+  Future<List<int>> _load() {
+    final db = FirebaseFirestore.instance;
+    final queues = db.collection('facilities').doc(widget.id).collection('queues');
+    final bookings = db.collection('bookings').where('facilityId', isEqualTo: widget.id);
+    // Older queues may have no archived field; they are still listed in Queues.
+    return Future.wait([
+      queues.get(const GetOptions(source: Source.server)).then(
+        (snapshot) => snapshot.docs.where((doc) => doc.data()['archived'] != true).length,
       ),
+      bookings.count().get().then((result) => result.count!),
+      bookings.where('status', isEqualTo: 'served').count().get().then((result) => result.count!),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['Queues', 'Total bookings', 'Completed'];
+    const icons = [Icons.format_list_numbered, Icons.confirmation_number_outlined, Icons.task_alt];
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+      decoration: BoxDecoration(color: const Color(0xfff5fbff), borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _softBorder)),
+      child: FutureBuilder<List<int>>(future: _counts, builder: (context, snapshot) => Column(children: [
+        Row(children: [
+          const Expanded(child: Text('Facility overview', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _darkText))),
+          IconButton(tooltip: 'Refresh totals', iconSize: 18, onPressed: snapshot.connectionState == ConnectionState.waiting
+            ? null : () => setState(() => _counts = _load()), icon: const Icon(Icons.refresh)),
+        ]),
+        if (snapshot.hasError)
+          const Text('Totals unavailable. Tap refresh to try again.', style: TextStyle(fontSize: 13))
+        else
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: List.generate(3, (i) => Expanded(
+            child: Column(children: [
+              Icon(icons[i], size: 19, color: const Color(0xff087cc2)),
+              const SizedBox(height: 4),
+              Text(snapshot.hasData ? snapshot.data![i].toString() : '—', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: _darkText)),
+              Text(labels[i], textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Color(0xff526780))),
+            ]),
+          ))),
+      ])),
     );
   }
 }

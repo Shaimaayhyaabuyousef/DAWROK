@@ -1,3 +1,4 @@
+import 'citizen_bottom_nav.dart';
 import '../services/booking_cancellation.dart';
 import '../services/facility_time.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -173,7 +174,7 @@ class CitizenHomeView extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(17, 24, 17, 32),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
               children: [
                 Row(
                   children: [
@@ -295,7 +296,7 @@ class CitizenHomeView extends StatelessWidget {
                       ),
                     ],
                   ),
-                const SizedBox(height: 64),
+                const SizedBox(height: 16),
                 InkWell(
                   onTap: onSearch,
                   borderRadius: BorderRadius.circular(13),
@@ -318,7 +319,7 @@ class CitizenHomeView extends StatelessWidget {
                             fontSize: 21,
                           ),
                         ),
-                        SizedBox(height: 10),
+                        SizedBox(height: 2),
                         Text(
                           'Find a facility and book your turn',
                           style: TextStyle(color: citizenInk, fontSize: 14),
@@ -327,7 +328,7 @@ class CitizenHomeView extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Material(
@@ -360,7 +361,7 @@ class CitizenHomeView extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 80),
+                const SizedBox(height: 10),
                 const Padding(
                   padding: EdgeInsets.only(left: 10),
                   child: Text(
@@ -368,7 +369,7 @@ class CitizenHomeView extends StatelessWidget {
                     style: TextStyle(color: citizenSoftBlue, fontSize: 21),
                   ),
                 ),
-                const SizedBox(height: 52),
+                const SizedBox(height: 16),
                 if (loading)
                   const Center(child: CircularProgressIndicator())
                 else if (booking != null)
@@ -414,51 +415,10 @@ class CitizenHomeView extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          height: 70,
-          decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: Color(0xFFF0F2F5))),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE4F6FE),
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.home_rounded, color: citizenBlue),
-                    SizedBox(width: 6),
-                    Text('Home', style: TextStyle(color: citizenBlue)),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: 'My bookings',
-                onPressed: onBookings,
-                icon: const Icon(Icons.tune_rounded, color: Color(0xFF258FE0)),
-              ),
-              IconButton(
-                tooltip: 'Profile',
-                onPressed: onProfile,
-                icon: const Icon(
-                  Icons.person_outline,
-                  color: Color(0xFF258FE0),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      bottomNavigationBar: CitizenBottomNav(selected: 0, onTap: (index) {
+        if (index == 1) onBookings();
+        if (index == 2) onProfile();
+      }),
     );
   }
 

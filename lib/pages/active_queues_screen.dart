@@ -1,3 +1,4 @@
+import 'citizen_bottom_nav.dart';
 
 import 'package:flutter/material.dart';
 
@@ -185,7 +186,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
       ),
 
       // Custom bottom navigation
-      bottomNavigationBar: buildBottomNavigationBar(),
+      bottomNavigationBar: CitizenBottomNav(selected: 1, onTap: onNavigationTap),
     );
   }
 
@@ -931,121 +932,6 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
               ),
               child: Text(label),
             ),
-    );
-  }
-
-  // Bottom navigation bar - matches the reference image
-  Widget buildBottomNavigationBar() {
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
-
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(18),
-          ),
-          border: Border(
-            top: BorderSide(
-              color: Color(0xFFE9EEF4),
-              width: 0.8,
-            ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 9,
-              offset: Offset(0, -3),
-            ),
-          ],
-        ),
-
-        child: SizedBox(
-          height: 48,
-          child: Stack(
-            children: [
-
-              // Home icon - left
-              Align(
-                alignment: const Alignment(-0.62, 0),
-                child: bottomNavIcon(
-                  icon: Icons.home_outlined,
-                  onTap: () => onNavigationTap(0),
-                ),
-              ),
-
-              // My Queue selected pill - center
-             Expanded(
-          child: Center(
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 13,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE5F5FE),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.tune_rounded,
-                    color: Color(0xFF159FE8),
-                    size: 23,
-                  ),
-                  SizedBox(width: 7),
-                  Text(
-                          'My Queue',
-                          style: TextStyle(
-                            color: Color(0xFF00A5EA),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Profile icon - right
-              Align(
-                alignment: const Alignment(0.48, 0),
-                child: bottomNavIcon(
-                  icon: Icons.person_outline,
-                  onTap: () => onNavigationTap(2),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Bottom navigation icon
-  Widget bottomNavIcon({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-
-        child: SizedBox(
-          width: 44,
-          height: 48,
-          child: Icon(
-            icon,
-            color: const Color(0xFF168FDF),
-            size: 29,
-          ),
-        ),
-      ),
     );
   }
 }

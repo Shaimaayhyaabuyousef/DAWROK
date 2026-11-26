@@ -1,4 +1,5 @@
 import 'workspace_style.dart';
+
 import 'package:flutter/material.dart';
 
 const facilityBlue = Color(0xFF4FAAF4);
@@ -9,8 +10,11 @@ const facilityBorder = Color(0xFFDCE9F4);
 void goToFacilityTab(BuildContext context, int index, int current) {
   if (index == current) return;
   const routes = [
-    'facility_home_screen', 'facility_queues_screen',
-    'facility_staff_screen', 'facility_search_screen', 'facility_profile_screen',
+    'facility_home_screen',
+    'facility_queues_screen',
+    'facility_staff_screen',
+    'facility_search_screen',
+    'facility_profile_screen',
   ];
   Navigator.pushReplacementNamed(context, routes[index]);
 }
@@ -22,26 +26,66 @@ class FacilityBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icons = [
-      'queues_home', selected == 1 ? 'queues_active' : 'queues', 'staff',
-      selected == 3 ? 'search_active' : 'search', 'profile',
+      'queues_home',
+      selected == 1 ? 'queues_active' : 'queues',
+      'staff',
+      selected == 3 ? 'search_active' : 'search',
+      'profile',
     ];
     const labels = ['Home', 'Queues', 'Staff', 'Search', 'Profile'];
-    return SafeArea(top: false, child: Container(
-      height: 54, color: Colors.white,
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(5, (i) => IconButton(
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: selected,
+      backgroundColor: Colors.white,
+      selectedItemColor: const Color(0xff087cc2),
+      unselectedItemColor: const Color(0xff586c83),
+      selectedFontSize: 12,
+      unselectedFontSize: 12,
+      showUnselectedLabels: true,
+      onTap: (i) =>
+          onTap == null ? goToFacilityTab(context, i, selected) : onTap!(i),
+      items: List.generate(
+        labels.length,
+        (i) => BottomNavigationBarItem(
+          label: labels[i],
           tooltip: labels[i],
-          onPressed: () => onTap == null ? goToFacilityTab(context, i, selected) : onTap!(i),
-          icon: WorkspaceIcon(icons[i], color: i == selected ? const Color(0xFF2195E9) : const Color(0xFF6AB9FA)),
-        )),
+          icon: Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: SizedBox.square(
+              dimension: 22,
+              child: WorkspaceIcon(
+                icons[i],
+                color: i == selected
+                    ? const Color(0xff087cc2)
+                    : const Color(0xff586c83),
+              ),
+            ),
+          ),
+        ),
       ),
-    ));
+    );
   }
 }
 
-Future<bool> confirmFacilityAction(BuildContext context, String message) async =>
-  await showDialog<bool>(context: context, builder: (c) => AlertDialog(
-    title: const Text('Confirm action'), content: Text(message),
-    actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-      TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Confirm'))],
-  )) ?? false;
+Future<bool> confirmFacilityAction(
+  BuildContext context,
+  String message,
+) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Confirm action'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    ) ??
+    false;

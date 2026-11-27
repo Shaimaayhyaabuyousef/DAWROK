@@ -1,3 +1,5 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,7 +22,12 @@ class AppLanguage {
     try {
       final prefs = await SharedPreferences.getInstance();
       final code = prefs.getString(_key);
-      if (code == 'ar' || code == 'en') locale.value = Locale(code!);
+      if (code == 'ar' || code == 'en') {
+        locale.value = Locale(code!);
+      } else if (PlatformDispatcher.instance.locale.languageCode == 'ar') {
+        // First run: follow the phone's language until the user picks one.
+        locale.value = const Locale('ar');
+      }
     } catch (_) {
       // Keep English if local preferences are unavailable.
     }

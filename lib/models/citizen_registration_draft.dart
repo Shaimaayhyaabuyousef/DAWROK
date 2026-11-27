@@ -5,13 +5,11 @@ class CitizenRegistrationDraft {
     required this.fullName,
     required this.nationalId,
     required this.phone,
-    required this.email,
     required this.password,
   });
 
   final String fullName;
   final String nationalId;
   final String phone;
-  final String email;
   final String password;
 }

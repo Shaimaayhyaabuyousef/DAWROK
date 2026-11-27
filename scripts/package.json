@@ -1,0 +1,16 @@
+{
+  "name": "dawrok-admin-provisioning",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  },
+  "devDependencies": {
+    "firebase": "^13.4.0",
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase-tools": "^15.36.0"
+  },
+  "scripts": {
+    "test:rules": "firebase emulators:exec --config ../firebase.emulator.json --project demo-dawrok --only firestore \"node validate_erd_relations.mjs && node validate_queue_windows.mjs && node validate_reports.mjs && node validate_reliability.mjs && node validate_citizen_booking.mjs && node validate_firestore_rules.mjs && node validate_erd_migration.mjs\""
+  }
+}

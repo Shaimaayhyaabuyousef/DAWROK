@@ -1,13 +1,22 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/booking_cancellation.dart';
+import '../services/facility_time.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'save_ticket_button.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 const Color _ticketPrimary = Color(0xFF0EA5FF);
 const Color _ticketDark = Color(0xFF1E2235);
 
 class QueueTicketScreen extends StatelessWidget {
+  final bool liveTicket;
   final String ticketNumber;
   final int queueNumber;
+  final int? windowNumber;
+  final int? windowCount;
+  final DateTime? scheduledAt;
   final String facilityName;
   final String idNumber;
   final DateTime createdAt;
@@ -16,8 +25,12 @@ class QueueTicketScreen extends StatelessWidget {
 
   const QueueTicketScreen({
     super.key,
+    this.liveTicket = true,
     required this.ticketNumber,
     required this.queueNumber,
+    this.windowNumber,
+    this.windowCount,
+    this.scheduledAt,
     required this.facilityName,
     required this.idNumber,
     required this.createdAt,
@@ -26,16 +39,17 @@ class QueueTicketScreen extends StatelessWidget {
   });
 
   String get _formattedDate {
-    final date = createdAt;
+    final date = FacilityTime.wall(scheduledAt ?? createdAt);
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
     return '$day/$month/${date.year}';
   }
 
   String get _formattedTime {
-    final hour = createdAt.hour % 12 == 0 ? 12 : createdAt.hour % 12;
-    final minute = createdAt.minute.toString().padLeft(2, '0');
-    final period = createdAt.hour >= 12 ? 'PM' : 'AM';
+    final time = FacilityTime.wall(scheduledAt ?? createdAt);
+    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
   }
 
@@ -47,6 +61,24 @@ class QueueTicketScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDemo = qrPayload.startsWith('DAWROK-DEMO|');
+    if (isDemo || !liveTicket) return _content(context,isDemo,'waiting');
+    return StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('bookings').doc(ticketNumber).snapshots(),
+      builder:(context,snapshot) {
+        final row = snapshot.data?.data();
+        if (row == null) return Scaffold(appBar:AppBar(),body:Center(child:
+          snapshot.hasError ? Text(tr('Unable to verify ticket status.')) : const CircularProgressIndicator()));
+        final status = row['status'] as String;
+        if (!['waiting','called'].contains(status)) {
+          return Scaffold(appBar:AppBar(title:Text(tr('Ticket'))),body:Center(
+            child:Text(tr('Ticket #$queueNumber · $status'))));
+        }
+        return _content(context,false,status,paid:['extra','priority'].contains(row['reward']));
+      });
+  }
+
+  Widget _content(BuildContext context,bool isDemo,String status,{bool paid=false}) {
+    final cardKey = GlobalKey();
     return Scaffold(
       backgroundColor: const Color(0xFFF7FAFD),
       body: SafeArea(
@@ -55,7 +87,7 @@ class QueueTicketScreen extends StatelessWidget {
             _buildHeader(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 20, 24),
                 child: Column(
                   children: [
                     const SizedBox(height: 12),
@@ -74,7 +106,7 @@ class QueueTicketScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      isDemo ? 'Demo ticket created' : 'Your ticket is ready!',
+                      tr(isDemo ? 'Demo ticket created' : 'Your ticket is ready!'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: _ticketDark,
@@ -84,12 +116,40 @@ class QueueTicketScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      isDemo ? 'TEST ONLY — no real reservation was created.' : 'Your queue reservation has been created.',
+                      tr(isDemo
+                          ? 'TEST ONLY — no real reservation was created.'
+                          : 'Your queue reservation has been created.'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 24),
-                    _buildTicketCard(),
+                    RepaintBoundary(
+                      key: cardKey,
+                      child: ColoredBox(color: Colors.white, child: _buildTicketCard()),
+                    ),
+                    if (!isDemo)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: SaveTicketButton(cardKey: cardKey, ticketNumber: ticketNumber),
+                      ),
+                    if (!isDemo && liveTicket && status == 'waiting') TextButton(onPressed: () async {
+                          final confirmed = await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+                            title:Text(tr('Cancel this booking?')),
+                            content:Text(tr(paid ? 'Your place will be released and 100 points returned.' : 'Your place will be released. No points will be deducted.')),
+                            actions:[TextButton(onPressed:()=>Navigator.pop(c),child:Text(tr('Keep ticket'))),
+                              TextButton(onPressed:()=>Navigator.pop(c,true),child:Text(tr('Cancel booking')))]));
+                          if(confirmed != true) return;
+                          try {
+                            await BookingCancellation.cancel(ticketNumber);
+                            if(context.mounted) Navigator.maybePop(context);
+                          } catch(e) {
+                            if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(tr('$e'))));
+                          }
+                        },child:Text(tr('Cancel booking'))),
+
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
@@ -102,13 +162,17 @@ class QueueTicketScreen extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.info_outline, color: _ticketPrimary, size: 21),
+                          const Icon(
+                            Icons.info_outline,
+                            color: _ticketPrimary,
+                            size: 21,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              isDemo
+                              tr(isDemo
                                   ? 'DEMO MODE: this QR is NOT valid for real check-in. Do not present it at a facility.'
-                                  : 'Keep this ticket and present the QR code at the facility when you arrive.',
+                                  : 'Keep this ticket and present the QR code at the facility when you arrive.'),
                               style: const TextStyle(
                                 color: Color(0xFF34445A),
                                 fontSize: 13,
@@ -124,7 +188,7 @@ class QueueTicketScreen extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 20, 18),
               child: SizedBox(
                 height: 54,
                 width: double.infinity,
@@ -144,8 +208,8 @@ class QueueTicketScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(15),
                     ),
                   ),
-                  child: const Text(
-                    'Back to Home',
+                  child: Text(
+                    tr('Back to Home'),
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -159,16 +223,16 @@ class QueueTicketScreen extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 5, 16, 5),
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 5, 16, 5),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Queue Ticket',
+              tr('Queue Ticket'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: _ticketPrimary,
@@ -178,14 +242,18 @@ class QueueTicketScreen extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Copy ticket number',
+            tooltip: tr('Copy ticket number'),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: ticketNumber));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Ticket number copied')),
+                SnackBar(content: Text(tr('Ticket number copied'))),
               );
             },
-            icon: const Icon(Icons.copy_rounded, size: 19, color: _ticketPrimary),
+            icon: const Icon(
+              Icons.copy_rounded,
+              size: 19,
+              color: _ticketPrimary,
+            ),
           ),
         ],
       ),
@@ -210,16 +278,20 @@ class QueueTicketScreen extends StatelessWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+            padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 18),
             child: Column(
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.apartment_rounded, color: _ticketPrimary, size: 23),
+                    const Icon(
+                      Icons.apartment_rounded,
+                      color: _ticketPrimary,
+                      size: 23,
+                    ),
                     const SizedBox(width: 9),
                     Expanded(
                       child: Text(
-                        facilityName,
+                        tr(facilityName),
                         style: const TextStyle(
                           color: _ticketDark,
                           fontSize: 17,
@@ -228,13 +300,16 @@ class QueueTicketScreen extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8FBF3),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        'CONFIRMED',
+                      child: Text(
+                        tr('CONFIRMED'),
                         style: TextStyle(
                           color: Color(0xFF13976D),
                           fontSize: 10,
@@ -245,8 +320,8 @@ class QueueTicketScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 22),
-                const Text(
-                  'YOUR QUEUE NUMBER',
+                Text(
+                  tr('YOUR QUEUE NUMBER'),
                   style: TextStyle(
                     color: Color(0xFF8290A3),
                     fontSize: 11,
@@ -256,7 +331,9 @@ class QueueTicketScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  queueNumber.toString().padLeft(2, '0'),
+                  tr(queueNumber > 0
+                      ? queueNumber.toString().padLeft(2, '0')
+                      : '—'),
                   style: const TextStyle(
                     color: _ticketPrimary,
                     fontSize: 58,
@@ -266,7 +343,7 @@ class QueueTicketScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'Ticket $ticketNumber',
+                  tr('Ticket $ticketNumber${windowNumber == null ? '' : (windowNumber == 0 ? (windowCount == 0 ? ' · Direct service' : ' · Window assigned when called') : ' · Window $windowNumber')}'),
                   style: const TextStyle(
                     color: Color(0xFF66758B),
                     fontSize: 13,
@@ -278,22 +355,46 @@ class QueueTicketScreen extends StatelessWidget {
           ),
           _buildDashedDivider(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            padding: const EdgeInsetsDirectional.fromSTEB(20, 18, 20, 20),
             child: Column(
               children: [
                 Row(
                   children: [
-                    Expanded(child: _detailItem('DATE', _formattedDate, Icons.calendar_today_outlined)),
+                    Expanded(
+                      child: _detailItem(
+                        'DATE',
+                        _formattedDate,
+                        Icons.calendar_today_outlined,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: _detailItem('TIME', _formattedTime, Icons.access_time_rounded)),
+                    Expanded(
+                      child: _detailItem(
+                        'TIME',
+                        _formattedTime,
+                        Icons.access_time_rounded,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 17),
                 Row(
                   children: [
-                    Expanded(child: _detailItem('ESTIMATED WAIT', estimatedWaiting, Icons.hourglass_bottom_rounded)),
+                    Expanded(
+                      child: _detailItem(
+                        'ESTIMATED WAIT',
+                        estimatedWaiting,
+                        Icons.hourglass_bottom_rounded,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: _detailItem('ID NUMBER', _maskedId, Icons.badge_outlined)),
+                    Expanded(
+                      child: _detailItem(
+                        'ID NUMBER',
+                        _maskedId,
+                        Icons.badge_outlined,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 22),
@@ -313,8 +414,8 @@ class QueueTicketScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'SCAN YOUR TICKET AT THE CENTER',
+                Text(
+                  tr('SCAN YOUR TICKET AT THE CENTER'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF66758B),
@@ -342,7 +443,7 @@ class QueueTicketScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                label,
+                tr(label),
                 style: const TextStyle(
                   color: Color(0xFF94A0B1),
                   fontSize: 9,
@@ -351,7 +452,7 @@ class QueueTicketScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                value,
+                tr(value),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -375,7 +476,11 @@ class QueueTicketScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(
             dashCount,
-            (_) => Container(width: 5, height: 1.5, color: const Color(0xFFDCE5EF)),
+            (_) => Container(
+              width: 5,
+              height: 1.5,
+              color: const Color(0xFFDCE5EF),
+            ),
           ),
         );
       },

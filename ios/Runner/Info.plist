@@ -66,5 +66,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Use the microphone to dictate your report description.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Convert your spoken report description into text.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a photo to attach to your report.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo to attach to your report.</string>
 </dict>
 </plist>

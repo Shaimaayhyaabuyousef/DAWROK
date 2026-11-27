@@ -1,4 +1,8 @@
 import 'dart:math' as math;
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/facility_context.dart';
+import 'facility_qr.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +11,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import 'facility_queues_screen.dart';
 import 'facility_nav.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 // Home Facility - Dawrok
 // This screen is a UI prototype. Its online status and QR session are local
@@ -29,7 +34,7 @@ class FacilityHomeScreen extends StatefulWidget {
 
   const FacilityHomeScreen({
     super.key,
-    this.facilityId = 'demo-facility',
+    this.facilityId = '',
     this.qrTitle = 'QR_Facility',
     this.onNavigationTap,
   });
@@ -39,23 +44,51 @@ class FacilityHomeScreen extends StatefulWidget {
 }
 
 class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
-  bool _online = true;
-  int _demoSession = DateTime.now().millisecondsSinceEpoch;
+  bool _online = false;
+  String _facilityId = '';
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _facilitySub;
 
-  // Placeholder payload. A production QR must come from a trusted server and
-  // have validation, expiry, and facility authorization behind it.
-  String get _qrPayload =>
-      'dawrok://facility/${Uri.encodeComponent(widget.facilityId)}'
-      '/check-in?demoSession=$_demoSession';
+  @override
+  void initState() {
+    super.initState();
+    _loadFacility();
+  }
 
-  void _setOnline(bool online) {
-    setState(() => _online = online);
+  Future<void> _loadFacility() async {
+    try {
+      final id = await FacilityContext.instance.requireFacilityId();
+      if (!mounted) return;
+      setState(() => _facilityId = id);
+      _facilitySub = FirebaseFirestore.instance.collection('facilities').doc(id).snapshots().listen((doc) {
+        if (mounted) setState(() { _online = doc.data()?['isOnline'] == true; });
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr(e.toString()))));
+    }
+  }
+
+  @override
+  void dispose() { _facilitySub?.cancel(); super.dispose(); }
+
+  // Citizens scan this from the search bar to open the facility and join a
+  // queue. It identifies the facility only; booking rules stay in Firestore.
+  String get _qrPayload => facilityQrPayload(_facilityId);
+
+  Future<void> _setOnline(bool online) async {
+    if (_facilityId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance.collection('facilities').doc(_facilityId)
+          .update({'isOnline': online});
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(e.toString()))));
+    }
   }
 
   void _refreshQr() {
-    setState(() => _demoSession = DateTime.now().microsecondsSinceEpoch);
+    setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('QR preview refreshed')),
+      SnackBar(content: Text(tr('QR preview refreshed'))),
     );
   }
 
@@ -66,7 +99,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
+          padding: const EdgeInsetsDirectional.fromSTEB(20, 18, 20, 26),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -74,7 +107,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      widget.qrTitle,
+                      tr(widget.qrTitle),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: _darkText,
@@ -84,7 +117,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Close',
+                    tooltip: tr('Close'),
                     onPressed: () => Navigator.pop(dialogContext),
                     icon: const Icon(Icons.close, color: _darkText),
                   ),
@@ -98,8 +131,8 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Scan to check-in or manage queue',
+              Text(
+                tr('Citizens scan this code to open your facility and join a queue'),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: _mutedText),
               ),
@@ -135,12 +168,12 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
         body: SafeArea(
           bottom: false,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 60, 22, 28),
+            padding: const EdgeInsetsDirectional.fromSTEB(18, 18, 18, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Home Facility',
+                Text(
+                  tr('Home Facility'),
                   style: TextStyle(
                     color: _titleBlue,
                     fontSize: 24,
@@ -150,7 +183,9 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
                 ),
                 const SizedBox(height: 17),
                 _buildStatusCard(),
-                const SizedBox(height: 47),
+                const SizedBox(height: 16),
+                if (_facilityId.isNotEmpty) _FacilityOverview(key: ValueKey(_facilityId), id: _facilityId),
+                const SizedBox(height: 16),
                 Center(child: _buildActivationChip()),
                 const SizedBox(height: 19),
                 _buildQrCard(),
@@ -160,7 +195,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
             ),
           ),
         ),
-        bottomNavigationBar: _buildBottomNavigation(),
+        bottomNavigationBar: FacilityBottomNav(selected: 0, onTap: _onBottomTab),
       ),
     );
   }
@@ -197,9 +232,9 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
               TextSpan(
                 style: const TextStyle(fontSize: 14, color: _darkText),
                 children: [
-                  const TextSpan(text: 'System status: '),
+                  TextSpan(text: tr('System status: ')),
                   TextSpan(
-                    text: _online ? 'Online' : 'Offline',
+                    text: tr(_online ? 'Online' : 'Offline'),
                     style: TextStyle(
                       color: _online
                           ? const Color(0xFF00A575)
@@ -212,7 +247,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
           ),
           Transform.scale(
             scale: 0.85,
-            alignment: Alignment.centerRight,
+            alignment: AlignmentDirectional.centerEnd,
             child: CupertinoSwitch(
               value: _online,
               activeTrackColor: _primaryBlue,
@@ -238,13 +273,13 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
           ),
         ],
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.circle, size: 9, color: Colors.white),
           SizedBox(width: 10),
           Text(
-            'Activation & Operation',
+            tr('Activation & Operation'),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w400,
@@ -258,7 +293,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
 
   Widget _buildQrCard() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 17),
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 20, 16, 17),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: _softBorder, width: 1),
@@ -274,7 +309,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
       child: Column(
         children: [
           Text(
-            widget.qrTitle,
+            tr(widget.qrTitle),
             style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w400,
@@ -282,8 +317,8 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
             ),
           ),
           const SizedBox(height: 3),
-          const Text(
-            'Scan to check-in or manage queue',
+          Text(
+            tr('Citizens scan this code to open your facility and join a queue'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12.5, color: _mutedText),
           ),
@@ -301,7 +336,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
               TextButton.icon(
                 onPressed: _refreshQr,
                 icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Refresh'),
+                label: Text(tr('Refresh')),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF697D9A),
                   textStyle: const TextStyle(fontSize: 14),
@@ -316,7 +351,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
               TextButton.icon(
                 onPressed: _showEnlargedQr,
                 icon: const Icon(Icons.fullscreen_rounded, size: 19),
-                label: const Text('Enlarge'),
+                label: Text(tr('Enlarge')),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF697D9A),
                   textStyle: const TextStyle(fontSize: 14),
@@ -362,7 +397,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
             ),
             const SizedBox(width: 9),
             Text(
-              _online ? 'Work stoppage' : 'Resume work',
+              tr(_online ? 'Work stoppage' : 'Resume work'),
               style: const TextStyle(fontSize: 15),
             ),
           ],
@@ -371,62 +406,59 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
     );
   }
 
-  Widget _buildBottomNavigation() {
-    const icons = <IconData>[
-      Icons.bar_chart_rounded,
-      Icons.receipt_long_outlined,
-      Icons.groups_outlined,
-      Icons.search_rounded,
-      Icons.account_circle_outlined,
-    ];
+}
 
-    const labels = <String>[
-      'Home',
-      'Bookings',
-      'Customers',
-      'Search',
-      'Profile',
-    ];
+class _FacilityOverview extends StatefulWidget {
+  const _FacilityOverview({super.key, required this.id});
+  final String id;
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: 65,
-        color: Colors.white,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(icons.length, (index) {
-            final selected = index == 0;
-            return Semantics(
-              button: true,
-              label: labels[index],
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => _onBottomTab(index),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Center(
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: selected ? const Color(0xFF65B8F8) : null,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Icon(
-                        icons[index],
-                        color: selected ? Colors.white : _titleBlue,
-                        size: 27,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
+  @override
+  State<_FacilityOverview> createState() => _FacilityOverviewState();
+}
+
+class _FacilityOverviewState extends State<_FacilityOverview> {
+  late Future<List<int>> _counts = _load();
+
+  Future<List<int>> _load() {
+    final db = FirebaseFirestore.instance;
+    final queues = db.collection('facilities').doc(widget.id).collection('queues');
+    final bookings = db.collection('bookings').where('facilityId', isEqualTo: widget.id);
+    // Older queues may have no archived field; they are still listed in Queues.
+    return Future.wait([
+      queues.get(const GetOptions(source: Source.server)).then(
+        (snapshot) => snapshot.docs.where((doc) => doc.data()['archived'] != true).length,
       ),
+      bookings.count().get().then((result) => result.count!),
+      bookings.where('status', isEqualTo: 'served').count().get().then((result) => result.count!),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['Queues', 'Total bookings', 'Completed'];
+    const icons = [Icons.format_list_numbered, Icons.confirmation_number_outlined, Icons.task_alt];
+    return Container(
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 12, 14),
+      decoration: BoxDecoration(color: const Color(0xfff5fbff), borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _softBorder)),
+      child: FutureBuilder<List<int>>(future: _counts, builder: (context, snapshot) => Column(children: [
+        Row(children: [
+          Expanded(child: Text(tr('Facility overview'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _darkText))),
+          IconButton(tooltip: tr('Refresh totals'), iconSize: 18, onPressed: snapshot.connectionState == ConnectionState.waiting
+            ? null : () => setState(() => _counts = _load()), icon: const Icon(Icons.refresh)),
+        ]),
+        if (snapshot.hasError)
+          Text(tr('Totals unavailable. Tap refresh to try again.'), style: TextStyle(fontSize: 13))
+        else
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: List.generate(3, (i) => Expanded(
+            child: Column(children: [
+              Icon(icons[i], size: 19, color: const Color(0xff087cc2)),
+              const SizedBox(height: 4),
+              Text(tr(snapshot.hasData ? snapshot.data![i].toString() : '—'), style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: _darkText)),
+              Text(tr(labels[i]), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Color(0xff526780))),
+            ]),
+          ))),
+      ])),
     );
   }
 }

@@ -1,6 +1,8 @@
+import 'phone_login.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'citizen_identity_service.dart';
+import 'employee_access_service.dart';
 
 /// Shared sign-in: the role is resolved from a trusted Firestore profile.
 /// This service never creates a facility account or changes anyone's role.
@@ -12,18 +14,18 @@ class AppAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Future<String> signInWithEmail({
-    required String email,
+  Future<String> signInWithPhone({
+    required String phone,
     required String password,
   }) async {
     final credential = await _auth.signInWithEmailAndPassword(
-      email: email.trim(),
+      email: mobileLoginId(phone),
       password: password,
     );
 
     final user = credential.user;
     if (user == null) {
-      throw StateError('تعذّر إكمال تسجيل الدخول.');
+      throw StateError('Could not complete sign-in.');
     }
 
     try {
@@ -41,14 +43,16 @@ class AppAuthService {
     final snapshot = await _db.collection('users').doc(user.uid).get();
     final data = snapshot.data();
     if (data == null) {
-      throw StateError('الحساب غير مرتبط بملف مستخدم في Firestore.');
+      // Employees have independent Auth identities; owner approval creates
+      // a protected membership instead of a self-assigned role in users.
+      return EmployeeAccessService.instance.routeFor(user);
     }
 
     final role = data['role'];
     final token = await user.getIdTokenResult();
     final claimRole = token.claims?['role'];
     if (claimRole != null && claimRole != role) {
-      throw StateError('صلاحية الحساب لا تطابق بياناته.');
+      throw StateError('The account permission does not match its profile.');
     }
 
     if (role == 'citizen') {
@@ -63,16 +67,16 @@ class AppAuthService {
 
     if (role == 'facility') {
       if (data['status'] != 'active') {
-        throw StateError('حساب المنشأة غير مفعّل.');
+        throw StateError('This facility account is not active.');
       }
       final facilityId = data['facilityId'];
       if (facilityId is! String || facilityId.trim().isEmpty) {
-        throw StateError('لم يُربط هذا الحساب بمنشأة بعد.');
+        throw StateError('This account is not linked to a facility yet.');
       }
       return 'facility_home_screen';
     }
 
-    throw StateError('نوع الحساب غير مدعوم في شاشة الدخول.');
+    throw StateError('This account type cannot sign in here.');
   }
 
   /// Used by Splash to restore a previously signed-in citizen or facility.

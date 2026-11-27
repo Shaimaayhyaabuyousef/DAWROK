@@ -1,231 +1,297 @@
 import 'package:flutter/material.dart';
-
-// Route names registered in main.dart
-const String kSignInRoute = 'login';
-const String kSignUpRoute = 'login'; // change to 'signup' once that page exists
-
-const Color kPrimary = Color(0xFF0EA5FF);
-const Color kDark = Color(0xFF1E2235);
-
-class _OnboardingItem {
-  final String image;
-  final String title;
-  final String desc;
-
-  const _OnboardingItem({
-    required this.image,
-    required this.title,
-    required this.desc,
-  });
-}
-
-const List<_OnboardingItem> _items = [
-  _OnboardingItem(
-    image: 'assets/images/onboarding_1.png',
-    title: 'No more long queues',
-    desc:
-        'Skip the hours in crowds. Dawrok organizes the service so you receive it safely.',
-  ),
-  _OnboardingItem(
-    image: 'assets/images/onboarding_2.png',
-    title: 'Book your appointment easily',
-    desc:
-        'Choose the service and center, pick a time that suits you, and get your digital ticket in seconds.',
-  ),
-  _OnboardingItem(
-    image: 'assets/images/onboarding_3.png',
-    title: 'Track your turn live',
-    desc:
-        'A secure QR ticket that works offline, with an instant alert when your turn is near.',
-  ),
-];
+import 'package:flutter/services.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class Onboarding extends StatefulWidget {
   const Onboarding({super.key});
-
   @override
   State<Onboarding> createState() => _OnboardingState();
 }
 
 class _OnboardingState extends State<Onboarding> {
-  final PageController _controller = PageController();
-  int _index = 0;
-
+  final _controller = PageController();
+  int _page = 0;
+  static const _titles = [
+    'No More Waiting in Endless Lines',
+    'Book your appointment easily',
+    'No More Waiting in Endless Lines',
+  ];
+  static const _descriptions = [
+    'Chaotic queues waste hours and strip dignity. We replace crowded waiting with organized digital time slots.',
+    'Choose the service and center, pick a time that suits you, and get your digital ticket in seconds.',
+    'Present your ticket at the counter and receive service in less than two minutes—with complete transparency.',
+  ];
+  static const _blue = Color(0xFF2196F3);
+  void _move(int page) => _controller.animateToPage(
+    page,
+    duration: const Duration(milliseconds: 260),
+    curve: Curves.easeOut,
+  );
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
-  void _go(String route) => Navigator.pushReplacementNamed(context, route);
-
   @override
   Widget build(BuildContext context) {
-    final isLast = _index == _items.length - 1;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          // Swipeable pages
-          Expanded(
-            child: Stack(
-              children: [
-                PageView.builder(
-                  controller: _controller,
-                  itemCount: _items.length,
-                  onPageChanged: (i) => setState(() => _index = i),
-                  itemBuilder: (_, i) => _OnboardingPage(item: _items[i]),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: LayoutBuilder(
+          builder: (context, layout) {
+            final heroHeight = layout.maxHeight * .6185;
+            return PageView.builder(
+              controller: _controller,
+              itemCount: 3,
+              onPageChanged: (i) => setState(() => _page = i),
+              itemBuilder: (context, i) => SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      height: heroHeight,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ColoredBox(
+                            color: const [
+                              Color(0xfffff6ee),
+                              Color(0xffeff6fe),
+                              Color(0xfff1faf2),
+                            ][i],
+                            child: Image.asset(
+                              'assets/images/onboarding_${i + 1}.png',
+                              fit: BoxFit.contain,
+                              excludeFromSemantics: true,
+                            ),
+                          ),
+                          SafeArea(
+                            bottom: false,
+                            child: Align(
+                              alignment: Alignment.topCenter,
+                              child: Padding(
+                                padding: const EdgeInsetsDirectional.fromSTEB(12, 6, 6, 0),
+                                child: Row(
+                                  children: [
+                                    if (i > 0)
+                                      IconButton(
+                                        tooltip: tr('Back'),
+                                        onPressed: () => _move(i - 1),
+                                        icon: const Icon(
+                                          Icons.arrow_back_ios_new,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    if (i == 0) const _LanguageSwitch(),
+                                    const Spacer(),
+                                    if (i < 2)
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pushReplacementNamed(
+                                              context,
+                                              'login',
+                                            ),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.black,
+                                        ),
+                                        child: Text(tr('Skip')),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Semantics(
+                        label: tr('Page ${i + 1} of 3'),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            3,
+                            (j) => GestureDetector(
+                              onTap: () => _move(j),
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                  vertical: 8,
+                                ),
+                                child: Container(
+                                  width: j == _page ? 23 : 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: j == _page
+                                        ? const Color(0xff202020)
+                                        : Colors.blue,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(16, 20, 8, 0),
+                      child: Text(
+                        tr(_titles[i]),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 23,
+                          height: 1.25,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(21, 24, 12, 0),
+                      child: Text(
+                        tr(_descriptions[i]),
+                        style: const TextStyle(
+                          fontSize: 17.5,
+                          height: 1.48,
+                          color: Color(0xff757575),
+                        ),
+                      ),
+                    ),
+                    if (i == 2)
+                      SafeArea(
+                        top: false,
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(24, 26, 24, 18),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                        context,
+                                        'login',
+                                      ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _blue,
+                                    side: const BorderSide(color: _blue),
+                                    minimumSize: const Size(0, 50),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tr('Signin'),
+                                    style: TextStyle(fontSize: 18),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                        context,
+                                        'signup',
+                                      ),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: _blue,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size(0, 50),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tr('Signup'),
+                                    style: TextStyle(fontSize: 18),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-
-                // Skip button
-                if (!isLast)
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 8,
-                    right: 16,
-                    child: TextButton(
-                      onPressed: () => _go(kSignInRoute),
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.black.withValues(alpha: 0.35),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      child: const Text('Skip'),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // Page indicators
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_items.length, (i) {
-                final active = i == _index;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: active ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: active ? kDark : kPrimary.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                );
-              }),
-            ),
-          ),
-
-          // Buttons
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _go(kSignInRoute),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: kPrimary,
-                        side: const BorderSide(color: kPrimary, width: 1.5),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Sign in',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _go(kSignUpRoute),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Sign up',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
               ),
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
 }
 
-class _OnboardingPage extends StatelessWidget {
-  final _OnboardingItem item;
-  const _OnboardingPage({required this.item});
+/// English / العربية switch on the first onboarding page. Arabic turns the
+/// whole app right-to-left; the choice is remembered on this device.
+class _LanguageSwitch extends StatelessWidget {
+  const _LanguageSwitch();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          flex: 6,
-          child: SizedBox(
-            width: double.infinity,
-            child: Image.asset(
-              item.image,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                color: kPrimary.withValues(alpha: 0.12),
-                child: const Icon(Icons.image_outlined, size: 64, color: kPrimary),
-              ),
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 4, top: 4),
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsetsDirectional.only(start: 8, end: 4),
+              child: Icon(Icons.language_rounded, size: 18, color: Color(0xFF2196F3)),
+            ),
+            _option('en', 'EN'),
+            _option('ar', 'عربي'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _option(String code, String label) {
+    final selected = AppLanguage.locale.value.languageCode == code;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: code == 'en' ? 'English' : 'العربية',
+      child: GestureDetector(
+        onTap: () => AppLanguage.set(code),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF2196F3) : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : const Color(0xFF475870),
             ),
           ),
         ),
-        Expanded(
-          flex: 4,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: kPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    item.desc,
-                    style: TextStyle(
-                      fontSize: 15,
-                      height: 1.6,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

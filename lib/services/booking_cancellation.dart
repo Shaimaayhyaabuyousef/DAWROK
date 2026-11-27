@@ -109,7 +109,10 @@ class BookingCancellation {
         if (b['reward'] == 'extra') 'rewardReserved': FieldValue.increment(-1),
       });
       tx.update(guard, {
+        // The service key (current) and the queue key (tickets booked before
+        // services were grouped); deleting a missing key changes nothing.
         FieldPath(['queues', '${fid}_$qid']): FieldValue.delete(),
+        FieldPath(['queues', '$fid|${b['service']}']): FieldValue.delete(),
         FieldPath(['slots', b['slot'] as String]): FieldValue.delete(),
         'lastCancelled': id,
         'updatedAt': stamp,

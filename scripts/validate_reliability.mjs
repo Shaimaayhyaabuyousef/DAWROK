@@ -16,7 +16,7 @@ async function reserve(uid,q,reward='none',{skipDebit=false,debit=100,position,t
  let observed;
  for(let attempt=0;;attempt++){try{
  await db.runTransaction(async tx=>{const a=(await tx.get(acc)).data()??defaults,g=(await tx.get(guard)).data()??{},c=(await tx.get(cap)).data()??{reserved:0};observed=c.reserved;
- tx.set(guard,{uid,queues:{...g.queues,[`reliability_${q}`]:ticket.id},slots:{...g.slots,[slot]:ticket.id},updatedAt:stamp()});
+ tx.set(guard,{uid,queues:{...g.queues,[`reliability|General`]:ticket.id},slots:{...g.slots,[slot]:ticket.id},updatedAt:stamp()});
  tx.set(cap,{reserved:c.reserved+1,lastSlotStart:firebase.firestore.Timestamp.fromDate(time),rewardReserved:(c.rewardReserved??0)+(reward==='extra'?1:0),lastBookingId:ticket.id,updatedAt:stamp()},{merge:true});
  const offers=db.collection('facilities/reliability/queues/'+q+'/priority_offers');
  if(target){tx.delete(offers.doc(target));tx.update(db.doc('bookings/'+target),{dispatchPosition:c.reserved+1,priorityBuyer:ticket.id});}
@@ -46,7 +46,7 @@ async function cancelBooking(actor,uid,q,id,{facility=false,paid=false,extra=fal
  batch.update(cap,{cancelled:firebase.firestore.FieldValue.increment(1),lastCancelled:id,updatedAt:stamp(),
    ...(extra?{rewardReserved:firebase.firestore.FieldValue.increment(-1)}:{})});
  const guard=db.doc('users/'+uid+'/booking_days/'+day);
- batch.update(guard,{['queues.reliability_'+q]:firebase.firestore.FieldValue.delete(),['slots.'+slot]:firebase.firestore.FieldValue.delete(),lastCancelled:id,updatedAt:stamp()});
+ batch.update(guard,new firebase.firestore.FieldPath('queues','reliability|General'),firebase.firestore.FieldValue.delete(),'slots.'+slot,firebase.firestore.FieldValue.delete(),'lastCancelled',id,'updatedAt',stamp());
  if(paid){
    batch.update(acc,{points:firebase.firestore.FieldValue.increment(100),lastAction:'refund',lastBookingId:id,updatedAt:stamp()});
    batch.set(acc.collection('point_transactions').doc('refund_'+id),{bookingId:id,points:100,reason:'refund',createdAt:stamp()});

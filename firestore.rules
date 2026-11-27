@@ -209,7 +209,8 @@ service cloud.firestore {
     function cancelGuard(uid,day,a,b) {
       let id = a.lastCancelled;
       let t = getAfter(bookingPath(id)).data;
-      let key = t.facilityId+'_'+t.queueId;
+      let qk = t.facilityId+'_'+t.queueId;
+      let key = qk in b.queues && b.queues[qk] == id ? qk : t.facilityId+'|'+t['service'];
       return t.citizenId == uid && t.dayKey == day && cancelling(id)
         && a.diff(b).affectedKeys().hasOnly(['queues','slots','updatedAt','lastCancelled'])
         && b.queues[key] == id && b.slots[t.slot] == id
@@ -879,7 +880,7 @@ service cloud.firestore {
             get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.name
         && getAfter(guardPath(request.auth.uid,
             request.resource.data.dayKey)).data.queues[
-            request.resource.data.facilityId + '_' + request.resource.data.queueId] == bid
+            request.resource.data.facilityId + '|' + request.resource.data['service']] == bid
         && getAfter(guardPath(request.auth.uid,
             request.resource.data.dayKey)).data.slots[
             request.resource.data.slot] == bid

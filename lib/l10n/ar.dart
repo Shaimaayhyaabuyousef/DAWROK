@@ -699,6 +699,7 @@ const Map<String, String> arabicStrings = {
   'Point the camera at the QR code shown at the facility to open it and join its queue.': 'وجّه الكاميرا إلى رمز QR المعروض في المنشأة لفتحها والانضمام إلى طابورها.',
   'Citizens scan this code to open your facility and join a queue': 'يمسح المواطنون هذا الرمز لفتح منشأتك والانضمام إلى طابور',
   'Language': 'اللغة',
+  'You already have a ticket for this service at this facility today.': 'لديك تذكرة لهذه الخدمة في هذه المنشأة اليوم.',
   'Ticket Details': 'تفاصيل التذكرة',
   'Called to window': 'نُودي عليك إلى الشباك',
 };

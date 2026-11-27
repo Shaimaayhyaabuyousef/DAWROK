@@ -37,6 +37,10 @@ class BookingService {
   static final instance = BookingService._();
   final FirebaseFirestore db = FirebaseFirestore.instance;
   String _two(int n) => n.toString().padLeft(2, '0');
+  String _slotKey(DateTime slot) {
+    final utc = slot.toUtc();
+    return '${_two(utc.hour)}${_two(utc.minute)}';
+  }
 
   // Listen through reconnects and app restarts without resubmitting a write.
   Stream<QueryDocumentSnapshot<Map<String, dynamic>>> recoveredTickets(
@@ -179,6 +183,15 @@ class BookingService {
           final lastSlot = (daily.data()?['lastSlotStart'] as Timestamp?)
               ?.toDate();
           if (lastSlot != null && lastSlot.isAfter(slot)) slot = lastSlot;
+          // A citizen may hold several tickets in a day (different services
+          // or facilities) but never two in the same arrival window: move
+          // this ticket to the citizen's next free window instead.
+          final guardRef = citizenRef.collection('booking_days').doc(dayKey);
+          final guard = await tx.get(guardRef);
+          final heldSlots = ((guard.data()?['slots'] as Map?) ?? {}).keys.toSet();
+          while (heldSlots.contains(_slotKey(slot))) {
+            slot = slot.add(const Duration(minutes: 30));
+          }
           if (QueueSchedule.dayKey(slot) != dayKey ||
               FacilityTime.wall(slot).hour * 60 +
                       FacilityTime.wall(slot).minute +
@@ -186,10 +199,7 @@ class BookingService {
                   end) {
             throw StateError('No available booking times today.');
           }
-          final utc = slot.toUtc();
-          final slotKey = '${_two(utc.hour)}${_two(utc.minute)}';
-          final guardRef = citizenRef.collection('booking_days').doc(dayKey);
-          final guard = await tx.get(guardRef);
+          final slotKey = _slotKey(slot);
           final accountRef = CitizenAccountService.instance.account(user.uid);
           final account = CitizenAccountService.policy(
             (await tx.get(accountRef)).data(),
@@ -222,8 +232,13 @@ class BookingService {
           final slots = Map<String, dynamic>.from(
             (guard.data()?['slots'] as Map?) ?? {},
           );
-          if (queues.containsKey(queueKey)) {
-            throw StateError('You already booked this queue today.');
+          // One ticket per service at a facility per day, whichever of its
+          // queues (shifts) offers it. Older guards used the queue as key.
+          final serviceKey = '$facilityId|${q['service']}';
+          if (queues.containsKey(serviceKey) || queues.containsKey(queueKey)) {
+            throw StateError(
+              'You already have a ticket for this service at this facility today.',
+            );
           }
           if (slots.containsKey(slotKey)) {
             throw StateError('You already have a ticket for this time slot.');
@@ -267,7 +282,7 @@ class BookingService {
                 'No eligible waiting ticket in this arrival period. No points were charged.',
               );
           }
-          queues[queueKey] = bookingRef.id;
+          queues[serviceKey] = bookingRef.id;
           slots[slotKey] = bookingRef.id;
           tx.set(guardRef, {
             'uid': user.uid,

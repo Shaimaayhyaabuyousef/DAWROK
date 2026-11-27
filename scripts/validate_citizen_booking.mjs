@@ -42,7 +42,7 @@ try {
     const q = await tx.get(queue);
     await tx.get(guard); await tx.get(daily);
     assert.equal(id.data().nationalId,'123456789');
-    tx.set(guard,{uid:'booking-citizen',queues:{'booking-facility_window_1':ticket.id},slots:{[slot]:ticket.id},updatedAt:stamp()});
+    tx.set(guard,{uid:'booking-citizen',queues:{'booking-facility|General':ticket.id},slots:{[slot]:ticket.id},updatedAt:stamp()});
     tx.set(daily,{reserved:1,lastSlotStart:firebase.firestore.Timestamp.fromDate(date),lastBookingId:ticket.id,updatedAt:stamp()});
     tx.set(ticket,{citizenId:'booking-citizen',citizenName:me.data().displayName,
       facilityId:'booking-facility',facilityName:facility.data().name,

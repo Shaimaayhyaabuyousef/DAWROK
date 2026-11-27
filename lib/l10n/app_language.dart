@@ -58,7 +58,8 @@ String tr(String text) {
     if (m == null) continue;
     result = template.replaceAllMapped(RegExp(r'\$(\d)'), (g) {
       final value = m.group(int.parse(g[1]!)) ?? '';
-      return arabicStrings[value] ?? value;
+      // A captured part may itself be a translatable phrase.
+      return value.isEmpty ? value : tr(value);
     });
     break;
   }

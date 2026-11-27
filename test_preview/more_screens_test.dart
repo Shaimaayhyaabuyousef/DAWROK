@@ -13,6 +13,7 @@ import 'package:first_project/pages/employee_ticket_result.dart';
 import 'package:first_project/pages/facility_add_queue_sheet.dart';
 import 'package:first_project/pages/facility_empty_state.dart';
 import 'package:first_project/pages/facility_staff_code_dialog.dart';
+import 'package:first_project/pages/home_screen.dart';
 import 'package:first_project/pages/onboarding.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -70,6 +71,25 @@ void main() {
 
   // name -> (widget, pages to swipe forward before the picture)
   final screens = <String, (Widget Function(), int)>{
+    'home_called': (
+      () => CitizenHomeView(
+        name: 'Sara',
+        points: 30,
+        booking: const {'facilityName': 'Bank of Palestine', 'service': 'Teller', 'status': 'called', 'windowNumber': 2},
+        ticketId: 'A1B2C3',
+        loading: false,
+        error: null,
+        onSearch: () {},
+        onPoints: () {},
+        onNotifications: () {},
+        onTicket: () {},
+        onBookings: () {},
+        onProfile: () {},
+        onRetry: () {},
+        onScan: () {},
+      ),
+      0,
+    ),
     'onboarding2': (() => const Onboarding(), 1),
     'onboarding3': (() => const Onboarding(), 2),
     'pin_setup': (

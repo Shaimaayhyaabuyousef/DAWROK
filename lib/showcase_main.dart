@@ -21,6 +21,7 @@ import 'pages/facility_staff_store.dart';
 import 'pages/main.dart' show MyApp;
 import 'pages/queue_booking.dart';
 import 'pages/queue_ticket_screen.dart';
+import 'pages/splash.dart';
 import 'services/app_auth_service.dart';
 import 'services/booking_service.dart';
 import 'services/citizen_signup_service.dart';
@@ -188,7 +189,9 @@ Future<void> callAndServe(String fid, {required bool serve}) async {
   final work = EmployeeWorkService.forEmployee(fid);
   final qid = a['queueId'] as String;
   final window = (a['windowNumber'] as num).toInt();
-  final id = await work.callNext(qid, window);
+  final called = await work.callNext(qid, window);
+  // callNext reports 'Calling ticket #<id>'.
+  final id = called.split('#').last.trim();
   if (serve) await work.checkIn(id, qid, window);
 }
 
@@ -263,6 +266,7 @@ class ShowcaseApp extends StatelessWidget {
         'ticket' => const _Ticket(),
         'details' => const _Details(),
         'scanner' => const _Scanner(),
+        'splash' => const Splash(),
         _ => _Route(screen, base.routes!),
       },
     );
@@ -316,8 +320,8 @@ class _Details extends StatelessWidget {
         facilityId: doc.id,
         address: d['address'] as String? ?? '',
         rating: '4.8',
-        openingFrom: '07:00 AM',
-        openingTo: '11:30 PM',
+        openingFrom: '07:00 ص',
+        openingTo: '11:30 م',
         status: 'Open',
         verified: true,
         registeredCount: 5,

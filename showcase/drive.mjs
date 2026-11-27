@@ -92,6 +92,35 @@ for (const [role, screen, name] of screens) {
   await ctx.close();
 }
 
+// Screens before signing in.
+{
+  const { ctx, page } = await open('screen=splash', 'e_splash');
+  await page.waitForTimeout(2200);
+  await page.screenshot({ path: path.join(OUT, 'e_splash.png') });
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open('screen=onboarding', 'e_onb');
+  await until(page, t => t === 'ready', 60000);
+  await page.waitForTimeout(1000);
+  for (const n of [1, 2, 3]) {
+    if (n > 1) {
+      await page.mouse.move(60, 300); await page.mouse.down();
+      await page.mouse.move(340, 300, { steps: 14 }); await page.mouse.up();
+      await page.waitForTimeout(1800);
+    }
+    await page.screenshot({ path: path.join(OUT, `e_onb${n}.png`) });
+  }
+  await ctx.close();
+}
+for (const [screen, name] of [['login', 'e_login'], ['signup', 'e_signup'], ['citizen_id_verification', 'e_idv'], ['employee_login_screen', 'e_staff_login'], ['employee_join_screen', 'e_staff_join']]) {
+  const { ctx, page } = await open(`screen=${screen}`, name);
+  await until(page, t => t === 'ready', 60000);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: path.join(OUT, name + '.png') });
+  await ctx.close();
+}
+
 // The window officer types turn numbers: a wrong one, then the called one.
 {
   const { ctx, page } = await open('role=stf&screen=scanner', 's_typed');

@@ -1,0 +1,39 @@
+name: Claude work-branch checks
+on:
+  push:
+    branches: ['claude/**']
+permissions:
+  contents: write
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze
+        run: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.txt 2>&1 || true
+          grep -E '^\s*error' analyze.txt > errors.txt || true
+          echo "errors: $(wc -l < errors.txt)"
+          split -l 12 errors.txt chunk_ || true
+          for f in chunk_*; do [ -f "$f" ] && echo "::error title=analyze::$(sed ':a;N;$!ba;s/\n/%0A/g' "$f")"; done
+          grep -E '^\s*warning' analyze.txt | head -24 > warn.txt || true
+          [ -s warn.txt ] && echo "::warning title=analyze-warnings::$(sed ':a;N;$!ba;s/\n/%0A/g' warn.txt)"
+          test ! -s errors.txt
+      - name: Tests
+        if: always()
+        run: |
+          set +e
+          flutter test --reporter expanded > test.txt 2>&1; code=$?
+          tail -5 test.txt
+          grep -nE 'FAILED|\[E\]|Error:|Expected:|Actual:|error:|Which:' test.txt | head -60 > tfail.txt || true
+          split -l 10 tfail.txt tchunk_ || true
+          for f in tchunk_*; do [ -f "$f" ] && echo "::error title=test::$(sed ':a;N;$!ba;s/\n/%0A/g' "$f")"; done
+          grep -n -m1 -A22 'EXCEPTION CAUGHT' test.txt > exc.txt || true
+          [ -s exc.txt ] && echo "::error title=first-exception::$(sed ':a;N;$!ba;s/\n/%0A/g' exc.txt)"
+          echo "::notice title=test-summary::$(tail -2 test.txt | tr '\n' ' ')"
+          exit $code

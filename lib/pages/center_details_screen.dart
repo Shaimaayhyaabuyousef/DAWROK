@@ -296,7 +296,7 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
 
   String _clock(int minutes) {
     final hour = (minutes ~/ 60) % 24;
-    return '${(hour % 12 == 0 ? 12 : hour % 12).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')} ${hour < 12 ? 'AM' : 'PM'}';
+    return '${(hour % 12 == 0 ? 12 : hour % 12).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')} ${tr(hour < 12 ? 'AM' : 'PM')}';
   }
 
   Widget _layout(

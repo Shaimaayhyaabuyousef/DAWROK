@@ -169,9 +169,6 @@ Future<void> seed() async {
   }
   await say('seed: bookings');
 
-  // 7. The window officer serves the first citizen and calls the second.
-  await callAndServe(fid, serve: true);
-  await callAndServe(fid, serve: false);
   await FirebaseAuth.instance.signOut();
   await say('seed-done');
 }
@@ -233,9 +230,9 @@ void main() async {
       _ => null,
     };
     if (phone != null) await signIn(phone);
-    if (q['action'] == 'callnext') {
+    if (q['action'] == 'callnext' || q['action'] == 'serve') {
       runApp(const MaterialApp(home: Scaffold(body: Center(child: CircularProgressIndicator()))));
-      await callAndServe(await facilityOf(phone!), serve: false);
+      await callAndServe(await facilityOf(phone!), serve: q['action'] == 'serve');
       await say('action-done');
       return;
     }
@@ -309,11 +306,11 @@ class _Details extends StatelessWidget {
   const _Details();
   @override
   Widget build(BuildContext context) => FutureBuilder(
-    future: FirebaseFirestore.instance.collection('facilities').limit(1).get(),
+    future: FirebaseFirestore.instance.collection('facilities').doc('100245').get(),
     builder: (context, snap) {
-      final doc = snap.data?.docs.firstOrNull;
-      if (doc == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-      final d = doc.data();
+      final doc = snap.data;
+      if (doc == null || !doc.exists) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      final d = doc.data()!;
       return CenterDetailsScreen(
         name: d['name'] as String? ?? '',
         facilityId: doc.id,

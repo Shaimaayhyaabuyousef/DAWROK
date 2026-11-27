@@ -427,9 +427,9 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                             const SizedBox(width: 9),
                             Expanded(
                               child: Text(
-                                tr(q == null
-                                    ? 'Awaiting a vacant service position'
-                                    : "${assignment?['windowNumber'] == 0 ? 'Direct service' : 'Counter ${assignment?['windowNumber']}'} – ${q.data()['service'] ?? 'Queue'}"),
+                                q == null
+                                    ? tr('Awaiting a vacant service position')
+                                    : "${tr(assignment?['windowNumber'] == 0 ? 'Direct service' : 'Counter ${assignment?['windowNumber']}')} – ${tr('${q.data()['service'] ?? 'Queue'}')}",
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: _ink,
@@ -510,7 +510,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                 ),
               ),
               TextSpan(
-                text: tr(' $suffix'),
+                text: ' ${tr(suffix)}',
                 style: const TextStyle(fontSize: 12, color: _muted),
               ),
             ],

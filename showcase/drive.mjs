@@ -50,6 +50,7 @@ async function open(query, name) {
   page.on('console', m => log.write(`[${name}] ${m.text()}\n`));
   page.on('pageerror', e => log.write(`[${name}] ERROR ${e.message}\n`));
   await page.goto(`http://127.0.0.1:8080/?${query}`);
+  await page.addStyleTag({ content: '.firebase-emulator-warning{display:none!important}' });
   return { ctx, page };
 }
 async function until(page, ok, ms) {
@@ -67,6 +68,11 @@ const seed = await open('seed=1', 'seed');
 const s = await until(seed.page, t => t === 'seed-done' || t.startsWith('seed-failed'), 240000);
 log.write(`SEED RESULT: ${s}\n`);
 await seed.ctx.close();
+for (const a of ['serve', 'callnext']) {
+  const x = await open(`role=stf&action=${a}`, a);
+  log.write(`${a}: ${await until(x.page, t => t === 'action-done', 60000)}\n`);
+  await x.ctx.close();
+}
 
 const screens = [
   ['cit', 'home_screen', 'c_home'], ['cit', 'facilities_screen', 'c_facilities'], ['cit', 'details', 'c_details'],
@@ -86,6 +92,23 @@ for (const [role, screen, name] of screens) {
   await ctx.close();
 }
 
+// The window officer types turn numbers: a wrong one, then the called one.
+{
+  const { ctx, page } = await open('role=stf&screen=scanner', 's_typed');
+  await until(page, t => t === 'ready', 60000);
+  await page.waitForTimeout(1500);
+  for (const [num, name] of [['3', 's_wrong'], ['2', 's_verified']]) {
+    await page.mouse.click(196, 175);
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type(num);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(3500);
+    await page.screenshot({ path: path.join(OUT, name + '.png') });
+  }
+  await ctx.close();
+}
+
 // The turn alert: Sara watches her home while the window calls her.
 const sara = await open('role=cit&screen=home_screen', 'alert');
 await until(sara.page, t => t === 'ready', 60000);
@@ -96,11 +119,14 @@ await call.ctx.close();
 await sara.page.waitForTimeout(3000);
 await sara.page.screenshot({ path: path.join(OUT, 'c_alert.png') });
 await sara.ctx.close();
-const after = await open('role=cit&screen=active_queues_screen', 'c_queues_called');
-await until(after.page, t => t === 'ready', 60000);
-await after.page.waitForTimeout(2500);
-await after.page.screenshot({ path: path.join(OUT, 'c_queues_called.png') });
-await after.ctx.close();
+for (const [screen, name] of [['active_queues_screen', 'c_queues_called'], ['home_screen', 'c_home_called'], ['ticket', 'c_ticket_called'], ['facility_search_screen', 'f_search_after'], ['facility_home_screen', 'f_home_after']]) {
+  const role = name.startsWith('f_') ? 'fac' : 'cit';
+  const after = await open(`role=${role}&screen=${screen}`, name);
+  await until(after.page, t => t === 'ready', 60000);
+  await after.page.waitForTimeout(2500);
+  await after.page.screenshot({ path: path.join(OUT, name + '.png') });
+  await after.ctx.close();
+}
 
 await browser.close();
 server.close();

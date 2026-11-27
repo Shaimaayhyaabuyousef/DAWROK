@@ -53,7 +53,7 @@ jobs:
       - name: Build Android
         run: |
           set +e
-          flutter build apk --debug > apk.txt 2>&1; code=$?
+          flutter build apk --debug -t lib/pages/main.dart > apk.txt 2>&1; code=$?
           tail -40 apk.txt
           if [ $code -ne 0 ]; then
             grep -nE "^e: |error:|What went wrong|Could not|Exception" -A4 apk.txt | head -60 > ae.txt

@@ -73,7 +73,7 @@ Future<void> seed() async {
   final store = FacilityQueueStore.instance;
   await store.refresh();
   const drafts = [
-    ('Customer Service', 40, 2, 10),
+    ('Customer Service', 40, 3, 10),
     ('Document Processing', 30, 1, 15),
     ('Appointments', 24, 1, 20),
   ];
@@ -182,27 +182,24 @@ Future<Map<String, dynamic>?> myAssignment(String fid) async {
   return (doc.data()?['assignments'] as Map?)?[FirebaseAuth.instance.currentUser!.uid] as Map<String, dynamic>?;
 }
 
-/// Lina finishes the ticket at her window, if any, then calls the next one;
-/// with [serve] she also checks in and completes the newly called ticket.
-Future<void> callAndServe(String fid, {required bool serve}) async {
-  await signIn(staffPeople[0].$2);
+/// A window officer calls the next ticket at their own window (each window's
+/// first call); with [serve] the ticket is also checked in.
+Future<void> callAndServe(String fid, {required bool serve, int who = 0}) async {
+  await signIn(staffPeople[who].$2);
   final a = await myAssignment(fid);
   if (a == null) throw StateError('No assignment for the window officer');
   final work = EmployeeWorkService.forEmployee(fid);
   final qid = a['queueId'] as String;
   final window = (a['windowNumber'] as num).toInt();
-  final db = FirebaseFirestore.instance;
-  Future<void> finish(String id) async {
-    final b = (await db.collection('bookings').doc(id).get()).data();
-    if (b?['checkedIn'] != true) await work.checkIn(id, qid, window);
-    await work.changeTicket(id, 'served', qid, window);
-  }
-  final lane = await db.collection('facilities').doc(fid).collection('queues').doc(qid).collection('lanes').doc('$window').get();
-  final current = lane.data()?['ticketId'] as String? ?? '';
-  if (current.isNotEmpty) await finish(current);
   final called = await work.callNext(qid, window);
   if (!called.startsWith('Calling ticket #')) throw StateError(called);
-  if (serve) await finish(called.split('#').last.trim());
+  if (serve) await work.checkIn(called.split('#').last.trim(), qid, window);
+}
+
+/// The facility owner serves at the free third window of the first queue.
+Future<void> ownerCall(String fid) async {
+  final called = await EmployeeWorkService.forFacilityOwner(fid).callNext('window_1', 3);
+  if (!called.startsWith('Calling ticket #')) throw StateError(called);
 }
 
 Future<String> facilityOf(String phone) async {
@@ -240,12 +237,17 @@ void main() async {
       'cit' => saraPhone,
       'fac' => ownerPhone,
       'stf' => staffPeople[0].$2,
+      'stf2' => staffPeople[1].$2,
       _ => null,
     };
     if (phone != null) await signIn(phone);
-    if (q['action'] == 'callnext' || q['action'] == 'serve') {
+    if (q['action'] != null) {
       runApp(const MaterialApp(home: Scaffold(body: Center(child: CircularProgressIndicator()))));
-      await callAndServe(await facilityOf(phone!), serve: q['action'] == 'serve');
+      switch (q['action']) {
+        case 'serve': await callAndServe(await facilityOf(phone!), serve: true);
+        case 'callnext': await callAndServe(await facilityOf(phone!), serve: false, who: role == 'stf2' ? 1 : 0);
+        case 'ownercall': await ownerCall(await facilityId());
+      }
       await say('action-done');
       return;
     }
@@ -349,7 +351,7 @@ class _Scanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) => FutureBuilder(
     future: () async {
-      final fid = await facilityOf(staffPeople[0].$2);
+      final fid = await facilityOf('');
       return (fid, await myAssignment(fid));
     }(),
     builder: (context, snap) {

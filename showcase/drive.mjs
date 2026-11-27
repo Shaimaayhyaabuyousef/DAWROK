@@ -79,8 +79,8 @@ await seed.ctx.close();
   }
   log.write(`shifted ${n} bookings\n`);
 }
-for (const a of ['serve', 'callnext']) {
-  const x = await open(`role=stf&action=${a}`, a);
+for (const a of ['stf&action=serve', 'stf2&action=callnext']) {
+  const x = await open(`role=${a}`, a);
   log.write(`${a}: ${await until(x.page, t => t === 'action-done', 60000)}\n`);
   await x.ctx.close();
 }
@@ -136,7 +136,7 @@ for (const [screen, name] of [['login', 'e_login'], ['signup', 'e_signup'], ['ci
 
 // The window officer types turn numbers: a wrong one, then the called one.
 {
-  const { ctx, page } = await open('role=stf&screen=scanner', 's_typed');
+  const { ctx, page } = await open('role=stf2&screen=scanner', 's_typed');
   await until(page, t => t === 'ready', 60000);
   await page.waitForTimeout(1500);
   for (const [num, name] of [['3', 's_wrong'], ['2', 's_verified']]) {
@@ -155,7 +155,7 @@ for (const [screen, name] of [['login', 'e_login'], ['signup', 'e_signup'], ['ci
 const sara = await open('role=cit&screen=home_screen', 'alert');
 await until(sara.page, t => t === 'ready', 60000);
 await sara.page.waitForTimeout(1500);
-const call = await open('role=stf&action=callnext', 'callnext');
+const call = await open('role=fac&action=ownercall', 'ownercall');
 log.write(`callnext: ${await until(call.page, t => t === 'action-done', 60000)}\n`);
 await call.ctx.close();
 await sara.page.waitForTimeout(3000);

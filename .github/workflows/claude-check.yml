@@ -1,0 +1,29 @@
+name: Claude work-branch checks
+on:
+  push:
+    branches: ['claude/**']
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Render screens
+        run: |
+          set +e
+          flutter test --update-goldens test_preview > shots.txt 2>&1
+          tail -3 shots.txt
+          grep -n -m3 -A12 'EXCEPTION CAUGHT' shots.txt > sx.txt || true
+          [ -s sx.txt ] && echo "::warning title=shots::$(sed ':a;N;$!ba;s/\n/%0A/g' sx.txt)"
+          mkdir -p /tmp/out && cp -r test_preview/goldens /tmp/out/ 2>/dev/null; cp shots.txt /tmp/out/
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git fetch origin claude/shots 2>/dev/null
+          git checkout --orphan shots-tmp && git rm -rq --cached . && rm -rf ./*
+          cp -r /tmp/out/* . && git add -A && git commit -qm "screens ${GITHUB_SHA::7}"
+          git push -f origin HEAD:claude/shots

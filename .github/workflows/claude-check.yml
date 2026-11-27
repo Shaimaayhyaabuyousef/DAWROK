@@ -78,4 +78,6 @@ jobs:
           grep -nEi 'error|fail|assert|denied|✗' rules.txt | head -30 > rf.txt || true
           [ -s rf.txt ] && echo "::error title=rules::$(sed ':a;N;$!ba;s/\n/%0A/g' rf.txt)"
           tail -5 rules.txt
+          grep -v 'GrpcConnection\|evaluation error\|^$' rules.txt | tail -30 > rt.txt
+          echo "::error title=rules-tail::$(sed ':a;N;$!ba;s/\n/%0A/g' rt.txt)"
           exit $code

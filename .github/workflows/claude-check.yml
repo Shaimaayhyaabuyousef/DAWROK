@@ -44,7 +44,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -55,6 +55,9 @@ jobs:
           set +e
           flutter build apk --debug > apk.txt 2>&1; code=$?
           tail -40 apk.txt
-          grep -nE "^e: |error:|FAILURE|What went wrong" -A3 apk.txt | head -40 > ae.txt
-          [ -s ae.txt ] && echo "::error title=apk::$(sed ':a;N;$!ba;s/\n/%0A/g' ae.txt)"
+          if [ $code -ne 0 ]; then
+            grep -nE "^e: |error:|What went wrong|Could not|Exception" -A4 apk.txt | head -60 > ae.txt
+            tail -30 apk.txt >> ae.txt
+            echo "::error title=apk::$(sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' ae.txt)"
+          fi
           exit $code

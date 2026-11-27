@@ -98,7 +98,7 @@ for (const [role, screen, name] of screens) {
   const { ctx, page } = await open(`role=${role}&screen=${screen}`, name);
   const r = await until(page, t => t === 'ready', 60000);
   await page.waitForTimeout(1500);
-  if (role === 'cit') { await page.mouse.click(39, 53); }   // close the "your turn is near" banner
+  if (role === 'cit') { await page.waitForTimeout(11000); }   // the "your turn is near" banner hides by itself
   await page.waitForTimeout(1500);
   await page.screenshot({ path: path.join(OUT, name + '.png') });
   log.write(`${name}: ${r}\n`);
@@ -166,7 +166,7 @@ for (const [screen, name] of [['active_queues_screen', 'c_queues_called'], ['hom
   const after = await open(`role=${role}&screen=${screen}`, name);
   await until(after.page, t => t === 'ready', 60000);
   await after.page.waitForTimeout(1500);
-  if (role === 'cit') { await after.page.mouse.click(39, 53); }
+  
   await after.page.waitForTimeout(1500);
   await after.page.screenshot({ path: path.join(OUT, name + '.png') });
   await after.ctx.close();

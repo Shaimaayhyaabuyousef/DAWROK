@@ -828,7 +828,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
           Expanded(
             child: Text(
-              tr('Window opens in ${timeLeft ?? 'soon'}'),
+              tr(timeLeft == null ? 'Window opens soon' : 'Window opens in $timeLeft'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(

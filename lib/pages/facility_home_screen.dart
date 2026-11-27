@@ -234,7 +234,7 @@ class _FacilityHomeScreenState extends State<FacilityHomeScreen> {
                 children: [
                   TextSpan(text: tr('System status: ')),
                   TextSpan(
-                    text: _online ? 'Online' : 'Offline',
+                    text: tr(_online ? 'Online' : 'Offline'),
                     style: TextStyle(
                       color: _online
                           ? const Color(0xFF00A575)

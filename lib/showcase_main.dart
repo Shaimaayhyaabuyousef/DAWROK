@@ -182,7 +182,8 @@ Future<Map<String, dynamic>?> myAssignment(String fid) async {
   return (doc.data()?['assignments'] as Map?)?[FirebaseAuth.instance.currentUser!.uid] as Map<String, dynamic>?;
 }
 
-/// Lina calls the next ticket in her queue; optionally checks it in.
+/// Lina finishes the ticket at her window, if any, then calls the next one;
+/// with [serve] she also checks in and completes the newly called ticket.
 Future<void> callAndServe(String fid, {required bool serve}) async {
   await signIn(staffPeople[0].$2);
   final a = await myAssignment(fid);
@@ -190,10 +191,18 @@ Future<void> callAndServe(String fid, {required bool serve}) async {
   final work = EmployeeWorkService.forEmployee(fid);
   final qid = a['queueId'] as String;
   final window = (a['windowNumber'] as num).toInt();
+  final db = FirebaseFirestore.instance;
+  Future<void> finish(String id) async {
+    final b = (await db.collection('bookings').doc(id).get()).data();
+    if (b?['checkedIn'] != true) await work.checkIn(id, qid, window);
+    await work.changeTicket(id, 'served', qid, window);
+  }
+  final lane = await db.collection('facilities').doc(fid).collection('queues').doc(qid).collection('lanes').doc('$window').get();
+  final current = lane.data()?['ticketId'] as String? ?? '';
+  if (current.isNotEmpty) await finish(current);
   final called = await work.callNext(qid, window);
-  // callNext reports 'Calling ticket #<id>'.
-  final id = called.split('#').last.trim();
-  if (serve) await work.checkIn(id, qid, window);
+  if (!called.startsWith('Calling ticket #')) throw StateError(called);
+  if (serve) await finish(called.split('#').last.trim());
 }
 
 Future<String> facilityOf(String phone) async {

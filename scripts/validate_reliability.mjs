@@ -46,7 +46,7 @@ async function cancelBooking(actor,uid,q,id,{facility=false,paid=false,extra=fal
  batch.update(cap,{cancelled:firebase.firestore.FieldValue.increment(1),lastCancelled:id,updatedAt:stamp(),
    ...(extra?{rewardReserved:firebase.firestore.FieldValue.increment(-1)}:{})});
  const guard=db.doc('users/'+uid+'/booking_days/'+day);
- batch.update(guard,{[new firebase.firestore.FieldPath('queues','reliability|General')]:firebase.firestore.FieldValue.delete(),['slots.'+slot]:firebase.firestore.FieldValue.delete(),lastCancelled:id,updatedAt:stamp()});
+ batch.update(guard,new firebase.firestore.FieldPath('queues','reliability|General'),firebase.firestore.FieldValue.delete(),'slots.'+slot,firebase.firestore.FieldValue.delete(),'lastCancelled',id,'updatedAt',stamp());
  if(paid){
    batch.update(acc,{points:firebase.firestore.FieldValue.increment(100),lastAction:'refund',lastBookingId:id,updatedAt:stamp()});
    batch.set(acc.collection('point_transactions').doc('refund_'+id),{bookingId:id,points:100,reason:'refund',createdAt:stamp()});

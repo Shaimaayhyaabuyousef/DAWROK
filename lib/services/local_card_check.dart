@@ -60,8 +60,14 @@ CardCheck assessCard(
 }
 
 Future<CardCheck> readLocalCard(Uint8List image, String expected) async {
-  final data = await const MethodChannel('dawrok/id_reader')
-      .invokeMapMethod<String, dynamic>('read', image);
+  Map<String, dynamic>? data;
+  try {
+    data = await const MethodChannel('dawrok/id_reader')
+        .invokeMapMethod<String, dynamic>('read', image);
+  } on PlatformException {
+    // The reader runs in its own process; if it fails the user can retake.
+    return CardCheck.unreadable;
+  }
   if (data == null) return CardCheck.unreadable;
   final lines = (data['lines'] as List)
       .whereType<Map>()

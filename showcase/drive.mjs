@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { chromium } from 'playwright';
 
 const ROOT = path.resolve('build/web');
@@ -68,6 +68,17 @@ const seed = await open('seed=1', 'seed');
 const s = await until(seed.page, t => t === 'seed-done' || t.startsWith('seed-failed'), 240000);
 log.write(`SEED RESULT: ${s}\n`);
 await seed.ctx.close();
+// Tickets are booked into the next arrival window; bring the morning's
+// windows forward so the counter can serve them now.
+{
+  const all = await db.collection('bookings').orderBy('queuePosition').get();
+  let n = 0;
+  for (const d of all.docs) {
+    await d.ref.update({ slotStart: Timestamp.fromMillis(Date.now() - (40 - n * 5) * 60000) });
+    n++;
+  }
+  log.write(`shifted ${n} bookings\n`);
+}
 for (const a of ['serve', 'callnext']) {
   const x = await open(`role=stf&action=${a}`, a);
   log.write(`${a}: ${await until(x.page, t => t === 'action-done', 60000)}\n`);

@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
 import 'firebase_options.dart';
@@ -262,6 +263,7 @@ class ShowcaseApp extends StatelessWidget {
       theme: base.theme,
       builder: base.builder,
       routes: base.routes!,
+      scrollBehavior: const MaterialScrollBehavior().copyWith(dragDevices: {PointerDeviceKind.mouse, PointerDeviceKind.touch}),
       home: switch (screen) {
         'ticket' => const _Ticket(),
         'details' => const _Details(),

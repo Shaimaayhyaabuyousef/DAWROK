@@ -1,0 +1,60 @@
+[seed] SHOWCASE: seed: queues
+[seed] SHOWCASE: seed: invites
+[seed] SHOWCASE: seed: join requests
+[seed] SHOWCASE: seed: approved
+[seed] SHOWCASE: seed: profiles
+[seed] SHOWCASE: seed: bookings
+[seed] SHOWCASE: seed-done
+SEED RESULT: seed-done
+[stf&action=serve] SHOWCASE: action-done
+[stf2&action=callnext] Injecting <script> tag. Using callback.
+[stf2&action=callnext] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[stf2&action=callnext] Initializing Firebase firebase_core
+[stf2&action=callnext] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[stf2&action=callnext] Initializing Firebase firebase_firestore
+[stf2&action=callnext] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[stf2&action=callnext] Initializing Firebase firebase_auth
+[stf2&action=callnext] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[stf2&action=callnext] SHOWCASE: action-done
+stf2&action=callnext: action-done
+[c_home] SHOWCASE: ready
+c_home: ready
+[c_facilities] SHOWCASE: ready
+c_facilities: ready
+[c_details] SHOWCASE: ready
+c_details: ready
+[c_queues] SHOWCASE: ready
+c_queues: ready
+[c_ticket] SHOWCASE: ready
+c_ticket: ready
+[c_notifications] SHOWCASE: ready
+c_notifications: ready
+[c_points] SHOWCASE: ready
+c_points: ready
+[c_profile] SHOWCASE: ready
+c_profile: ready
+[c_settings] SHOWCASE: ready
+c_settings: ready
+[c_report] SHOWCASE: ready
+c_report: ready
+[c_who] SHOWCASE: ready
+c_who: ready
+[c_home_empty] SHOWCASE: ready
+c_home_empty: ready
+[c_queues_empty] SHOWCASE: ready
+c_queues_empty: ready
+[f_home] SHOWCASE: ready
+f_home: ready
+[f_queues] SHOWCASE: ready
+f_queues: ready
+[f_staff] SHOWCASE: ready
+f_staff: ready
+[f_search] SHOWCASE: ready
+f_search: ready
+[f_profile] SHOWCASE: ready
+f_profile: ready
+[s_home] SHOWCASE: ready
+s_home: ready
+[s_scanner] SHOWCASE: ready
+s_scanner: ready
+[s_profile] SHOWCASE: ready

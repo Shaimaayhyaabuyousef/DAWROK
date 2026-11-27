@@ -1,0 +1,447 @@
+[seed] Injecting <script> tag. Using callback.
+[seed] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[seed] Initializing Firebase firebase_core
+[seed] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[seed] Initializing Firebase firebase_firestore
+[seed] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[seed] Initializing Firebase firebase_auth
+[seed] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[seed] [.WebGL-0x236c05559e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+[seed] [.WebGL-0x236c05559e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+[seed] [.WebGL-0x236c05559e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+[seed] [.WebGL-0x236c05559e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)
+[seed] DAWROK: loaded 0 queue documents from facilities/100245/queues
+[seed] DAWROK: created queue at facilities/100245/queues/window_1
+[seed] DAWROK: loaded 1 queue documents from facilities/100245/queues
+[seed] DAWROK: created queue at facilities/100245/queues/window_2
+[seed] DAWROK: loaded 2 queue documents from facilities/100245/queues
+[seed] DAWROK: created queue at facilities/100245/queues/window_3
+[seed] DAWROK: loaded 3 queue documents from facilities/100245/queues
+[seed] SHOWCASE: seed: queues
+[seed] DAWROK: loaded 0 staff records from facilities/100245/staff
+[seed] DAWROK: staff and invite saved on server at facilities/100245/staff/1795795858664000
+[seed] DAWROK: loaded 1 staff records from facilities/100245/staff
+[seed] DAWROK: staff and invite saved on server at facilities/100245/staff/1795795858981000
+[seed] DAWROK: loaded 2 staff records from facilities/100245/staff
+[seed] SHOWCASE: seed: invites
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load queues: [cloud_firestore/permission-denied] 
+[seed] Property isActive is undefined on object. for 'list' @ L625, false for 'list' @ L1047, Property isActive is undefined on object. for 'list' @ L625, false for 'list' @ L1047
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] SHOWCASE: seed: join requests
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK: loaded 2 staff records from facilities/100245/staff
+[seed] SHOWCASE: seed: approved
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] SHOWCASE: seed: profiles
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] DAWROK Failed to load facility: Bad state: An active facility account is required.
+[seed] DAWROK Staff facility: Bad state: An active facility account is required.
+[seed] SHOWCASE: seed: bookings
+[seed] DAWROK Failed to load facility: Bad state: Please sign in.
+[seed] DAWROK Staff facility: Bad state: Please sign in.
+[seed] SHOWCASE: seed-done
+SEED RESULT: seed-done
+shifted 6 bookings
+[stf&action=serve] Injecting <script> tag. Using callback.
+[stf&action=serve] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[stf&action=serve] Initializing Firebase firebase_core
+[stf&action=serve] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[stf&action=serve] Initializing Firebase firebase_firestore
+[stf&action=serve] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[stf&action=serve] Initializing Firebase firebase_auth
+[stf&action=serve] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[stf&action=serve] SHOWCASE: action-done
+stf&action=serve: action-done
+[stf2&action=callnext] Injecting <script> tag. Using callback.
+[stf2&action=callnext] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[stf2&action=callnext] Initializing Firebase firebase_core
+[stf2&action=callnext] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[stf2&action=callnext] Initializing Firebase firebase_firestore
+[stf2&action=callnext] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[stf2&action=callnext] Initializing Firebase firebase_auth
+[stf2&action=callnext] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[stf2&action=callnext] SHOWCASE: action-done
+stf2&action=callnext: action-done
+[c_home] Injecting <script> tag. Using callback.
+[c_home] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_home] Initializing Firebase firebase_core
+[c_home] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_home] Initializing Firebase firebase_firestore
+[c_home] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_home] Initializing Firebase firebase_auth
+[c_home] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_home] SHOWCASE: ready
+c_home: ready
+[c_facilities] Injecting <script> tag. Using callback.
+[c_facilities] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_facilities] Initializing Firebase firebase_core
+[c_facilities] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_facilities] Initializing Firebase firebase_firestore
+[c_facilities] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_facilities] Initializing Firebase firebase_auth
+[c_facilities] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_facilities] SHOWCASE: ready
+c_facilities: ready
+[c_details] Injecting <script> tag. Using callback.
+[c_details] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_details] Initializing Firebase firebase_core
+[c_details] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_details] Initializing Firebase firebase_firestore
+[c_details] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_details] Initializing Firebase firebase_auth
+[c_details] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_details] SHOWCASE: ready
+c_details: ready
+[c_queues] Injecting <script> tag. Using callback.
+[c_queues] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_queues] Initializing Firebase firebase_core
+[c_queues] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_queues] Initializing Firebase firebase_firestore
+[c_queues] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_queues] Initializing Firebase firebase_auth
+[c_queues] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_queues] SHOWCASE: ready
+c_queues: ready
+[c_ticket] Injecting <script> tag. Using callback.
+[c_ticket] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_ticket] Initializing Firebase firebase_core
+[c_ticket] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_ticket] Initializing Firebase firebase_firestore
+[c_ticket] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_ticket] Initializing Firebase firebase_auth
+[c_ticket] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_ticket] SHOWCASE: ready
+c_ticket: ready
+[c_notifications] Injecting <script> tag. Using callback.
+[c_notifications] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_notifications] Initializing Firebase firebase_core
+[c_notifications] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_notifications] Initializing Firebase firebase_firestore
+[c_notifications] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_notifications] Initializing Firebase firebase_auth
+[c_notifications] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_notifications] SHOWCASE: ready
+c_notifications: ready
+[c_points] Injecting <script> tag. Using callback.
+[c_points] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_points] Initializing Firebase firebase_core
+[c_points] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_points] Initializing Firebase firebase_firestore
+[c_points] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_points] Initializing Firebase firebase_auth
+[c_points] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_points] SHOWCASE: ready
+c_points: ready
+[c_profile] Injecting <script> tag. Using callback.
+[c_profile] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_profile] Initializing Firebase firebase_core
+[c_profile] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_profile] Initializing Firebase firebase_firestore
+[c_profile] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_profile] Initializing Firebase firebase_auth
+[c_profile] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_profile] SHOWCASE: ready
+c_profile: ready
+[c_settings] Injecting <script> tag. Using callback.
+[c_settings] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_settings] Initializing Firebase firebase_core
+[c_settings] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_settings] Initializing Firebase firebase_firestore
+[c_settings] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_settings] Initializing Firebase firebase_auth
+[c_settings] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_settings] SHOWCASE: ready
+c_settings: ready
+[c_report] Injecting <script> tag. Using callback.
+[c_report] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_report] Initializing Firebase firebase_core
+[c_report] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_report] Initializing Firebase firebase_firestore
+[c_report] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_report] Initializing Firebase firebase_auth
+[c_report] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_report] SHOWCASE: ready
+c_report: ready
+[c_who] Injecting <script> tag. Using callback.
+[c_who] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_who] Initializing Firebase firebase_core
+[c_who] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_who] Initializing Firebase firebase_firestore
+[c_who] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_who] Initializing Firebase firebase_auth
+[c_who] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_who] SHOWCASE: ready
+c_who: ready
+[c_home_empty] Injecting <script> tag. Using callback.
+[c_home_empty] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_home_empty] Initializing Firebase firebase_core
+[c_home_empty] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_home_empty] Initializing Firebase firebase_firestore
+[c_home_empty] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_home_empty] Initializing Firebase firebase_auth
+[c_home_empty] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_home_empty] SHOWCASE: ready
+c_home_empty: ready
+[c_queues_empty] Injecting <script> tag. Using callback.
+[c_queues_empty] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_queues_empty] Initializing Firebase firebase_core
+[c_queues_empty] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_queues_empty] Initializing Firebase firebase_firestore
+[c_queues_empty] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_queues_empty] Initializing Firebase firebase_auth
+[c_queues_empty] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_queues_empty] SHOWCASE: ready
+c_queues_empty: ready
+[f_home] Injecting <script> tag. Using callback.
+[f_home] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[f_home] Initializing Firebase firebase_core
+[f_home] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[f_home] Initializing Firebase firebase_firestore
+[f_home] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[f_home] Initializing Firebase firebase_auth
+[f_home] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[f_home] SHOWCASE: ready
+f_home: ready
+[f_queues] Injecting <script> tag. Using callback.
+[f_queues] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[f_queues] Initializing Firebase firebase_core
+[f_queues] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[f_queues] Initializing Firebase firebase_firestore
+[f_queues] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[f_queues] Initializing Firebase firebase_auth
+[f_queues] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[f_queues] DAWROK: loaded 3 queue documents from facilities/100245/queues
+[f_queues] SHOWCASE: ready
+f_queues: ready
+[f_staff] Injecting <script> tag. Using callback.
+[f_staff] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[f_staff] Initializing Firebase firebase_core
+[f_staff] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[f_staff] Initializing Firebase firebase_firestore
+[f_staff] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[f_staff] Initializing Firebase firebase_auth
+[f_staff] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[f_staff] DAWROK: loaded 2 staff records from facilities/100245/staff
+[f_staff] SHOWCASE: ready
+f_staff: ready
+[f_search] Injecting <script> tag. Using callback.
+[f_search] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[f_search] Initializing Firebase firebase_core
+[f_search] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[f_search] Initializing Firebase firebase_firestore
+[f_search] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[f_search] Initializing Firebase firebase_auth
+[f_search] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[f_search] SHOWCASE: ready
+f_search: ready
+[f_profile] Injecting <script> tag. Using callback.
+[f_profile] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[f_profile] Initializing Firebase firebase_core
+[f_profile] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[f_profile] Initializing Firebase firebase_firestore
+[f_profile] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[f_profile] Initializing Firebase firebase_auth
+[f_profile] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[f_profile] SHOWCASE: ready
+f_profile: ready
+[s_home] Injecting <script> tag. Using callback.
+[s_home] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[s_home] Initializing Firebase firebase_core
+[s_home] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[s_home] Initializing Firebase firebase_firestore
+[s_home] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[s_home] Initializing Firebase firebase_auth
+[s_home] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[s_home] SHOWCASE: ready
+s_home: ready
+[s_scanner] Injecting <script> tag. Using callback.
+[s_scanner] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[s_scanner] Initializing Firebase firebase_core
+[s_scanner] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[s_scanner] Initializing Firebase firebase_firestore
+[s_scanner] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[s_scanner] Initializing Firebase firebase_auth
+[s_scanner] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[s_scanner] SHOWCASE: ready
+s_scanner: ready
+[s_profile] Injecting <script> tag. Using callback.
+[s_profile] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[s_profile] Initializing Firebase firebase_core
+[s_profile] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[s_profile] Initializing Firebase firebase_firestore
+[s_profile] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[s_profile] Initializing Firebase firebase_auth
+[s_profile] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[s_profile] SHOWCASE: ready
+s_profile: ready
+[e_splash] Injecting <script> tag. Using callback.
+[e_splash] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[e_splash] Initializing Firebase firebase_core
+[e_splash] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[e_splash] Initializing Firebase firebase_firestore
+[e_splash] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[e_splash] Initializing Firebase firebase_auth
+[e_splash] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[e_onb] Injecting <script> tag. Using callback.
+[e_onb] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[e_onb] Initializing Firebase firebase_core
+[e_onb] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[e_onb] Initializing Firebase firebase_firestore
+[e_onb] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[e_onb] Initializing Firebase firebase_auth
+[e_onb] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[e_onb] SHOWCASE: ready
+[e_login] Injecting <script> tag. Using callback.
+[e_login] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[e_login] Initializing Firebase firebase_core
+[e_login] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[e_login] Initializing Firebase firebase_firestore
+[e_login] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[e_login] Initializing Firebase firebase_auth
+[e_login] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[e_login] SHOWCASE: ready
+[e_signup] Injecting <script> tag. Using callback.
+[e_signup] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[e_signup] Initializing Firebase firebase_core
+[e_signup] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[e_signup] Initializing Firebase firebase_firestore
+[e_signup] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[e_signup] Initializing Firebase firebase_auth
+[e_signup] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[e_signup] SHOWCASE: ready
+[e_idv] Injecting <script> tag. Using callback.
+[e_idv] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[e_idv] Initializing Firebase firebase_core
+[e_idv] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[e_idv] Initializing Firebase firebase_firestore
+[e_idv] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[e_idv] Initializing Firebase firebase_auth
+[e_idv] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[e_idv] SHOWCASE: ready
+[e_staff_login] Injecting <script> tag. Using callback.
+[e_staff_login] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[e_staff_login] Initializing Firebase firebase_core
+[e_staff_login] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[e_staff_login] Initializing Firebase firebase_firestore
+[e_staff_login] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[e_staff_login] Initializing Firebase firebase_auth
+[e_staff_login] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[e_staff_login] SHOWCASE: ready
+[e_staff_join] Injecting <script> tag. Using callback.
+[e_staff_join] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[e_staff_join] Initializing Firebase firebase_core
+[e_staff_join] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[e_staff_join] Initializing Firebase firebase_firestore
+[e_staff_join] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[e_staff_join] Initializing Firebase firebase_auth
+[e_staff_join] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[e_staff_join] SHOWCASE: ready
+[s_typed] Injecting <script> tag. Using callback.
+[s_typed] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[s_typed] Initializing Firebase firebase_core
+[s_typed] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[s_typed] Initializing Firebase firebase_firestore
+[s_typed] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[s_typed] Initializing Firebase firebase_auth
+[s_typed] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[s_typed] SHOWCASE: ready
+[alert] Injecting <script> tag. Using callback.
+[alert] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[alert] Initializing Firebase firebase_core
+[alert] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[alert] Initializing Firebase firebase_firestore
+[alert] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[alert] Initializing Firebase firebase_auth
+[alert] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[alert] SHOWCASE: ready
+[ownercall] Injecting <script> tag. Using callback.
+[ownercall] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[ownercall] Initializing Firebase firebase_core
+[ownercall] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[ownercall] Initializing Firebase firebase_firestore
+[ownercall] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[ownercall] Initializing Firebase firebase_auth
+[ownercall] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[ownercall] SHOWCASE: action-done
+callnext: action-done
+[c_queues_called] Injecting <script> tag. Using callback.
+[c_queues_called] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_queues_called] Initializing Firebase firebase_core
+[c_queues_called] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_queues_called] Initializing Firebase firebase_firestore
+[c_queues_called] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_queues_called] Initializing Firebase firebase_auth
+[c_queues_called] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_queues_called] SHOWCASE: ready
+[c_home_called] Injecting <script> tag. Using callback.
+[c_home_called] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_home_called] Initializing Firebase firebase_core
+[c_home_called] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_home_called] Initializing Firebase firebase_firestore
+[c_home_called] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_home_called] Initializing Firebase firebase_auth
+[c_home_called] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_home_called] SHOWCASE: ready
+[c_ticket_called] Injecting <script> tag. Using callback.
+[c_ticket_called] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[c_ticket_called] Initializing Firebase firebase_core
+[c_ticket_called] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[c_ticket_called] Initializing Firebase firebase_firestore
+[c_ticket_called] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[c_ticket_called] Initializing Firebase firebase_auth
+[c_ticket_called] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[c_ticket_called] SHOWCASE: ready
+[f_search_after] Injecting <script> tag. Using callback.
+[f_search_after] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[f_search_after] Initializing Firebase firebase_core
+[f_search_after] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[f_search_after] Initializing Firebase firebase_firestore
+[f_search_after] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[f_search_after] Initializing Firebase firebase_auth
+[f_search_after] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[f_search_after] SHOWCASE: ready
+[f_home_after] Injecting <script> tag. Using callback.
+[f_home_after] TrustedTypes available. Creating policy: flutterfire-firebase_core
+[f_home_after] Initializing Firebase firebase_core
+[f_home_after] TrustedTypes available. Creating policy: flutterfire-firebase_firestore
+[f_home_after] Initializing Firebase firebase_firestore
+[f_home_after] TrustedTypes available. Creating policy: flutterfire-firebase_auth
+[f_home_after] Initializing Firebase firebase_auth
+[f_home_after] WARNING: You are using the Auth Emulator, which is intended for local testing only.  Do not use with production credentials.
+[f_home_after] SHOWCASE: ready

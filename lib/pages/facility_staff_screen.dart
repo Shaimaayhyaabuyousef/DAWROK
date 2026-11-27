@@ -1,0 +1,224 @@
+import 'facility_empty_state.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'facility_nav.dart';
+import 'facility_staff_store.dart';
+import 'facility_add_staff_screen.dart';
+import 'facility_staff_code_dialog.dart';
+import 'package:first_project/l10n/app_language.dart';
+
+class FacilityStaffScreen extends StatefulWidget {
+  const FacilityStaffScreen({super.key});
+
+  @override
+  State<FacilityStaffScreen> createState() => _FacilityStaffScreenState();
+}
+
+class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await FacilityStaffStore.instance.refresh();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr('Could not load staff from Firebase: $e'))),
+          );
+        }
+      }
+    });
+  }
+
+  @override Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: SafeArea(bottom: false, child: AnimatedBuilder(
+      animation: FacilityStaffStore.instance,
+      builder: (context, _) {
+        final store = FacilityStaffStore.instance;
+        if (store.staff.isEmpty && store.error == null) {
+          return FacilityCentered(
+            child: store.hasLoadedStaff
+                ? FacilityEmptyState.staff(action: _addButton(context))
+                : const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+          );
+        }
+        return Column(children: [
+        Expanded(child: ListView(padding: const EdgeInsetsDirectional.fromSTEB(19, 45, 19, 20), children: [
+          if (FacilityStaffStore.instance.error != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: SelectableText(tr(FacilityStaffStore.instance.error!),
+                style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+            ),
+          ],
+          ...FacilityStaffStore.instance.staff.map((s) => Padding(padding: const EdgeInsets.only(bottom: 16), child: _staffCard(context, s))),
+          const SizedBox(height: 3),
+          _addButton(context),
+        ])),
+      ]);
+      },
+    )),
+    bottomNavigationBar: const FacilityBottomNav(selected: 2),
+  );
+
+  Widget _addButton(BuildContext context) => SizedBox(height: 54, child: ElevatedButton.icon(
+    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FacilityAddStaffScreen())),
+    style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+    icon: const Icon(Icons.add_circle_outline, size: 24), label: Text(tr('Add Staff Member'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600))));
+
+  Future<void> _write(BuildContext context, Future<void> Function() action) async {
+    try { await action(); }
+    catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(e.toString()))));
+    }
+  }
+  Future<void> _reissue(BuildContext context, FacilityStaff staff) async {
+    try {
+      final issued = await FacilityStaffStore.instance.replaceInvite(staff);
+      if (!context.mounted) return;
+      await showStaffCodeDialog(
+        context,
+        code: issued.code,
+        facilityNumber: issued.facilityNumber,
+        staffName: staff.name,
+        expiresAt: issued.expiresAt,
+      );
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('$e'))),
+      );
+    }
+  }
+
+  Widget _inviteCard(BuildContext context, FacilityStaff staff) {
+    final code = staff.linkCode;
+    if (code == null || code.isEmpty) return const SizedBox.shrink();
+    final expired = staff.codeExpiresAt != null &&
+        DateTime.now().isAfter(staff.codeExpiresAt!);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F9FF),
+        border: Border.all(color: const Color(0xFFBDE6FF)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.key_outlined, color: Color(0xFF008DD8), size: 18),
+          const SizedBox(width: 7),
+          Expanded(child: Text(tr('Employee Link Code'),
+              style: TextStyle(color: facilityDark,
+                fontWeight: FontWeight.w600, fontSize: 13))),
+          Text(tr(expired ? 'Expired' : 'Valid for 24h'),
+            style: TextStyle(fontSize: 11,
+              color: expired ? Colors.redAccent : const Color(0xFF007CB2))),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: SelectableText(tr(code),
+            style: const TextStyle(color: facilityDark,
+              fontWeight: FontWeight.bold, fontSize: 15))),
+          IconButton(
+            tooltip: tr('Copy employee link code'),
+            visualDensity: VisualDensity.compact,
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: code));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(tr('Code copied to clipboard'))),
+                );
+              }
+            },
+            icon: const Icon(Icons.copy_outlined,
+              color: Color(0xFF008DD8), size: 21),
+          ),
+        ]),
+        if (expired)
+          Text(tr('Generate a new code before the employee joins.'),
+            style: TextStyle(color: Colors.redAccent, fontSize: 11)),
+      ]),
+    );
+  }
+
+  Widget _staffCard(BuildContext context, FacilityStaff s) {
+    final isPending = s.state == StaffState.pending;
+    final active = s.state == StaffState.active;
+    return Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white,
+      border: Border.all(color: const Color(0xFFE0E9F1)), borderRadius: BorderRadius.circular(20),
+      boxShadow: const [BoxShadow(color: Color(0x0C2A5C86), blurRadius: 9, offset: Offset(0, 5))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(tr(s.name), style: const TextStyle(color: facilityDark, fontSize: 17, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 5),
+            if (!isPending) Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 10, children: [
+              Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3), decoration: BoxDecoration(color: active ? const Color(0xFFECFFF4) : const Color(0xFFFFF3E6), border: Border.all(color: active ? const Color(0xFF9EF4C8) : const Color(0xFFFFD9A2)), borderRadius: BorderRadius.circular(5)), child: Text(tr(active ? 'Active' : 'Stopped'), style: TextStyle(color: active ? const Color(0xFF008A60) : const Color(0xFFD57A00), fontSize: 12))),
+              Text(tr(s.window), style: const TextStyle(color: Color(0xFF60738E), fontSize: 13)),
+            ]),
+          ])),
+          Container(height: 65, width: 65, decoration: BoxDecoration(color: const Color(0xFFE2F4FF), border: Border.all(color: const Color(0xFFA7E3FF), width: 2), borderRadius: BorderRadius.circular(12)), child: Center(child: Text(tr(_initials(s.name)), style: const TextStyle(fontSize: 21, color: Color(0xFF008FD3))))),
+        ]),
+        const SizedBox(height: 10),
+        Text(tr(s.description.isNotEmpty ? s.description : _roleDescription(s.role)), style: const TextStyle(color: Color(0xFF485971), height: 1.55, fontSize: 13)),
+        const Divider(height: 25, color: Color(0xFFE5EBF1)),
+        if (isPending) ...[
+          if (s.linkCode != null) _inviteCard(context, s),
+          if (s.hasJoinRequest) ...[
+            if (s.requesterPhone != null) Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(tr('Request from: ${s.requesterPhone}'),
+                style: const TextStyle(fontSize: 12, color: facilityMuted))),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              _action('Reject', Icons.cancel_outlined,
+                const Color(0xFFEB2856), const Color(0xFFFFF1F3),
+                () => _write(context, () => FacilityStaffStore.instance.reject(s))),
+              const SizedBox(width: 8),
+              _action('Accept', Icons.check_circle_outline,
+                const Color(0xFF6FAE34), const Color(0xFFE8F4D9),
+                () => _write(context, () => FacilityStaffStore.instance.approve(s))),
+            ]),
+          ] else ...[
+            Text(tr('Waiting for the employee to enter their invitation code.'),
+              style: TextStyle(fontSize: 12, color: facilityMuted)),
+            const SizedBox(height: 9),
+            Align(alignment: AlignmentDirectional.centerEnd,
+              child: _action(s.linkCode == null ? 'New Code' : 'Regenerate Code', Icons.key_outlined,
+                const Color(0xFF007AB6), const Color(0xFFE8F5FF),
+                () => _reissue(context, s))),
+          ],
+        ]
+        else ...[
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            _action('Delete', Icons.delete_outline, const Color(0xFFEB2856), const Color(0xFFFFF1F3), () async {
+              if (await confirmFacilityAction(context, 'Delete ${s.name}?') && context.mounted) await _write(context, () => FacilityStaffStore.instance.remove(s));
+            }), const SizedBox(width: 8),
+            _action('Edit', Icons.edit_note_outlined, const Color(0xFF34455E), const Color(0xFFF2F5F9), () => Navigator.push(context, MaterialPageRoute(builder: (_) => FacilityAddStaffScreen(editing: s)))),
+          ]),
+          const SizedBox(height: 8),
+          SizedBox(width: double.infinity, height: 38, child: OutlinedButton.icon(
+            onPressed: () => s.joinStatus == 'approved'
+              ? _write(context, () => FacilityStaffStore.instance.changeState(s, active ? StaffState.suspended : StaffState.active))
+              : _reissue(context, s),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFC86B00), backgroundColor: const Color(0xFFFFFBEB), side: const BorderSide(color: Color(0xFFF7D86E)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9))),
+            icon: Icon(active ? Icons.block : Icons.check_circle_outline, size: 16), label: Text(tr(s.joinStatus == 'approved'
+              ? (active ? 'Removal of validity' : 'Restore validity')
+              : 'Generate New Code')),
+          )),
+        ],
+      ]),
+    );
+  }
+  Widget _action(String label, IconData icon, Color fg, Color bg, VoidCallback callback) =>
+    SizedBox(height: 35, child: OutlinedButton.icon(onPressed: callback, style: OutlinedButton.styleFrom(backgroundColor: bg, foregroundColor: fg, side: BorderSide(color: fg.withValues(alpha: .2)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)), padding: const EdgeInsets.symmetric(horizontal: 10)), icon: Icon(icon, size: 17), label: Text(tr(label))));
+  String _initials(String name) => name.split(' ').where((s) => s.isNotEmpty).take(2).map((s) => s[0]).join().toUpperCase();
+  String _roleDescription(StaffRole role) => switch (role) {
+    StaffRole.windowOfficer => 'Window Officer: Handles queue intake and customer check-ins.',
+    StaffRole.supervisor => 'Queue Supervisor: Oversees staff and queue operations.',
+    StaffRole.logistics => 'Logistics: Coordinates deliveries and service operations.',
+  };
+}

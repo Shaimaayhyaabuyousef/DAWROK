@@ -1,631 +1,552 @@
-
+import 'citizen_bottom_nav.dart';
+import '../services/booking_cancellation.dart';
+import '../services/facility_time.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'facilities_screen.dart';
-import 'active_queues_screen.dart';
+import 'citizen_facility_scanner.dart';
 
+import '../services/citizen_account_service.dart';
+import 'citizen_ui.dart';
+import 'facilities_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  String? _welcomeError;
+  @override
+  void initState() {
+    super.initState();
+    _welcome();
+  }
+
+  Future<void> _welcome() async {
+    try {
+      await CitizenAccountService.instance.ensureWelcome();
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) await BookingCancellation.settleCitizenClosures(uid);
+      if (mounted) setState(() => _welcomeError = null);
+    } catch (_) {
+      if (mounted)
+        setState(() => _welcomeError = 'Notifications could not be synced.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Container(
-            margin: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-
-                // ------- Welcome card -------
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(
-                        backgroundColor: Colors.blue,
-                        child: Text(
-                          "C",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Welcome back,",
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                            const Text(
-                              "Good morning, Citizen",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null)
+      return Scaffold(body: Center(child: Text(tr('Please sign in.'))));
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: CitizenAccountService.instance.account(user.uid).snapshots(),
+      builder: (context, account) =>
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('bookings')
+                .where('citizenId', isEqualTo: user.uid)
+                .snapshots(),
+            builder: (context, bookings) =>
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: CitizenAccountService.instance
+                      .events(user.uid)
+                      .where('read', isEqualTo: false)
+                      .snapshots(),
+                  builder: (context, events) {
+                    final active =
+                        bookings.data?.docs
+                            .where(
+                              (d) => [
+                                'waiting',
+                                'called',
+                              ].contains(d.data()['status']),
+                            )
+                            .toList() ??
+                        [];
+                    active.sort(
+                      (a, b) =>
+                          ((b.data()['createdAt'] as Timestamp?)
+                                      ?.millisecondsSinceEpoch ??
+                                  0)
+                              .compareTo(
+                                (a.data()['createdAt'] as Timestamp?)
+                                        ?.millisecondsSinceEpoch ??
+                                    0,
                               ),
+                    );
+                    final ticket = active.isEmpty ? null : active.first;
+                    final raw = (user.displayName ?? '').trim();
+                    return CitizenHomeView(
+                      name: raw.isEmpty ? 'Citizen' : raw,
+                      points: account.hasData
+                          ? CitizenAccountService.policy(account.data!.data())
+                                .points
+                          : null,
+                      booking: ticket?.data(),
+                      ticketId: ticket?.id,
+                      loading: !bookings.hasData && !bookings.hasError,
+                      error: bookings.hasError
+                          ? 'Unable to load your bookings. Please try again.'
+                          : _welcomeError,
+                      unread: events.hasData && events.data!.docs.isNotEmpty,
+                      onScan: () => openFacilityScanner(context),
+                      onSearch: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FacilitiesScreen(),
+                        ),
+                      ),
+                      onPoints: () =>
+                          Navigator.pushNamed(context, 'citizen_points'),
+                      onNotifications: () =>
+                          Navigator.pushNamed(context, 'citizen_notifications'),
+                      onTicket: () => ticket == null
+                          ? null
+                          : openCitizenTicket(
+                              context,
+                              ticket.id,
+                              ticket.data(),
                             ),
-                          ],
-                        ),
+                      onBookings: () => Navigator.pushReplacementNamed(
+                        context,
+                        'active_queues_screen',
                       ),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.star,
-                                color: Colors.orange, size: 16),
-                            SizedBox(width: 4),
-                            Text("1,250 Pts"),
-                          ],
-                        ),
+                      onProfile: () => Navigator.pushReplacementNamed(
+                        context,
+                        'profile_screen',
                       ),
-
-                      const SizedBox(width: 10),
-
-                      Stack(
-                        children: [
-                          const Icon(
-                            Icons.notifications,
-                            color: Colors.blue,
-                          ),
-                          Positioned(
-                            right: 0,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // ------- Search bar -------
-                TextField(
-                  readOnly: true,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const FacilitiesScreen(),
-                      ),
+                      onRetry: () {
+                        setState(() {});
+                        _welcome();
+                      },
                     );
                   },
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: "Search",
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
                 ),
+          ),
+    );
+  }
+}
 
-                const SizedBox(height: 25),
-
-                // ------- Facilities header -------
+/// Presentational view: no sample bookings or balances. Also used by layout tests.
+class CitizenHomeView extends StatelessWidget {
+  final String name;
+  final int? points;
+  final String? ticketId, error;
+  final Map<String, dynamic>? booking;
+  final bool loading, unread;
+  /// Opens the camera to scan a facility QR. Hidden when null.
+  final VoidCallback? onScan;
+  final VoidCallback onSearch,
+      onPoints,
+      onNotifications,
+      onTicket,
+      onBookings,
+      onProfile,
+      onRetry;
+  const CitizenHomeView({
+    super.key,
+    required this.name,
+    this.points,
+    this.ticketId,
+    this.booking,
+    this.error,
+    this.loading = false,
+    this.unread = false,
+    required this.onSearch,
+    required this.onPoints,
+    required this.onNotifications,
+    required this.onTicket,
+    required this.onBookings,
+    required this.onProfile,
+    required this.onRetry,
+    this.onScan,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : hour < 18
+        ? 'Good afternoon'
+        : 'Good evening';
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: ListView(
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 16, 24),
+              children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "Facilities",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[300],
-                      ),
-                    ),
-
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                const FacilitiesScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        "View all",
-                        style: TextStyle(color: Colors.blue),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 15),
-
-                // ------- Facility icons row -------
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    facilityIcon(
-                      Icons.business,
-                      "Al-Nasr",
-                      "Food & Bread",
-                      selected: true,
-                    ),
-                    facilityIcon(
-                      Icons.favorite_border,
-                      "Relief Hub",
-                      "Medical",
-                    ),
-                    facilityIcon(
-                      Icons.home_outlined,
-                      "Cent. Bakery",
-                      "Flour Rations",
-                    ),
-                    facilityIcon(
-                      Icons.inventory_2_outlined,
-                      "Hope Depot",
-                      "Emerg. Kits",
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 25),
-
-                // ------- Active reservation card -------
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white24,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              "ACTIVE RESERVATION",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: citizenPanel(
+                          color: const Color(0xFFF5FBFF),
+                          radius: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: citizenBlue,
+                              child: Text(
+                                tr(name.isEmpty
+                                    ? 'C'
+                                    : name.characters.first.toUpperCase()),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tr('Welcome back,'),
+                                    style: TextStyle(
+                                      color: Color(0xFF71849F),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  Text(
+                                    tr('$greeting, $name'),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: citizenInk,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
+                            const SizedBox(width: 6),
+                            InkWell(
+                              onTap: onPoints,
+                              borderRadius: BorderRadius.circular(22),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: const Color(0xFFB2E6FF),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.star,
+                                      color: Colors.orange,
+                                      size: 14,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      tr('${points ?? '—'} Pts'),
+                                      style: const TextStyle(
+                                        color: Color(0xFF008ED3),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: const Text("10:15 AM"),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      const Text(
-                        "Bread & Ration Supply",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          ],
                         ),
                       ),
-
-                      const Text(
-                        "Ticket #DK-8492 • Family Bakery",
-                        style: TextStyle(color: Colors.white),
+                    ),
+                    IconButton(
+                      tooltip: tr('Notifications'),
+                      onPressed: onNotifications,
+                      icon: Badge(
+                        isLabelVisible: unread,
+                        child: const Icon(
+                          Icons.notifications_rounded,
+                          color: Color(0xFF258FE0),
+                          size: 28,
+                        ),
                       ),
-
-                      const SizedBox(height: 15),
-
-                      const Divider(color: Colors.white38),
-
-                      const SizedBox(height: 10),
-
-                      Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.circle,
-                                color: Colors.greenAccent,
-                                size: 10,
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                "2 citizens ahead • Ready",
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const ActiveQueuesScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              "View",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
+                    ),
+                  ],
+                ),
+                if (error != null)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tr(error!),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: onRetry,
+                        child: Text(tr('Retry')),
                       ),
                     ],
                   ),
-                ),
-
-                const SizedBox(height: 25),
-
-                // ------- Available facilities header -------
-                const Text(
-                  "Facility Available in Your Area",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: onSearch,
+                  borderRadius: BorderRadius.circular(13),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 17,
+                    ),
+                    decoration: citizenPanel(
+                      color: const Color(0xFFF5FBFF),
+                      radius: 13,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tr('Explore the facilities'),
+                          style: TextStyle(
+                            color: citizenSoftBlue,
+                            fontSize: 21,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          tr('Find a facility and book your turn'),
+                          style: TextStyle(color: citizenInk, fontSize: 14),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-
-                const SizedBox(height: 15),
-
-                // ------- Facility card 1 -------
-                facilityCard(
-                  openNow: true,
-                  title: "Family Bakery - Daily Bread Dispensing",
-                  description:
-                      "Subsidized wheat pita quotas for registered households. Please present digital QR at entry...",
-                  wait: "~15 mins",
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Material(
+                    elevation: 3,
+                    shadowColor: const Color(0x45000000),
+                    borderRadius: BorderRadius.circular(13),
+                    color: Colors.white,
+                    child: InkWell(
+                      onTap: onSearch,
+                      borderRadius: BorderRadius.circular(13),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: onScan == null ? 15 : 11.5,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.search, color: citizenBlue, size: 27),
+                            SizedBox(width: 16),
+                            Text(
+                              tr('Search facilities'),
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (onScan != null)
+                              Semantics(
+                                button: true,
+                                label: tr('Scan facility QR'),
+                                child: InkResponse(
+                                  onTap: onScan,
+                                  radius: 22,
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE3F2FD),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.qr_code_scanner_rounded,
+                                      color: citizenBlue,
+                                      size: 22,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-
-                const SizedBox(height: 15),
-
-                // ------- Facility card 2 -------
-                facilityCard(
-                  openNow: false,
-                  title: "North Community - Baby Care Kits",
-                  description:
-                      "Infant milk formulas, sanitizers, and newborn diapers for registered mothers and guardians.",
-                  wait: "~10 mins",
+                const SizedBox(height: 10),
+                Padding(
+                  padding: EdgeInsetsDirectional.only(start: 10),
+                  child: Text(
+                    tr('Your active booking'),
+                    style: TextStyle(color: citizenSoftBlue, fontSize: 21),
+                  ),
                 ),
+                const SizedBox(height: 16),
+                if (loading)
+                  const Center(child: CircularProgressIndicator())
+                else if (booking != null)
+                  _ticket()
+                else if (error == null)
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: citizenPanel(color: const Color(0xFFF5FBFF)),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.event_available_outlined,
+                          color: citizenBlue,
+                          size: 36,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          tr('Your next turn starts here'),
+                          style: TextStyle(
+                            color: citizenInk,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          tr('Explore nearby facilities and book your turn when you need it.'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Color(0xFF71849F)),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: citizenBlue,
+                          ),
+                          onPressed: onSearch,
+                          child: Text(tr('Explore facilities →')),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
         ),
       ),
-
-     
-bottomNavigationBar: SafeArea(
-  top: false,
-  child: Container(
-    height: 65,
-    padding: const EdgeInsets.symmetric(horizontal: 15),
-    decoration: const BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(18),
-      ),
-      border: Border(
-        top: BorderSide(
-          color: Color(0xFFE9EEF4),
-          width: 0.8,
-        ),
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Color(0x08000000),
-          blurRadius: 9,
-          offset: Offset(0, -3),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-
-        // Home - Selected
-        Expanded(
-          child: Center(
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 13,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE5F5FE),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.home_outlined,
-                    color: Color(0xFF159FE8),
-                    size: 23,
-                  ),
-                  SizedBox(width: 7),
-                  Text(
-                    'Home',
-                    style: TextStyle(
-                      color: Color(0xFF00A5EA),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // My Queue
-        Expanded(
-          child: Center(
-            child: IconButton(
-              onPressed: () {
-                Navigator.pushReplacementNamed(
-                  context,
-                  'active_queues_screen',
-                );
-              },
-              icon: const Icon(
-                Icons.tune_rounded,
-                color: Color(0xFF159FE8),
-                size: 29,
-              ),
-            ),
-          ),
-        ),
-
-        // Profile
-        Expanded(
-          child: Center(
-            child: IconButton(
-              onPressed: () {
-                Navigator.pushReplacementNamed(
-                  context,
-                  'profile_screen',
-                );
-              },
-              icon: const Icon(
-                Icons.person_outline,
-                color: Color(0xFF159FE8),
-                size: 29,
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  ),
-),
-    );}
-
-  // ---------- Facility icon widget ----------
-  Widget facilityIcon(
-    IconData icon,
-    String title,
-    String subtitle, {
-    bool selected = false,
-  }) {
-    return Column(
-      children: [
-        Stack(
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(15),
-                border: selected
-                    ? Border.all(color: Colors.blue, width: 2)
-                    : null,
-              ),
-              child: Icon(icon, color: Colors.grey[700]),
-            ),
-
-            if (selected)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    color: Colors.blue,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check,
-                    color: Colors.white,
-                    size: 10,
-                  ),
-                ),
-              ),
-          ],
-        ),
-
-        const SizedBox(height: 6),
-
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
+      bottomNavigationBar: CitizenBottomNav(selected: 0, onTap: (index) {
+        if (index == 1) onBookings();
+        if (index == 2) onProfile();
+      }),
     );
   }
 
-  // ---------- Facility card widget ----------
-  Widget facilityCard({
-    required bool openNow,
-    required String title,
-    required String description,
-    required String wait,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (openNow)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.green[50],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                "Open Now",
-                style: TextStyle(color: Colors.green),
-              ),
-            ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+  Widget _ticket() {
+    final data = booking!;
+    final time = (data['slotStart'] as Timestamp?)?.toDate();
+    return InkWell(
+      onTap: onTicket,
+      borderRadius: BorderRadius.circular(17),
+      child: Container(
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(17),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0085BD), Color(0xFF0CA8E5)],
           ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            description,
-            style: TextStyle(color: Colors.grey[600]),
-          ),
-
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 27),
+            Row(
               children: [
-                const Icon(
-                  Icons.access_time,
-                  color: Colors.blue,
-                  size: 18,
+                Expanded(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        tr('ACTIVE RESERVATION'),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 6),
-                Text("Wait: $wait"),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    tr(time == null ? '—' : citizenTime(FacilityTime.wall(time))),
+                    style: const TextStyle(
+                      color: Color(0xFF008ED3),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          MaterialButton(
-            minWidth: double.infinity,
-            height: 48,
-            color: Colors.blue,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
+            const SizedBox(height: 7),
+            Text(
+              tr(data['service'] as String? ?? 'Your reservation'),
+              style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FacilitiesScreen(),
-                ),
-              );
-            },
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            const SizedBox(height: 52),
+            Text(
+              tr('Ticket #$ticketId • ${data['facilityName'] ?? ''}'),
+              style: const TextStyle(color: Color(0xFFC0EDFF), fontSize: 14),
+            ),
+            const Divider(height: 34, color: Colors.white30),
+            Row(
               children: [
+                const Icon(Icons.circle, color: Color(0xFF62E7C3), size: 8),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    tr(data['status'] == 'called'
+                        ? 'Your turn • Ready'
+                        : data['checkedIn'] == true
+                        ? 'Checked in • Waiting'
+                        : 'Scheduled • Waiting'),
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
                 Text(
-                  "Join Queue Now",
-                  style: TextStyle(color: Colors.white),
-                ),
-                SizedBox(width: 6),
-                Icon(
-                  Icons.arrow_forward,
-                  color: Colors.white,
-                  size: 18,
+                  tr('View'),
+                  style: TextStyle(color: Color(0xFFC0EDFF), fontSize: 12),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

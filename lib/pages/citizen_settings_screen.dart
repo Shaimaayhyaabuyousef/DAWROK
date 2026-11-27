@@ -3,12 +3,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/citizen_preferences.dart';
+import 'package:first_project/l10n/app_language.dart';
 
-const _primary = Color(0xFF03A9F4);
+const _primary = Color(0xFF2196F3);
 const _softBlue = Color(0xFF64B9FA);
 const _ink = Color(0xFF182235);
 const _muted = Color(0xFF71849F);
 
+/// Shared settings for citizens, facilities and employees.
+/// The original class name is retained for existing citizen navigation.
 class CitizenSettingsScreen extends StatefulWidget {
   const CitizenSettingsScreen({super.key});
 
@@ -18,6 +21,7 @@ class CitizenSettingsScreen extends StatefulWidget {
 
 class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
   bool _busy = false;
+  bool _confirmingLogout = false;
 
   @override
   void initState() {
@@ -25,69 +29,50 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
     CitizenPreferences.instance.load().catchError((Object error) {
       debugPrint('Settings initialization failed: $error');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Could not load saved settings. Check local browser storage.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('Could not load saved settings. Check local browser storage.')),
       ));
     });
   }
 
-  void _info() {
-    showAboutDialog(
-      context: context,
-      applicationName: 'Dawrok',
-      applicationVersion: 'Prototype',
-      applicationLegalese: 'Queue booking and turn management.',
-    );
-  }
+  void _info() => Navigator.pushNamed(context, 'who_we_are');
 
-  void _report() {
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Report a problem'),
-        content: const Text(
-          'In-app report submission is not connected yet. '
-          'Please contact the Dawrok support team through your project support channel.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context),
-            child: const Text('OK')),
-        ],
-      ),
-    );
-  }
+  void _report() => Navigator.pushNamed(context, 'report');
 
   Future<void> _logout() async {
-    if (_busy) return;
+    if (_busy || _confirmingLogout) return;
+    _confirmingLogout = true;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('You will need to sign in again to use your account.'),
+        title: Text(tr('Log out?')),
+        content: Text(tr('You will need to sign in again to use your account.')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(tr('Cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Log out',
+            child: Text(tr('Log out'),
               style: TextStyle(color: Color(0xFFF04438))),
           ),
         ],
       ),
     );
+    _confirmingLogout = false;
     if (confirmed != true || !mounted) return;
 
+    final navigator = Navigator.of(context, rootNavigator: true);
     setState(() => _busy = true);
     try {
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil('login', (_) => false);
+      navigator.pushNamedAndRemoveUntil('login', (_) => false);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not log out. Please try again.')),
+        SnackBar(content: Text(tr('Could not log out. Please try again.'))),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -142,11 +127,11 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  Text(tr(title), maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 16,
                       color: dark ? Colors.white : _ink)),
                   const SizedBox(height: 2),
-                  Text(subtitle, maxLines: 2,
+                  Text(tr(subtitle), maxLines: 2,
                     style: TextStyle(fontSize: 11.5,
                       color: dark ? Colors.white60 : _muted)),
                 ],
@@ -162,8 +147,8 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                   debugPrint('Preference $title could not be persisted: $error');
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text(
-                        'Unable to save setting. Enable browser storage and restart Flutter.'
+                      SnackBar(content: Text(
+                        tr('Unable to save setting. Enable browser storage and restart Flutter.')
                       )),
                     );
                   }
@@ -192,7 +177,7 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
             children: [
               _smallIcon(icon, dark),
               const SizedBox(width: 14),
-              Expanded(child: Text(title, style: TextStyle(
+              Expanded(child: Text(tr(title), style: TextStyle(
                 color: destructive ? const Color(0xFFF04438)
                     : (dark ? Colors.white : _ink),
                 fontSize: 16,
@@ -218,37 +203,40 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
       builder: (context, dark, _) {
         final bg = dark ? const Color(0xFF101B2A) : Colors.white;
         final fg = dark ? Colors.white : _ink;
-        return Scaffold(
+        return PopScope(
+          canPop: !_busy,
+          child: Scaffold(
           backgroundColor: bg,
           body: SafeArea(
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(24, 9, 24, 33),
+                  padding: const EdgeInsetsDirectional.fromSTEB(24, 9, 24, 33),
                   children: [
                     SizedBox(
                       height: 48,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          Text('Settings', style: TextStyle(
+                          Text(tr('Settings'), style: TextStyle(
                             fontSize: 21,
                             color: dark ? const Color(0xFF90D5FF) : _softBlue,
                           )),
                           Align(
-                            alignment: Alignment.centerLeft,
+                            alignment: AlignmentDirectional.centerStart,
                             child: IconButton(
-                              tooltip: 'Back to Profile',
+                              tooltip: tr('Back to Profile'),
                               icon: Icon(Icons.arrow_back_ios_new,
                                 color: fg, size: 24),
-                              onPressed: () => Navigator.maybePop(context),
+                              onPressed: _busy ? null
+                                : () => Navigator.maybePop(context),
                             ),
                           ),
                           Align(
-                            alignment: Alignment.centerRight,
+                            alignment: AlignmentDirectional.centerEnd,
                             child: IconButton(
-                              tooltip: 'About Dawrok',
+                              tooltip: tr('About Dawrok'),
                               icon: Icon(Icons.info_outline, color: fg, size: 24),
                               onPressed: _info,
                             ),
@@ -258,27 +246,27 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                     ),
                     const SizedBox(height: 41),
                     Align(
-                      alignment: Alignment.centerLeft,
+                      alignment: AlignmentDirectional.centerStart,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                         decoration: BoxDecoration(
                           color: dark ? const Color(0xFF24465C) : const Color(0xFFE3F4FF),
                           borderRadius: BorderRadius.circular(21),
                         ),
-                        child: const Row(mainAxisSize: MainAxisSize.min,
+                        child: Row(mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.circle, color: _primary, size: 8),
                             SizedBox(width: 8),
-                            Text('Dawrok Queue System', style: TextStyle(
+                            Text(tr('Dawrok Queue System'), style: TextStyle(
                               color: Color(0xFF0088D1), fontSize: 12)),
                           ]),
                       ),
                     ),
                     const SizedBox(height: 9),
-                    Text('Preferences', style: TextStyle(
+                    Text(tr('Preferences'), style: TextStyle(
                       fontSize: 25, fontWeight: FontWeight.w500, color: fg)),
                     const SizedBox(height: 5),
-                    Text('Customize your workflow and display options',
+                    Text(tr('Customize your workflow and display options'),
                       style: TextStyle(fontSize: 13,
                         color: dark ? Colors.white60 : _muted)),
                     const SizedBox(height: 52),
@@ -287,24 +275,24 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                       child: Column(children: [
                         _toggleRow(
-                          dark: dark, title: 'Dark Mode',
-                          subtitle: 'Enable nighttime contrast',
+                          dark: dark, title: tr('Dark Mode'),
+                          subtitle: tr('Enable nighttime contrast'),
                           icon: Icons.nightlight_round,
                           state: CitizenPreferences.instance.darkMode,
                           onChanged: CitizenPreferences.instance.setDarkMode,
                         ),
                         _divider(dark),
                         _toggleRow(
-                          dark: dark, title: 'Save Image',
-                          subtitle: 'Preference for future media saving',
+                          dark: dark, title: tr('Save Image'),
+                          subtitle: tr('Preference for future media saving'),
                           icon: Icons.image_outlined,
                           state: CitizenPreferences.instance.saveImages,
                           onChanged: CitizenPreferences.instance.setSaveImages,
                         ),
                         _divider(dark),
                         _toggleRow(
-                          dark: dark, title: 'Work with SMS',
-                          subtitle: 'Preference only · SMS not enabled yet',
+                          dark: dark, title: tr('Work with SMS'),
+                          subtitle: tr('Preference only · SMS not enabled yet'),
                           icon: Icons.sms_outlined,
                           state: CitizenPreferences.instance.smsAlerts,
                           onChanged: CitizenPreferences.instance.setSmsAlerts,
@@ -316,14 +304,18 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                       decoration: _panelStyle(dark),
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
                       child: Column(children: [
+                        _actionRow(dark: dark, icon: Icons.language_rounded,
+                          title: '${tr('Language')} · ${AppLanguage.isArabic ? 'العربية' : 'English'}',
+                          onTap: () => AppLanguage.set(AppLanguage.isArabic ? 'en' : 'ar')),
+                        _divider(dark),
                         _actionRow(dark: dark, icon: Icons.chat_bubble_outline,
-                          title: 'Report', onTap: _report),
+                          title: tr('Report'), onTap: _report),
                         _divider(dark),
                         _actionRow(dark: dark, icon: Icons.info_outline,
-                          title: 'Who are we?', onTap: _info),
+                          title: tr('Who are we?'), onTap: _info),
                         _divider(dark),
                         _actionRow(dark: dark, icon: Icons.logout_rounded,
-                          title: 'Log out', onTap: _logout, destructive: true),
+                          title: tr('Log out'), onTap: _logout, destructive: true),
                       ]),
                     ),
                     const SizedBox(height: 28),
@@ -334,10 +326,10 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                         const Icon(Icons.circle, size: 12,
                           color: Color(0xFF0EC18C)),
                         const SizedBox(width: 11),
-                        Expanded(child: Text(FirebaseAuth.instance.currentUser == null
-                            ? 'Not signed in' : 'Account session active',
+                        Expanded(child: Text(tr(FirebaseAuth.instance.currentUser == null
+                            ? 'Not signed in' : 'Account session active'),
                           style: TextStyle(fontSize: 12, color: fg))),
-                        Text('DAWROK', style: TextStyle(
+                        Text(tr('DAWROK'), style: TextStyle(
                           fontSize: 12,
                           color: dark ? Colors.white60 : const Color(0xFF93A7C2))),
                       ]),
@@ -346,6 +338,7 @@ class _CitizenSettingsScreenState extends State<CitizenSettingsScreen> {
                 ),
               ),
             ),
+          ),
           ),
         );
       },

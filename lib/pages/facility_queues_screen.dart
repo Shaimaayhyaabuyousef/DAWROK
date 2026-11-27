@@ -128,7 +128,13 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
           bottom: false,
           child: AnimatedBuilder(
             animation: store,
-            builder: (context, _) => SingleChildScrollView(
+            builder: (context, _) => store.queues.isEmpty && store.error == null
+                ? FacilityCentered(
+                    child: store.hasLoadedQueues
+                        ? FacilityEmptyState.queues(action: _addButton(context))
+                        : const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+                  )
+                : SingleChildScrollView(
               padding: const EdgeInsets.only(top: 47, bottom: 22),
               child: Center(
                 child: ConstrainedBox(
@@ -142,11 +148,6 @@ class _FacilityQueuesScreenState extends State<FacilityQueuesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             if (store.queues.isNotEmpty) _statistics(store),
-                            if (store.queues.isEmpty && store.error == null)
-                              if (store.hasLoadedQueues)
-                                const FacilityEmptyState.queues()
-                              else
-                                const Center(child: CircularProgressIndicator()),
                             if (store.error != null) ...[
                               const SizedBox(height: 12),
                               Text(

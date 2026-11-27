@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 
 import '../models/citizen_registration_draft.dart';
 import '../services/citizen_signup_service.dart';
+import 'package:first_project/l10n/app_language.dart';
 
-const _blue = Color(0xFF03A9F4);
+const _blue = Color(0xFF2196F3);
 const _ink = Color(0xFF19283F);
 
 /// Step 3 of 3: PIN setup for the demo device only.
@@ -62,6 +63,9 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() => _error = _authMessage(e));
+    } on FormatException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error =
@@ -74,7 +78,7 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
   String _authMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':
-        return 'An account with this email already exists. Return to Signin.';
+        return 'An account with this phone number already exists. Return to Signin.';
       case 'weak-password':
         return 'Choose a stronger password.';
       case 'network-request-failed':
@@ -115,11 +119,11 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(digit == 'clear' ? 'C' : digit,
+                      Text(tr(digit == 'clear' ? 'C' : digit),
                         style: TextStyle(fontSize: digit == 'clear' ? 22 : 28,
                             fontWeight: FontWeight.w700)),
                       if (caption.isNotEmpty)
-                        Text(caption, style: const TextStyle(
+                        Text(tr(caption), style: const TextStyle(
                           fontSize: 9, color: Color(0xFF91A0B8))),
                     ],
                   ),
@@ -137,10 +141,10 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 30),
+          padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 30),
           children: [
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: IconButton(
                 onPressed: _saving ? null : () => Navigator.pop(context),
                 icon: const Icon(Icons.arrow_back_ios_new,
@@ -156,7 +160,7 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
                     color: const Color(0xFFD7EFFB),
                     borderRadius: BorderRadius.circular(25),
                   ),
-                  child: const Text('Step 3 of 3: Security PIN',
+                  child: Text(tr('Step 3 of 3: Security PIN'),
                     style: TextStyle(color: Color(0xFF00699B),
                         fontWeight: FontWeight.w600, fontSize: 14)),
                 ),
@@ -165,7 +169,7 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
                   Container(
                     width: 25,
                     height: 7,
-                    margin: const EdgeInsets.only(left: 4),
+                    margin: const EdgeInsetsDirectional.only(start: 4),
                     decoration: BoxDecoration(
                       color: _blue,
                       borderRadius: BorderRadius.circular(7),
@@ -187,13 +191,13 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Create a 4-digit code for this device.',
+            Text(
+              tr('Create a 4-digit code for this device.'),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 17, height: 1.35),
             ),
             const SizedBox(height: 35),
-            const Text('Enter Security PIN',
+            Text(tr('Enter Security PIN'),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 26, color: _blue)),
             const SizedBox(height: 18),
@@ -212,15 +216,15 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
               )),
             ),
             const SizedBox(height: 33),
-            _keyRow([_key('1'), _key('2', caption: 'ABC'), _key('3', caption: 'DEF')]),
-            _keyRow([_key('4', caption: 'GHI'), _key('5', caption: 'JKL'), _key('6', caption: 'MNO')]),
-            _keyRow([_key('7', caption: 'PQRS'), _key('8', caption: 'TUV'), _key('9', caption: 'WXYZ')]),
-            _keyRow([_key('clear', caption: 'CLEAR', subdued: true),
+            _keyRow([_key('1'), _key('2', caption: tr('ABC')), _key('3', caption: tr('DEF'))]),
+            _keyRow([_key('4', caption: tr('GHI')), _key('5', caption: tr('JKL')), _key('6', caption: tr('MNO'))]),
+            _keyRow([_key('7', caption: tr('PQRS')), _key('8', caption: tr('TUV')), _key('9', caption: tr('WXYZ'))]),
+            _keyRow([_key('clear', caption: tr('CLEAR'), subdued: true),
               _key('0', caption: '+'),
               _key('back', icon: Icons.backspace_outlined, subdued: true)]),
             if (_error != null) ...[
               const SizedBox(height: 10),
-              Text(_error!, textAlign: TextAlign.center,
+              Text(tr(_error!), textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
             ],
             const SizedBox(height: 18),
@@ -238,14 +242,14 @@ class _CitizenPinSetupScreenState extends State<CitizenPinSetupScreen> {
                 ),
                 child: _saving
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Finish Signup',
+                    : Text(tr('Finish Signup'),
                         style: const TextStyle(
                           fontSize: 20, fontWeight: FontWeight.w600)),
               ),
             ),
             const SizedBox(height: 11),
-            const Text('Demo PIN is stored on this device only. '
-              'Your Firebase password remains the account credential.',
+            Text(tr('Demo PIN is stored on this device only. '
+              'Your Firebase password remains the account credential.'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 11, color: Color(0xFF73859D))),
           ],

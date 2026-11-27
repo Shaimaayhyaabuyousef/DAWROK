@@ -1,9 +1,11 @@
+import 'citizen_bottom_nav.dart';
 
 import 'package:flutter/material.dart';
 
 import 'profile_screen.dart';
 import 'queue_booking.dart';
 import 'queue_ticket_screen.dart';
+import 'package:first_project/l10n/app_language.dart';
 
 // Colors
 const Color pageBlue = Color(0xFF62B4F8);
@@ -50,6 +52,9 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
         builder: (context) => QueueTicketScreen(
           ticketNumber: booking.ticketNumber,
           queueNumber: booking.queueNumber,
+          windowNumber: booking.windowNumber,
+          windowCount: booking.windowCount,
+          scheduledAt: booking.scheduledAt,
           facilityName: booking.facilityName,
           idNumber: booking.idNumber,
           createdAt: booking.createdAt,
@@ -102,8 +107,8 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
             const SizedBox(height: 16),
 
             // Page title
-            const Text(
-              'Active queues',
+            Text(
+              tr('Active queues'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: pageBlue,
@@ -121,9 +126,9 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
               ),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Your active tickets',
+                      tr('Your active tickets'),
                       style: TextStyle(
                         color: darkText,
                         fontSize: 15,
@@ -145,7 +150,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Text(
-                      '${bookings.length} tickets',
+                      tr('${bookings.length} tickets'),
                       style: const TextStyle(
                         color: Color(0xFF0789CE),
                         fontSize: 13,
@@ -164,7 +169,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
               child: bookings.isEmpty
                   ? buildEmptyState()
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
                         20, 0, 20, 18,
                       ),
                       itemCount: bookings.length,
@@ -182,7 +187,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
       ),
 
       // Custom bottom navigation
-      bottomNavigationBar: buildBottomNavigationBar(),
+      bottomNavigationBar: CitizenBottomNav(selected: 1, onTap: onNavigationTap),
     );
   }
 
@@ -202,8 +207,8 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
             const SizedBox(height: 14),
 
-            const Text(
-              'No active tickets yet',
+            Text(
+              tr('No active tickets yet'),
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
@@ -214,7 +219,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
             const SizedBox(height: 7),
 
             Text(
-              'Your bookings will appear here after you join a queue.',
+              tr('Your bookings will appear here after you join a queue.'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.grey.shade600,
@@ -290,7 +295,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
           ),
 
           Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: const EdgeInsetsDirectional.fromSTEB(
               16, 15, 16, 14,
             ),
             child: Column(
@@ -355,7 +360,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
                 // View ticket button
                 viewButton(
-                  label: 'View Ticket',
+                  label: tr('View Ticket'),
                   filled: true,
                   onPressed: () => openTicket(booking),
                 ),
@@ -371,7 +376,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
   Widget buildScheduledCard(QueueBooking booking) {
     return Container(
       decoration: cardDecoration(highlighted: false),
-      padding: const EdgeInsets.fromLTRB(
+      padding: const EdgeInsetsDirectional.fromSTEB(
         15, 15, 15, 15,
       ),
 
@@ -419,7 +424,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
           ),
 
           viewButton(
-            label: 'View Details',
+            label: tr('View Details'),
             filled: false,
             onPressed: () => openTicket(booking),
           ),
@@ -432,7 +437,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
   Widget buildInQueueCard(QueueBooking booking) {
     return Container(
       decoration: cardDecoration(highlighted: false),
-      padding: const EdgeInsets.fromLTRB(
+      padding: const EdgeInsetsDirectional.fromSTEB(
         15, 15, 15, 15,
       ),
 
@@ -474,7 +479,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
           ),
 
           viewButton(
-            label: 'View Details',
+            label: tr('View Details'),
             filled: false,
             onPressed: () => openTicket(booking),
           ),
@@ -506,7 +511,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
       ),
 
       child: Text(
-        '#$number',
+        tr('#$number'),
         style: TextStyle(
           color: dark ? Colors.white : darkText,
           fontSize: 16,
@@ -532,7 +537,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
         borderRadius: BorderRadius.circular(7),
       ),
 
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
@@ -544,7 +549,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
           SizedBox(width: 5),
 
           Text(
-            'Your turn soon',
+            tr('Your turn soon'),
             style: TextStyle(
               color: Color(0xFF0089CD),
               fontSize: 16,
@@ -586,7 +591,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
             const SizedBox(width: 5),
 
             Text(
-              'Scheduled • ${time ?? '2:30 PM'}',
+              tr('Scheduled • ${time ?? '2:30 PM'}'),
               style: const TextStyle(
                 color: Colors.black,
                 fontSize: 15,
@@ -614,7 +619,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
         borderRadius: BorderRadius.circular(7),
       ),
 
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
@@ -626,7 +631,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
           SizedBox(width: 5),
 
           Text(
-            'In Queue',
+            tr('In Queue'),
             style: TextStyle(
               color: Color(0xFFB85B00),
               fontSize: 16,
@@ -647,7 +652,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
       children: [
         Flexible(
           child: Text(
-            name,
+            tr(name),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -685,7 +690,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
         borderRadius: BorderRadius.circular(14),
       ),
 
-      child: const Column(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
@@ -697,7 +702,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
           SizedBox(height: 1),
 
           Text(
-            'QR READY',
+            tr('QR READY'),
             style: TextStyle(
               color: Color(0xFF086CA6),
               fontSize: 15,
@@ -740,8 +745,8 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
           const SizedBox(width: 6),
 
-          const Text(
-            'Wait:',
+          Text(
+            tr('Wait:'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -752,7 +757,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
           Expanded(
             child: Text(
-              waiting,
+              tr(waiting),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -770,8 +775,8 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
           const SizedBox(width: 5),
 
-          const Text(
-            'Ahead:',
+          Text(
+            tr('Ahead:'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -782,7 +787,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
           Flexible(
             child: Text(
-              '${booking.peopleAhead} people',
+              tr('${booking.peopleAhead} people'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -823,7 +828,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
           Expanded(
             child: Text(
-              'Window opens in ${timeLeft ?? 'soon'}',
+              tr(timeLeft == null ? 'Window opens soon' : 'Window opens in $timeLeft'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -850,8 +855,8 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
         const SizedBox(width: 6),
 
-        const Text(
-          'Beneficiary:',
+        Text(
+          tr('Beneficiary:'),
           style: TextStyle(
             color: Colors.black,
             fontSize: 16,
@@ -863,7 +868,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
 
         Expanded(
           child: Text(
-            name,
+            tr(name),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -894,7 +899,7 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
                 Icons.visibility_outlined,
                 size: 17,
               ),
-              label: Text(label),
+              label: Text(tr(label)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4AAAF0),
                 foregroundColor: Colors.white,
@@ -926,123 +931,8 @@ class _ActiveQueuesScreenState extends State<ActiveQueuesScreen> {
                   borderRadius: BorderRadius.circular(13),
                 ),
               ),
-              child: Text(label),
+              child: Text(tr(label)),
             ),
-    );
-  }
-
-  // Bottom navigation bar - matches the reference image
-  Widget buildBottomNavigationBar() {
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
-
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(18),
-          ),
-          border: Border(
-            top: BorderSide(
-              color: Color(0xFFE9EEF4),
-              width: 0.8,
-            ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 9,
-              offset: Offset(0, -3),
-            ),
-          ],
-        ),
-
-        child: SizedBox(
-          height: 48,
-          child: Stack(
-            children: [
-
-              // Home icon - left
-              Align(
-                alignment: const Alignment(-0.62, 0),
-                child: bottomNavIcon(
-                  icon: Icons.home_outlined,
-                  onTap: () => onNavigationTap(0),
-                ),
-              ),
-
-              // My Queue selected pill - center
-             Expanded(
-          child: Center(
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 13,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE5F5FE),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.tune_rounded,
-                    color: Color(0xFF159FE8),
-                    size: 23,
-                  ),
-                  SizedBox(width: 7),
-                  Text(
-                          'My Queue',
-                          style: TextStyle(
-                            color: Color(0xFF00A5EA),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Profile icon - right
-              Align(
-                alignment: const Alignment(0.48, 0),
-                child: bottomNavIcon(
-                  icon: Icons.person_outline,
-                  onTap: () => onNavigationTap(2),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Bottom navigation icon
-  Widget bottomNavIcon({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-
-        child: SizedBox(
-          width: 44,
-          height: 48,
-          child: Icon(
-            icon,
-            color: const Color(0xFF168FDF),
-            size: 29,
-          ),
-        ),
-      ),
     );
   }
 }

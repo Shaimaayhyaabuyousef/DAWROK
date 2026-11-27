@@ -46,7 +46,7 @@ class CitizenBottomNav extends StatelessWidget {
                 child: Semantics(
                   button: true,
                   selected: active,
-                  label: labels[i],
+                  label: tr(labels[i]),
                   excludeSemantics: true,
                   onTap: () => onTap(i),
                   child: InkWell(

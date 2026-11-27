@@ -35,7 +35,16 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
     backgroundColor: Colors.white,
     body: SafeArea(bottom: false, child: AnimatedBuilder(
       animation: FacilityStaffStore.instance,
-      builder: (context, _) => Column(children: [
+      builder: (context, _) {
+        final store = FacilityStaffStore.instance;
+        if (store.staff.isEmpty && store.error == null) {
+          return FacilityCentered(
+            child: store.hasLoadedStaff
+                ? FacilityEmptyState.staff(action: _addButton(context))
+                : const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+          );
+        }
+        return Column(children: [
         Expanded(child: ListView(padding: const EdgeInsetsDirectional.fromSTEB(19, 45, 19, 20), children: [
           if (FacilityStaffStore.instance.error != null) ...[
             Padding(
@@ -44,22 +53,20 @@ class _FacilityStaffScreenState extends State<FacilityStaffScreen> {
                 style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
             ),
           ],
-          if (FacilityStaffStore.instance.staff.isEmpty && FacilityStaffStore.instance.error == null)
-            if (FacilityStaffStore.instance.hasLoadedStaff)
-              const FacilityEmptyState.staff()
-            else
-              const Center(child: CircularProgressIndicator()),
           ...FacilityStaffStore.instance.staff.map((s) => Padding(padding: const EdgeInsets.only(bottom: 16), child: _staffCard(context, s))),
           const SizedBox(height: 3),
-          SizedBox(height: 54, child: ElevatedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FacilityAddStaffScreen())),
-            style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-            icon: const Icon(Icons.add_circle_outline, size: 24), label: Text(tr('Add Staff Member'), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)))),
+          _addButton(context),
         ])),
-      ]),
+      ]);
+      },
     )),
     bottomNavigationBar: const FacilityBottomNav(selected: 2),
   );
+
+  Widget _addButton(BuildContext context) => SizedBox(height: 54, child: ElevatedButton.icon(
+    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FacilityAddStaffScreen())),
+    style: ElevatedButton.styleFrom(backgroundColor: facilityBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+    icon: const Icon(Icons.add_circle_outline, size: 24), label: Text(tr('Add Staff Member'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600))));
 
   Future<void> _write(BuildContext context, Future<void> Function() action) async {
     try { await action(); }

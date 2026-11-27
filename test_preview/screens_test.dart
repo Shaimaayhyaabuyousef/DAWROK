@@ -13,6 +13,7 @@ import 'package:first_project/pages/onboarding.dart';
 import 'package:first_project/pages/queue_ticket_screen.dart';
 import 'package:first_project/pages/who_we_are_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +28,10 @@ Future<void> _font(String family, List<String> files) async {
 }
 
 void main() {
+  tearDownAll(() => debugDisableShadows = true);
   setUpAll(() async {
+    // Draw real soft shadows instead of the test default solid outlines.
+    debugDisableShadows = false;
     await _font('Inter', [for (final w in [400, 500, 600, 700]) 'assets/fonts/Inter-$w.ttf']);
     await _font('IBMPlexSansArabic', [for (final w in [400, 500, 600, 700]) 'assets/fonts/IBMPlexSansArabic-$w.ttf']);
     final root = Platform.environment['FLUTTER_ROOT'] ?? '';
